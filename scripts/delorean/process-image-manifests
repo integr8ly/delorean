@@ -21,7 +21,6 @@
 set -e
 
 WORK_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-MANIFESTS_DIR=${WORK_DIR}/../../manifests
 MANIFEST_TMP_DIR=${MANIFESTS_DIR}/tmp
 IMAGE=$1
 PRODUCT=$2
@@ -199,4 +198,9 @@ process_image() {
    update_package_yaml
 }
 
-process_image
+if [ -z "${MANIFESTS_DIR}" ]; then
+    echo "MANIFEST_DIR is not set!!"
+    exit 1
+else
+    process_image
+fi

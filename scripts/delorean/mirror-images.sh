@@ -11,7 +11,6 @@
 set -e
 
 WORK_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-MANIFESTS_DIR=${WORK_DIR}/../../manifests
 ARGS=
 # ARGS is a fix for running it locally on mac. It is defaulted to empty for other OSs.
 if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -32,4 +31,9 @@ mirror_images() {
     exit $failures
 }
 
-mirror_images
+if [ -z "${MANIFESTS_DIR}" ]; then
+    echo "MANIFEST_DIR is not set!!"
+    exit 1
+else
+    mirror_images
+fi

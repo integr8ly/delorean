@@ -81,4 +81,9 @@ process_csv() {
     process_csv_images $current_csv $PRODUCT
 }
 
-process_csv
+if [ -z "${MANIFESTS_DIR}" ]; then
+    echo "MANIFEST_DIR is not set!!"
+    exit 1
+else
+    process_csv
+fi
