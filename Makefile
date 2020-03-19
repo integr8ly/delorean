@@ -22,3 +22,12 @@ format:
 build/cli:
 	go build -o=$(BUILD_TARGET) .
 .PHONY: build
+
+.PHONY: vendor/check
+vendor/check: vendor/fix
+	git diff --exit-code vendor/
+
+.PHONY: vendor/fix
+vendor/fix:
+	go mod tidy
+	go mod vendor
