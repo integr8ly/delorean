@@ -4,7 +4,7 @@
 *.dll
 *.so
 *.dylib
-delorean
+/delorean
 
 # Test binary, built with `go test -c`
 *.test
