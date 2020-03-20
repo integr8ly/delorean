@@ -73,7 +73,7 @@ process_csv_images() {
 update_image_pull_secret() {
   current_csv=$(get_current_csv_file $PRODUCT)
   case $PRODUCT in
-  "amq-online")
+  "amq-online" | "3scale")
     yq w -i ${current_csv} spec.install.spec.deployments[0].spec.template.spec.imagePullSecrets[0].name ${IMAGE_PULL_SECRET}
     ;;
   *)
