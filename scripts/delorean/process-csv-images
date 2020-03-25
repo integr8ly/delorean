@@ -87,8 +87,18 @@ process_csv() {
     echo "~~~~~~"
     echo "Process CSV images for Product $PRODUCT"
     echo "~~~~~~"
-
     current_csv=$(get_current_csv_file $PRODUCT)
+    echo $current_csv
+
+    yq_images_script="$WORK_DIR/$(get_current_csv $PRODUCT)-images-script.yaml"
+    if test -f "$yq_images_script"; then
+        echo "$yq_images_script exists"
+        if [[ ! $(grep DV_IMAGE $current_csv) ]]; then
+          echo "required image env vars not present so adding"
+          yq w -i -s $yq_images_script $current_csv
+        fi
+    fi
+
     collect_csv_images $current_csv
     process_csv_images $current_csv $PRODUCT
 }
