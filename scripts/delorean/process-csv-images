@@ -66,7 +66,7 @@ process_csv_images() {
 
         #Add the image mapping if it doesn't already exist
         osbs_delorean_map="${osbs_image} ${delorean_image}"
-        grep -qxF "$osbs_delorean_map" $image_mirror_mapping || echo $osbs_delorean_map >> $image_mirror_mapping
+        grep -qF ${osbs_image} $image_mirror_mapping || echo $osbs_delorean_map >> $image_mirror_mapping
     done
 }
 
