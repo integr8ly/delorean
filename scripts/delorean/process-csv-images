@@ -29,18 +29,37 @@ RH_REGISTRY_STAGE=registry.stage.redhat.io/
 RH_REGISTRY_OSBS=registry-proxy.engineering.redhat.com/rh-osbs
 DELOREAN_REGISTRY=quay.io/integreatly/delorean
 IMAGE_PULL_SECRET=integreatly-delorean-pull-secret
+IMAGE_WHITELIST=$WORK_DIR/image-whitelist
 
 collect_csv_images() {
-    csv_images=(`grep -o ''${RH_REGISTRY_PROD}'.*\|'${RH_REGISTRY_STAGE}'.*' $1 | sed 's/"//' || true`)
+    csv_images=(`grep -o ''${RH_REGISTRY_PROD}'.*:.*\|'${RH_REGISTRY_STAGE}'.*:.*' $1 | sed 's/"//' || true`)
 }
 
 process_csv_images() {
     echo "Generate Image Mirror Mapping for $2"
     image_mirror_mapping=${MANIFESTS_DIR}/integreatly-${2}/image_mirror_mapping
 
+    if [ -f "$image_mirror_mapping" ]; then
+        echo "$image_mirror_mapping exists"
+        if grep -q "$DELOREAN_REGISTRY" "$1"; then
+            echo "$1 contains references to $DELOREAN_REGISTRY"
+        else
+            rm $image_mirror_mapping
+            echo "$1 does not contain references to $DELOREAN_REGISTRY"
+        fi
+    else
+        echo "$image_mirror_mapping does not exist"
+    fi
+
     for image in "${csv_images[@]}"
     do
         echo "Processing image $image"
+
+        if grep -q "$image" "$IMAGE_WHITELIST"; then
+            echo "image "$image" is whitelisted, ignoring!"
+            continue
+        fi
+
         # The below logic is specific to the amq-broker image
         if [[ $image == *"amq-broker"* ]]; then
             image_version="$(echo $image | cut -f2 -d":")"
