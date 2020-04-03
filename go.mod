@@ -4,7 +4,6 @@ go 1.13
 
 require (
 	github.com/google/go-github/v30 v30.1.0
-	github.com/matryer/moq v0.0.0-20200310130814-7721994d1b54 // indirect
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/spf13/cobra v0.0.6
 	github.com/spf13/viper v1.6.2
