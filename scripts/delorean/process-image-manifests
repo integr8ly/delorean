@@ -56,24 +56,25 @@ get_current_csv_filename() {
 
 get_current_csv() {
     echo "Getting current csv from existing package.yaml"
-    # The sed entry here will need to be fixed up for each product.
     # The operator versions do not all follow the same syntax
+    # The passed value below will need to be fixed up for each product.
+    # In particular when we are based on master the amqonline. should be updated to amq-online because of the below change
+    # https://github.com/integr8ly/integreatly-operator/pull/562/files#diff-f0c5f7cdabef76c7adc5c25f5615162cL4
     case "$PRODUCT" in
-    "fuse-online")
-       CURRENT_CSV=$(yq r ${MANIFESTS_DIR}/integreatly-${PRODUCT}/${CURRENT_CSV_FILE_NAME} channels[0].currentCSV | sed -e s/^fuse-online-operator.v//)
-       ;;
-    "3scale")
-       CURRENT_CSV=$(yq r ${MANIFESTS_DIR}/integreatly-${PRODUCT}/${CURRENT_CSV_FILE_NAME} channels[0].currentCSV | sed -e s/^3scale-operator.v//)
+    "fuse-online" | "3scale")
+       CURRENT_CSV=$(yq r ${MANIFESTS_DIR}/integreatly-${PRODUCT}/${CURRENT_CSV_FILE_NAME} channels[0].currentCSV)
+       CURRENT_CSV_SEMVER=$(echo ${CURRENT_CSV} | sed -e s/^${PRODUCT}-operator.v//)
        ;;
     "amq-online")
-       CURRENT_CSV=$(yq r ${MANIFESTS_DIR}/integreatly-${PRODUCT}/${CURRENT_CSV_FILE_NAME} channels[0].currentCSV | sed -e s/^amqonline.//)
+       CURRENT_CSV=$(yq r ${MANIFESTS_DIR}/integreatly-${PRODUCT}/${CURRENT_CSV_FILE_NAME} channels[0].currentCSV)
+       CURRENT_CSV_SEMVER=$(echo ${CURRENT_CSV} | sed -e s/^amqonline.// | sed -e s/^amq-online.//)
        ;;
      *)
        echo "Passed an unknown product $PRODUCT"
        exit
        ;;
     esac
-    echo "Current CSV $CURRENT_CSV"
+    echo "Current CSV $CURRENT_CSV_SEMVER"
 }
 
 
@@ -114,7 +115,7 @@ get_new_csv() {
 }
 
 check_versions() {
-    if [ $(ver $NEW_CSV_SEMVER) -lt $(ver $CURRENT_CSV) ]
+    if [ $(ver $NEW_CSV_SEMVER) -lt $(ver $CURRENT_CSV_SEMVER) ]
     then
         echo "There is a newer version of the CSV present so EXIT"
         exit
@@ -160,7 +161,7 @@ update_new_csv() {
       exit
     esac
     echo "${MANIFESTS_DIR}/integreatly-${PRODUCT}/${NEW_CSV_FOLDER}/${NEW_CSV_FILE_NAME}"
-    yq d -i ${MANIFESTS_DIR}/integreatly-${PRODUCT}/${NEW_CSV_FOLDER}/${NEW_CSV_FILE_NAME} spec.replaces
+    yq w -i ${MANIFESTS_DIR}/integreatly-${PRODUCT}/${NEW_CSV_FOLDER}/${NEW_CSV_FILE_NAME} 'spec.replaces' $CURRENT_CSV
     yq w -i ${MANIFESTS_DIR}/integreatly-${PRODUCT}/${NEW_CSV_FOLDER}/${NEW_CSV_FILE_NAME} 'spec.install.spec.deployments[0].spec.template.spec.containers[0].env.name==WATCH_NAMESPACE.valueFrom.fieldRef.fieldPath' metadata.annotations[\'olm.targetNamespaces\']
     yq w -i ${MANIFESTS_DIR}/integreatly-${PRODUCT}/${NEW_CSV_FOLDER}/${NEW_CSV_FILE_NAME} 'spec.install.spec.deployments[0].spec.template.spec.containers[0].env.name==NAMESPACE.valueFrom.fieldRef.fieldPath' metadata.annotations[\'olm.targetNamespaces\']
 }
