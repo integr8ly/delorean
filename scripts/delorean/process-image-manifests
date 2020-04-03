@@ -58,16 +58,13 @@ get_current_csv() {
     echo "Getting current csv from existing package.yaml"
     # The operator versions do not all follow the same syntax
     # The passed value below will need to be fixed up for each product.
-    # In particular when we are based on master the amqonline. should be updated to amq-online because of the below change
-    # https://github.com/integr8ly/integreatly-operator/pull/562/files#diff-f0c5f7cdabef76c7adc5c25f5615162cL4
+    CURRENT_CSV=$(yq r ${MANIFESTS_DIR}/integreatly-${PRODUCT}/${CURRENT_CSV_FILE_NAME} channels[0].currentCSV)
     case "$PRODUCT" in
     "fuse-online" | "3scale")
-       CURRENT_CSV=$(yq r ${MANIFESTS_DIR}/integreatly-${PRODUCT}/${CURRENT_CSV_FILE_NAME} channels[0].currentCSV)
        CURRENT_CSV_SEMVER=$(echo ${CURRENT_CSV} | sed -e s/^${PRODUCT}-operator.v//)
        ;;
     "amq-online")
-       CURRENT_CSV=$(yq r ${MANIFESTS_DIR}/integreatly-${PRODUCT}/${CURRENT_CSV_FILE_NAME} channels[0].currentCSV)
-       CURRENT_CSV_SEMVER=$(echo ${CURRENT_CSV} | sed -e s/^amqonline.// | sed -e s/^amq-online.//)
+       CURRENT_CSV_SEMVER=$(echo ${CURRENT_CSV} | sed -e s/^${PRODUCT}.//)
        ;;
      *)
        echo "Passed an unknown product $PRODUCT"
