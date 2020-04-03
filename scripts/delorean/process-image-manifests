@@ -75,6 +75,8 @@ get_current_csv() {
        ;;
     esac
     echo "Current CSV $CURRENT_CSV_SEMVER"
+    CURRENT_SPEC_REPLACES=$(yq r ${MANIFESTS_DIR}/integreatly-${PRODUCT}/${PRODUCT}-${CURRENT_CSV_SEMVER}/${CURRENT_CSV}.clusterserviceversion.yaml 'spec.replaces')
+    echo "Current spec.replaces ${CURRENT_SPEC_REPLACES}"
 }
 
 
@@ -123,6 +125,21 @@ check_versions() {
     echo "Newer version found, continuing"
 }
 
+get_spec_replaces(){
+    if [ $(ver $NEW_CSV_SEMVER) -eq $(ver $CURRENT_CSV_SEMVER) ]
+    then
+        # In cases where the csv is the same but the files require an update
+        # the spec.replaces will remain the same as what's listed in the previous csv
+        # NOT the new replaces present in the extracted manifest"
+        # As the whole file is replaced by what's extracted we still need to carry out the patch
+        # But with the CURRENT_SPEC_REPLACES sourced before any files are overwritten.
+        SPEC_REPLACES=${CURRENT_SPEC_REPLACES}
+    else
+        SPEC_REPLACES=${CURRENT_CSV}
+    fi
+    echo "Value spec.replaces will be patched: ${SPEC_REPLACES}"
+}
+
 copy_new_csv() {
     echo "Copying process manifests to ${MANIFESTS_DIR}"
     # The below line won't work for apicurito as it doesn't add the product name to the semver in it's folder structure
@@ -161,7 +178,7 @@ update_new_csv() {
       exit
     esac
     echo "${MANIFESTS_DIR}/integreatly-${PRODUCT}/${NEW_CSV_FOLDER}/${NEW_CSV_FILE_NAME}"
-    yq w -i ${MANIFESTS_DIR}/integreatly-${PRODUCT}/${NEW_CSV_FOLDER}/${NEW_CSV_FILE_NAME} 'spec.replaces' $CURRENT_CSV
+    yq w -i ${MANIFESTS_DIR}/integreatly-${PRODUCT}/${NEW_CSV_FOLDER}/${NEW_CSV_FILE_NAME} 'spec.replaces' ${SPEC_REPLACES}
     yq w -i ${MANIFESTS_DIR}/integreatly-${PRODUCT}/${NEW_CSV_FOLDER}/${NEW_CSV_FILE_NAME} 'spec.install.spec.deployments[0].spec.template.spec.containers[0].env.name==WATCH_NAMESPACE.valueFrom.fieldRef.fieldPath' metadata.annotations[\'olm.targetNamespaces\']
     yq w -i ${MANIFESTS_DIR}/integreatly-${PRODUCT}/${NEW_CSV_FOLDER}/${NEW_CSV_FILE_NAME} 'spec.install.spec.deployments[0].spec.template.spec.containers[0].env.name==NAMESPACE.valueFrom.fieldRef.fieldPath' metadata.annotations[\'olm.targetNamespaces\']
 }
@@ -181,6 +198,7 @@ process_image() {
    get_current_csv
    get_new_csv
    check_versions
+   get_spec_replaces
    copy_new_csv
    get_file_name_for_new_csv
    update_new_csv
