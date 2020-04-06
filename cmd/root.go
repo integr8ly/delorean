@@ -1,15 +1,26 @@
 package cmd
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"github.com/google/go-github/v30/github"
 	"github.com/spf13/cobra"
+	"golang.org/x/oauth2"
 	"os"
+	"strings"
 
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/viper"
 )
 
 var cfgFile string
+
+const (
+	GITHUB_TOKEN_KEY          = "github_token"
+	INTEGREATLY_GITHUB_ORG    = "integr8ly"
+	INTEGREATLY_OPERATOR_REPO = "integreatly-operator"
+)
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -38,6 +49,8 @@ func init() {
 	// will be global for your application.
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.delorean.yaml)")
+	rootCmd.PersistentFlags().StringP("token", "t", "", fmt.Sprintf("Github access token. Can be set via the %s env var.", strings.ToUpper(GITHUB_TOKEN_KEY)))
+	viper.BindPFlag(GITHUB_TOKEN_KEY, rootCmd.PersistentFlags().Lookup("token"))
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
@@ -68,4 +81,22 @@ func initConfig() {
 	if err := viper.ReadInConfig(); err == nil {
 		fmt.Println("Using config file:", viper.ConfigFileUsed())
 	}
+}
+
+func requireGithubToken() (string, error) {
+	githubToken := viper.GetString(GITHUB_TOKEN_KEY)
+	if githubToken == "" {
+		return "", errors.New("Github token is not defined. Please check usage instructions.")
+	}
+	return githubToken, nil
+}
+
+func newGithubClient(token string) *github.Client {
+	ctx := context.Background()
+	ts := oauth2.StaticTokenSource(
+		&oauth2.Token{AccessToken: token},
+	)
+	tc := oauth2.NewClient(ctx, ts)
+	client := github.NewClient(tc)
+	return client
 }
