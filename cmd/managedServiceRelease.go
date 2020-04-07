@@ -423,8 +423,8 @@ func createTheReleaseMergeRequest(
 }
 
 // processCSVImagesCmd represents the processCSVImages command
-var managedServiceReleaseCmd = &cobra.Command{
-	Use:   "managed-service-release",
+var osdAddonReleaseCmd = &cobra.Command{
+	Use:   "osd-addon-release",
 	Short: "crete a release MR for the integreatly-operator to the managed-tenats repo",
 	Run: func(cmd *cobra.Command, args []string) {
 
@@ -512,47 +512,41 @@ var managedServiceReleaseCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(managedServiceReleaseCmd)
+	rootCmd.AddCommand(osdAddonReleaseCmd)
 
-	managedServiceReleaseCmd.Flags().StringVar(
+	osdAddonReleaseCmd.Flags().StringVar(
 		&versionFlag, "version", "",
 		"the integreatly-operator version to push to the managed-tenats repo (ex: 2.0.0, 2.0.0-er4)")
-	managedServiceReleaseCmd.MarkFlagRequired("version")
+	osdAddonReleaseCmd.MarkFlagRequired("version")
 
-	managedServiceReleaseCmd.Flags().StringVar(&gitlabUsernameFlag, "gitlab-user", "", "the gitlab user for commiting the changes")
-	managedServiceReleaseCmd.MarkFlagRequired("gitlab-user")
+	osdAddonReleaseCmd.Flags().StringVar(&gitlabUsernameFlag, "gitlab-user", "", "the gitlab user for commiting the changes")
+	osdAddonReleaseCmd.MarkFlagRequired("gitlab-user")
 
-	managedServiceReleaseCmd.Flags().StringVar(&gitlabTokenFlag, "gitlab-token", "", "the gitlab token to commit the changes and open the MR")
-	managedServiceReleaseCmd.MarkFlagRequired("gitlab-token")
+	osdAddonReleaseCmd.Flags().StringVar(&gitlabTokenFlag, "gitlab-token", "", "the gitlab token to commit the changes and open the MR")
+	osdAddonReleaseCmd.MarkFlagRequired("gitlab-token")
 
-	managedServiceReleaseCmd.Flags().StringVar(
+	osdAddonReleaseCmd.Flags().StringVar(
 		&mergeRequestDescriptionFlag,
 		"merge-request-description",
 		"",
 		"an optional merge request description that can be used to notify secific users (ex \"ping: @dbizzarr\"",
 	)
 
-	managedServiceReleaseCmd.Flags().StringVar(
+	osdAddonReleaseCmd.Flags().StringVar(
 		&managedTenantsOriginFlag,
 		"managed-tenants-origin",
 		"service/managed-tenants",
 		"managed-tenants origin repository namespace and name")
 
-	managedServiceReleaseCmd.Flags().StringVar(
+	osdAddonReleaseCmd.Flags().StringVar(
 		&managedTenantsForkFlag,
 		"managed-tenants-fork",
 		"integreatly-qe/managed-tenants",
 		"managed-tenants fork where to push the release files")
 
-	managedServiceReleaseCmd.Flags().StringVar(
+	osdAddonReleaseCmd.Flags().StringVar(
 		&integreatlyOperatorFlag,
 		"integreatly-operator",
 		"integr8ly/integreatly-operator.git",
 		"integreatly operator branch where to take the release file")
 }
-
-// How to try it
-// Fork the https://gitlab.cee.redhat.com/service/managed-tenants repo
-// Run this command
-// go run main.go managed-service-release --gitlab-user dbizzarr --gitlab-token $GITLAB_TOKEN --version 2.1.0-rc1 --integreatly-operator b1zzu/integreatly-operator --managed-tenants-origin dbizzarr/managed-tenants --managed-tenants-fork dbizzarr/managed-tenants
-//
