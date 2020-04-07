@@ -2,14 +2,13 @@ package cmd
 
 import (
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"path"
-	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/integr8ly/delorean/pkg/utils"
 	"github.com/spf13/cobra"
 	"github.com/xanzy/go-gitlab"
 	"gopkg.in/src-d/go-git.v4"
@@ -139,66 +138,6 @@ func (v *releaseVersion) isPreRrelease() bool {
 	return v.build != ""
 }
 
-func copyFile(src, dest string) error {
-	out, err := os.Create(dest)
-	if err != nil {
-		return fmt.Errorf("failed to create the file %s: %s", dest, err)
-	}
-	defer out.Close()
-
-	in, err := os.Open(src)
-	if err != nil {
-		return fmt.Errorf("failed to read the file %s: %s", dest, err)
-	}
-	defer in.Close()
-
-	_, err = io.Copy(out, in)
-	if err != nil {
-		return fmt.Errorf("failed to copy the file content: %s", err)
-	}
-
-	return nil
-}
-
-func copyDirectory(src, dest string) error {
-	entries, err := ioutil.ReadDir(src)
-	if err != nil {
-		return fmt.Errorf("failed to read the directory %s: %s", src, err)
-	}
-
-	// create the directory if it doesn't exists
-	if _, err := os.Stat(dest); os.IsNotExist(err) {
-		err = os.Mkdir(dest, 0755)
-		if err != nil {
-			return err
-		}
-	}
-
-	for _, entry := range entries {
-		srcFile := filepath.Join(src, entry.Name())
-		destFile := filepath.Join(dest, entry.Name())
-
-		fileInfo, err := os.Stat(srcFile)
-		if err != nil {
-			return fmt.Errorf("failed to retrieve the stats of the file %s: %s", srcFile, err)
-		}
-
-		switch fileInfo.Mode() & os.ModeType {
-		case os.ModeDir:
-			return fmt.Errorf("unexpected directory %s to copy", srcFile)
-		case os.ModeSymlink:
-			return fmt.Errorf("unxepcted symlink %s to coyp", srcFile)
-		default:
-			err = copyFile(srcFile, destFile)
-			if err != nil {
-				return fmt.Errorf("failed to copy file form %s to %s: %s", srcFile, destFile, err)
-			}
-		}
-	}
-
-	return nil
-}
-
 func copyTheOLMManifests(
 	managedTenantsDirectory, integreatlyOperatorDirectory string,
 	channel ReleaseChannel, version *releaseVersion) (string, error) {
@@ -209,7 +148,7 @@ func copyTheOLMManifests(
 	destination := path.Join(managedTenantsDirectory, relativeDestination)
 
 	fmt.Printf("copy files from %s to %s\n", source, destination)
-	err := copyDirectory(source, destination)
+	err := utils.CopyDirectory(source, destination)
 	if err != nil {
 		return "", err
 	}
