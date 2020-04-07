@@ -58,24 +58,24 @@ var (
 type ReleaseChannel string
 
 const (
-	StageChannel  ReleaseChannel = "stage"
-	EdgeChannel   ReleaseChannel = "edge"
-	StableChannel ReleaseChannel = "stable"
+	stageChannel  ReleaseChannel = "stage"
+	edgeChannel   ReleaseChannel = "edge"
+	stableChannel ReleaseChannel = "stable"
 )
 
-// Directory returns the relative path of the managed-teneants repo to the
+// directory returns the relative path of the managed-teneants repo to the
 // integreatly-operator for the given channel
-func (c *ReleaseChannel) Directory() string {
+func (c *ReleaseChannel) directory() string {
 
-	name := c.OperatorName()
+	name := c.operatorName()
 
 	var template string
 	switch *c {
-	case StageChannel:
+	case stageChannel:
 		template = "addons-stage/%s"
-	case EdgeChannel:
+	case edgeChannel:
 		template = "addons-production/%s"
-	case StableChannel:
+	case stableChannel:
 		template = "addons-production/%s"
 	default:
 		panic(fmt.Sprintf("unsopported channel %s", *c))
@@ -85,12 +85,12 @@ func (c *ReleaseChannel) Directory() string {
 }
 
 // OperatorName returns the name of the integreatly-operator depending on the channel
-func (c *ReleaseChannel) OperatorName() string {
+func (c *ReleaseChannel) operatorName() string {
 
 	switch *c {
-	case StageChannel, StableChannel:
+	case stageChannel, stableChannel:
 		return "integreatly-operator"
-	case EdgeChannel:
+	case edgeChannel:
 		return "integreatly-operator-internal"
 	default:
 		panic(fmt.Sprintf("unsopported channel %s", *c))
@@ -99,13 +99,13 @@ func (c *ReleaseChannel) OperatorName() string {
 
 // ReleaseVersion rappresents an integreatly version composed by a base part (2.0.0, 2.0.1, ...)
 // and a build part (ER1, RC2, ..) if it's a prerelase version
-type ReleaseVersion struct {
+type releaseVersion struct {
 	base  string
 	build string
 }
 
-// NewReleaseVersion parse the integreatly version as a string and returns a Version object
-func NewReleaseVersion(version string) (*ReleaseVersion, error) {
+// newReleaseVersion parse the integreatly version as a string and returns a Version object
+func newReleaseVersion(version string) (*releaseVersion, error) {
 
 	if version == "" {
 		return nil, fmt.Errorf("the version can not be empty")
@@ -114,19 +114,19 @@ func NewReleaseVersion(version string) (*ReleaseVersion, error) {
 	p := strings.Split(version, "-")
 	switch len(p) {
 	case 1:
-		return &ReleaseVersion{base: p[0], build: ""}, nil
+		return &releaseVersion{base: p[0], build: ""}, nil
 	case 2:
 		if p[1] == "" {
 			return nil, fmt.Errorf("the build part of the version %s is empty", version)
 		}
 
-		return &ReleaseVersion{base: p[0], build: p[1]}, nil
+		return &releaseVersion{base: p[0], build: p[1]}, nil
 	default:
 		return nil, fmt.Errorf("the version %s is invalid", version)
 	}
 }
 
-func (v *ReleaseVersion) String() string {
+func (v *releaseVersion) String() string {
 	p := []string{v.base}
 	if v.build != "" {
 		p = append(p, v.build)
@@ -134,8 +134,8 @@ func (v *ReleaseVersion) String() string {
 	return strings.Join(p, "-")
 }
 
-// IsPreRrelease returns true if the version end with -ER1, -RC1, ...
-func (v *ReleaseVersion) IsPreRrelease() bool {
+// isPreRrelease returns true if the version end with -ER1, -RC1, ...
+func (v *releaseVersion) isPreRrelease() bool {
 	return v.build != ""
 }
 
@@ -201,11 +201,11 @@ func copyDirectory(src, dest string) error {
 
 func copyTheOLMManifests(
 	managedTenantsDirectory, integreatlyOperatorDirectory string,
-	channel ReleaseChannel, version *ReleaseVersion) (string, error) {
+	channel ReleaseChannel, version *releaseVersion) (string, error) {
 
 	source := path.Join(integreatlyOperatorDirectory, fmt.Sprintf(sourceOLMManifestsDirectory, version))
 
-	relativeDestination := fmt.Sprintf("%s/%s", channel.Directory(), version.String())
+	relativeDestination := fmt.Sprintf("%s/%s", channel.directory(), version.String())
 	destination := path.Join(managedTenantsDirectory, relativeDestination)
 
 	fmt.Printf("copy files from %s to %s\n", source, destination)
@@ -217,9 +217,9 @@ func copyTheOLMManifests(
 	return relativeDestination, nil
 }
 
-func udpateThePackageManifest(managedTenantsDirectory string, channel ReleaseChannel, version *ReleaseVersion) (string, error) {
+func udpateThePackageManifest(managedTenantsDirectory string, channel ReleaseChannel, version *releaseVersion) (string, error) {
 
-	relative := fmt.Sprintf("%s/%s.package.yaml", channel.Directory(), channel.OperatorName())
+	relative := fmt.Sprintf("%s/%s.package.yaml", channel.directory(), channel.operatorName())
 	manifest := path.Join(managedTenantsDirectory, relative)
 
 	read, err := os.Open(manifest)
@@ -284,7 +284,7 @@ func udpateThePackageManifest(managedTenantsDirectory string, channel ReleaseCha
 func createTheReleaseMergeRequest(
 	integreatlyOperatorDirectory string,
 	managedTenantsDirectory string,
-	version *ReleaseVersion,
+	version *releaseVersion,
 	channel ReleaseChannel) error {
 
 	managedTenantsRepostiroy, err := git.PlainOpen(managedTenantsDirectory)
@@ -428,7 +428,7 @@ var osdAddonReleaseCmd = &cobra.Command{
 	Short: "crete a release MR for the integreatly-operator to the managed-tenats repo",
 	Run: func(cmd *cobra.Command, args []string) {
 
-		version, err := NewReleaseVersion(versionFlag)
+		version, err := newReleaseVersion(versionFlag)
 		if err != nil {
 			panic(err)
 		}
@@ -480,10 +480,10 @@ var osdAddonReleaseCmd = &cobra.Command{
 		}
 		// defer os.RemoveAll(integreatlyOperatorDirectory)
 
-		if version.IsPreRrelease() {
+		if version.isPreRrelease() {
 
 			// Release to stage
-			err = createTheReleaseMergeRequest(integreatlyOperatorDirectory, managedTenatDirectory, version, StageChannel)
+			err = createTheReleaseMergeRequest(integreatlyOperatorDirectory, managedTenatDirectory, version, stageChannel)
 			if err != nil {
 				panic(err)
 			}
@@ -492,17 +492,17 @@ var osdAddonReleaseCmd = &cobra.Command{
 
 			// When the version is not a prerelease version and is a final release
 			// then create the release against stage, edge and stable
-			err = createTheReleaseMergeRequest(integreatlyOperatorDirectory, managedTenatDirectory, version, StageChannel)
+			err = createTheReleaseMergeRequest(integreatlyOperatorDirectory, managedTenatDirectory, version, stageChannel)
 			if err != nil {
 				panic(err)
 			}
 
-			err = createTheReleaseMergeRequest(integreatlyOperatorDirectory, managedTenatDirectory, version, EdgeChannel)
+			err = createTheReleaseMergeRequest(integreatlyOperatorDirectory, managedTenatDirectory, version, edgeChannel)
 			if err != nil {
 				panic(err)
 			}
 
-			err = createTheReleaseMergeRequest(integreatlyOperatorDirectory, managedTenatDirectory, version, StableChannel)
+			err = createTheReleaseMergeRequest(integreatlyOperatorDirectory, managedTenatDirectory, version, stableChannel)
 			if err != nil {
 				panic(err)
 			}

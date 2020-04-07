@@ -9,17 +9,17 @@ func TestReleaseVersion(t *testing.T) {
 	cases := []struct {
 		description string
 		version     string
-		verify      func(t *testing.T, version string, v *ReleaseVersion, err error)
+		verify      func(t *testing.T, version string, v *releaseVersion, err error)
 	}{
 		{
 			description: "Verify release version",
 			version:     "2.0.0",
-			verify: func(t *testing.T, version string, v *ReleaseVersion, err error) {
+			verify: func(t *testing.T, version string, v *releaseVersion, err error) {
 				if err != nil {
 					t.Fatalf("expected to parse %s but it fails with: %s", version, err)
 				}
 
-				if v.IsPreRrelease() {
+				if v.isPreRrelease() {
 					t.Fatalf("expected %s to not be a prerelease version", version)
 				}
 
@@ -31,12 +31,12 @@ func TestReleaseVersion(t *testing.T) {
 		{
 			description: "Verify pre release version",
 			version:     "2.0.0-ER1",
-			verify: func(t *testing.T, version string, v *ReleaseVersion, err error) {
+			verify: func(t *testing.T, version string, v *releaseVersion, err error) {
 				if err != nil {
 					t.Fatalf("expected to parse %s but it fails with: %s", version, err)
 				}
 
-				if !v.IsPreRrelease() {
+				if !v.isPreRrelease() {
 					t.Fatalf("expected %s to be a prerelease version", version)
 				}
 
@@ -48,7 +48,7 @@ func TestReleaseVersion(t *testing.T) {
 		{
 			description: "When the version is empty it should fails",
 			version:     "",
-			verify: func(t *testing.T, _ string, _ *ReleaseVersion, err error) {
+			verify: func(t *testing.T, _ string, _ *releaseVersion, err error) {
 				if err == nil {
 					t.Fatalf("expected to fail when parsing an empty version")
 				}
@@ -57,7 +57,7 @@ func TestReleaseVersion(t *testing.T) {
 		{
 			description: "When the version is wrong it should fails",
 			version:     "2.0.0-er1-two",
-			verify: func(t *testing.T, version string, _ *ReleaseVersion, err error) {
+			verify: func(t *testing.T, version string, _ *releaseVersion, err error) {
 				if err == nil {
 					t.Fatalf("expected to fail when parsing the wrong version %s", version)
 				}
@@ -67,7 +67,7 @@ func TestReleaseVersion(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.description, func(t *testing.T) {
-			v, err := NewReleaseVersion(c.version)
+			v, err := newReleaseVersion(c.version)
 			c.verify(t, c.version, v, err)
 		})
 	}
