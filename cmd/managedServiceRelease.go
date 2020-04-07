@@ -33,7 +33,7 @@ const (
 	sourceOLMManifestsDirectory = "deploy/olm-catalog/integreatly-operator/integreatly-operator-%s"
 
 	// The branch to target with the merge request
-	managedTenantsMasterBranch = "fake-master"
+	managedTenantsMasterBranch = "master"
 
 	// Info for the commit and merge request
 	branchNameTemplate        = "integreatly-operator-%s-v%s"
