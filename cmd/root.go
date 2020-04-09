@@ -15,11 +15,13 @@ import (
 )
 
 var cfgFile string
+var integreatlyGHOrg string
+var integreatlyOperatorRepo string
 
 const (
-	GITHUB_TOKEN_KEY          = "github_token"
-	INTEGREATLY_GITHUB_ORG    = "integr8ly"
-	INTEGREATLY_OPERATOR_REPO = "integreatly-operator"
+	GithubTokenKey                 = "github_token"
+	DefaultIntegreatlyGithubOrg    = "integr8ly"
+	DefaultIntegreatlyOperatorRepo = "integreatly-operator"
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -30,6 +32,13 @@ var rootCmd = &cobra.Command{
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	//	Run: func(cmd *cobra.Command, args []string) { },
+}
+
+// releaseCmd represents the release command
+var releaseCmd = &cobra.Command{
+	Use:   "release",
+	Short: "RHMI release commands",
+	Long:  `Commands for creating a RHMI release`,
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -43,18 +52,16 @@ func Execute() {
 
 func init() {
 	cobra.OnInitialize(initConfig)
-
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
-
+	//flags for the root command (available for all subcommands)
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.delorean.yaml)")
-	rootCmd.PersistentFlags().StringP("token", "t", "", fmt.Sprintf("Github access token. Can be set via the %s env var.", strings.ToUpper(GITHUB_TOKEN_KEY)))
-	viper.BindPFlag(GITHUB_TOKEN_KEY, rootCmd.PersistentFlags().Lookup("token"))
 
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
-	//rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	//flags for the release command (available for all its subcommands)
+	releaseCmd.PersistentFlags().StringP("token", "t", "", fmt.Sprintf("Github access token. Can be set via the %s env var.", strings.ToUpper(GithubTokenKey)))
+	viper.BindPFlag(GithubTokenKey, releaseCmd.PersistentFlags().Lookup("token"))
+	releaseCmd.PersistentFlags().StringVarP(&integreatlyGHOrg, "org", "o", DefaultIntegreatlyGithubOrg, "Github organisation")
+	releaseCmd.PersistentFlags().StringVarP(&integreatlyOperatorRepo, "repo", "r", DefaultIntegreatlyOperatorRepo, "Github repository")
+
+	rootCmd.AddCommand(releaseCmd)
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -84,7 +91,7 @@ func initConfig() {
 }
 
 func requireGithubToken() (string, error) {
-	githubToken := viper.GetString(GITHUB_TOKEN_KEY)
+	githubToken := viper.GetString(GithubTokenKey)
 	if githubToken == "" {
 		return "", errors.New("Github token is not defined. Please check usage instructions.")
 	}

@@ -155,7 +155,7 @@ func TestSearchMergeBlockers(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.description, func(t *testing.T) {
-			issue, err := searchMergeBlockers(context.TODO(), c.client, INTEGREATLY_OPERATOR_REPO, INTEGREATLY_GITHUB_ORG, c.branch)
+			issue, err := searchMergeBlockers(context.TODO(), c.client, DefaultIntegreatlyOperatorRepo, DefaultIntegreatlyGithubOrg, c.branch)
 			c.verify(t, issue, err)
 		})
 	}
@@ -189,7 +189,7 @@ func TestCreateMergeBlockers(t *testing.T) {
 				if *issue.Title != "Merge Blocker|branch:master" {
 					t.Fatal("Wrong issue title:", issue.Title)
 				}
-				if *issue.Labels[0].Name != MERGE_BLOCKER_LABEL {
+				if *issue.Labels[0].Name != MergeBlockerLabel {
 					t.Fatal("Label not found")
 				}
 			},
@@ -263,7 +263,7 @@ func TestCreateMergeBlockers(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.description, func(t *testing.T) {
-			issue, err := createMergeBlocker(context.TODO(), c.client, INTEGREATLY_GITHUB_ORG, INTEGREATLY_OPERATOR_REPO, c.branch)
+			issue, err := createMergeBlocker(context.TODO(), c.client, DefaultIntegreatlyGithubOrg, DefaultIntegreatlyOperatorRepo, c.branch)
 			c.verify(t, issue, err)
 		})
 	}
@@ -386,7 +386,7 @@ func TestCloseMergeBlockers(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.description, func(t *testing.T) {
-			issue, err := closeMergeBlocker(context.TODO(), c.client, INTEGREATLY_GITHUB_ORG, INTEGREATLY_OPERATOR_REPO, c.branch)
+			issue, err := closeMergeBlocker(context.TODO(), c.client, DefaultIntegreatlyGithubOrg, DefaultIntegreatlyOperatorRepo, c.branch)
 			c.verify(t, issue, err)
 		})
 	}
