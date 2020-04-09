@@ -134,7 +134,6 @@ get_spec_replaces(){
     else
         SPEC_REPLACES=${CURRENT_CSV}
     fi
-    echo "Value spec.replaces will be patched: ${SPEC_REPLACES}"
 }
 
 copy_new_csv() {
@@ -175,7 +174,7 @@ update_new_csv() {
       exit
     esac
     echo "${MANIFESTS_DIR}/integreatly-${PRODUCT}/${NEW_CSV_FOLDER}/${NEW_CSV_FILE_NAME}"
-    yq w -i ${MANIFESTS_DIR}/integreatly-${PRODUCT}/${NEW_CSV_FOLDER}/${NEW_CSV_FILE_NAME} 'spec.replaces' ${SPEC_REPLACES}
+    [ -z "${SPEC_REPLACES}" ] || yq w -i ${MANIFESTS_DIR}/integreatly-${PRODUCT}/${NEW_CSV_FOLDER}/${NEW_CSV_FILE_NAME} 'spec.replaces' ${SPEC_REPLACES}
     yq w -i ${MANIFESTS_DIR}/integreatly-${PRODUCT}/${NEW_CSV_FOLDER}/${NEW_CSV_FILE_NAME} 'spec.install.spec.deployments[0].spec.template.spec.containers[0].env.name==WATCH_NAMESPACE.valueFrom.fieldRef.fieldPath' metadata.annotations[\'olm.targetNamespaces\']
     yq w -i ${MANIFESTS_DIR}/integreatly-${PRODUCT}/${NEW_CSV_FOLDER}/${NEW_CSV_FILE_NAME} 'spec.install.spec.deployments[0].spec.template.spec.containers[0].env.name==NAMESPACE.valueFrom.fieldRef.fieldPath' metadata.annotations[\'olm.targetNamespaces\']
 }
