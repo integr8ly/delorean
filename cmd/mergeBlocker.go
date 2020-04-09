@@ -27,10 +27,8 @@ import (
 
 var baseBranch string
 var isDeletion bool
-var ghOrg string
-var ghRepo string
 
-const MERGE_BLOCKER_LABEL = "tide/merge-blocker"
+const MergeBlockerLabel = "tide/merge-blocker"
 
 // mergeBlockerCmd represents the mergeBlocker command
 var mergeBlockerCmd = &cobra.Command{
@@ -46,12 +44,12 @@ var mergeBlockerCmd = &cobra.Command{
 		}
 		client := newGithubClient(token)
 		if isDeletion {
-			if _, err = closeMergeBlocker(cmd.Context(), client.Issues, ghOrg, ghRepo, baseBranch); err != nil {
+			if _, err = closeMergeBlocker(cmd.Context(), client.Issues, integreatlyGHOrg, integreatlyOperatorRepo, baseBranch); err != nil {
 				fmt.Println("Error:", err)
 				return
 			}
 		} else {
-			if _, err = createMergeBlocker(cmd.Context(), client.Issues, ghOrg, ghRepo, baseBranch); err != nil {
+			if _, err = createMergeBlocker(cmd.Context(), client.Issues, integreatlyGHOrg, integreatlyOperatorRepo, baseBranch); err != nil {
 				fmt.Println("Error:", err)
 				return
 			}
@@ -60,7 +58,7 @@ var mergeBlockerCmd = &cobra.Command{
 }
 
 func createMergeBlocker(ctx context.Context, client services.GithubIssuesService, org string, repo string, branch string) (*github.Issue, error) {
-	existing, err := searchMergeBlockers(ctx, client, ghOrg, ghRepo, branch)
+	existing, err := searchMergeBlockers(ctx, client, integreatlyGHOrg, integreatlyOperatorRepo, branch)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +70,7 @@ func createMergeBlocker(ctx context.Context, client services.GithubIssuesService
 	state := "open"
 	issue := &github.IssueRequest{
 		Title:  &title,
-		Labels: &([]string{MERGE_BLOCKER_LABEL}),
+		Labels: &([]string{MergeBlockerLabel}),
 		State:  &state,
 	}
 	created, resp, err := client.Create(ctx, org, repo, issue)
@@ -87,7 +85,7 @@ func createMergeBlocker(ctx context.Context, client services.GithubIssuesService
 }
 
 func closeMergeBlocker(ctx context.Context, client services.GithubIssuesService, org string, repo string, branch string) (*github.Issue, error) {
-	existing, err := searchMergeBlockers(ctx, client, ghOrg, ghRepo, branch)
+	existing, err := searchMergeBlockers(ctx, client, integreatlyGHOrg, integreatlyOperatorRepo, branch)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +95,7 @@ func closeMergeBlocker(ctx context.Context, client services.GithubIssuesService,
 	state := "closed"
 	issue := &github.IssueRequest{
 		Title:  existing.Title,
-		Labels: &([]string{MERGE_BLOCKER_LABEL}),
+		Labels: &([]string{MergeBlockerLabel}),
 		State:  &state,
 	}
 	updated, resp, err := client.Edit(ctx, org, repo, *existing.Number, issue)
@@ -114,7 +112,7 @@ func closeMergeBlocker(ctx context.Context, client services.GithubIssuesService,
 func searchMergeBlockers(ctx context.Context, client services.GithubIssuesService, org string, repo string, branch string) (*github.Issue, error) {
 	opts := &github.IssueListByRepoOptions{
 		State:  "open",
-		Labels: []string{MERGE_BLOCKER_LABEL},
+		Labels: []string{MergeBlockerLabel},
 	}
 	issues, resp, err := client.ListByRepo(ctx, org, repo, opts)
 	if err != nil {
@@ -132,10 +130,7 @@ func searchMergeBlockers(ctx context.Context, client services.GithubIssuesServic
 }
 
 func init() {
-	rootCmd.AddCommand(mergeBlockerCmd)
+	releaseCmd.AddCommand(mergeBlockerCmd)
 	mergeBlockerCmd.Flags().StringVarP(&baseBranch, "branch", "b", "master", "name of the branch to block merge")
 	mergeBlockerCmd.Flags().BoolVarP(&isDeletion, "delete", "d", false, "Delete the merge blocker instead of create")
-
-	mergeBlockerCmd.Flags().StringVarP(&ghOrg, "org", "o", INTEGREATLY_GITHUB_ORG, "Github organisation")
-	mergeBlockerCmd.Flags().StringVarP(&ghRepo, "repo", "r", INTEGREATLY_OPERATOR_REPO, "Github repository")
 }
