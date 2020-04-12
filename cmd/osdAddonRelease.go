@@ -14,6 +14,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/integr8ly/delorean/pkg/utils"
+	"github.com/operator-framework/operator-registry/pkg/registry"
 	"github.com/spf13/cobra"
 	"github.com/xanzy/go-gitlab"
 	"gopkg.in/yaml.v2"
@@ -52,19 +53,19 @@ var (
 	integreatlyOperatorFlag     string
 )
 
-// ReleaseChannel rappresents one of the three places (stage, edge, stable)
+// releaseChannel rappresents one of the three places (stage, edge, stable)
 // where to update the integreatly-operator
-type ReleaseChannel string
+type releaseChannel string
 
 const (
-	stageChannel  ReleaseChannel = "stage"
-	edgeChannel   ReleaseChannel = "edge"
-	stableChannel ReleaseChannel = "stable"
+	stageChannel  releaseChannel = "stage"
+	edgeChannel   releaseChannel = "edge"
+	stableChannel releaseChannel = "stable"
 )
 
 // directory returns the relative path of the managed-teneants repo to the
 // integreatly-operator for the given channel
-func (c *ReleaseChannel) directory() string {
+func (c *releaseChannel) directory() string {
 
 	name := c.operatorName()
 
@@ -84,7 +85,7 @@ func (c *ReleaseChannel) directory() string {
 }
 
 // OperatorName returns the name of the integreatly-operator depending on the channel
-func (c *ReleaseChannel) operatorName() string {
+func (c *releaseChannel) operatorName() string {
 
 	switch *c {
 	case stageChannel, stableChannel:
@@ -140,7 +141,7 @@ func (v *releaseVersion) isPreRrelease() bool {
 
 func copyTheOLMManifests(
 	managedTenantsDirectory, integreatlyOperatorDirectory string,
-	channel ReleaseChannel, version *releaseVersion) (string, error) {
+	channel releaseChannel, version *releaseVersion) (string, error) {
 
 	source := path.Join(integreatlyOperatorDirectory, fmt.Sprintf(sourceOLMManifestsDirectory, version))
 
@@ -156,7 +157,7 @@ func copyTheOLMManifests(
 	return relativeDestination, nil
 }
 
-func udpateThePackageManifest(managedTenantsDirectory string, channel ReleaseChannel, version *releaseVersion) (string, error) {
+func udpateThePackageManifest(managedTenantsDirectory string, channel releaseChannel, version *releaseVersion) (string, error) {
 
 	relative := fmt.Sprintf("%s/%s.package.yaml", channel.directory(), channel.operatorName())
 	manifest := path.Join(managedTenantsDirectory, relative)
@@ -173,30 +174,16 @@ func udpateThePackageManifest(managedTenantsDirectory string, channel ReleaseCha
 		return "", err
 	}
 
-	var i interface{}
-	err = yaml.Unmarshal(bytes, &i)
+	var p registry.PackageManifest
+	err = yaml.Unmarshal(bytes, &p)
 	if err != nil {
 		return "", err
 	}
 
-	done := false
 	// Set channels[0].currentCSV value
-	if m, ok := i.(map[interface{}]interface{}); ok {
-		// channels
-		if s, ok := m["channels"].([]interface{}); ok {
-			// [0]
-			if m, ok = s[0].(map[interface{}]interface{}); ok {
-				// .currentCSV
-				m["currentCSV"] = fmt.Sprintf("integreatly-operator.v%s", version)
-				done = true
-			}
-		}
-	}
-	if !done {
-		return "", fmt.Errorf("failed to change the channels[0].currentCSV of the interface: %T", i)
-	}
+	p.Channels[0].CurrentCSVName = fmt.Sprintf("integreatly-operator.v%s", version)
 
-	bytes, err = yaml.Marshal(i)
+	bytes, err = yaml.Marshal(p)
 	if err != nil {
 		return "", err
 	}
@@ -224,7 +211,7 @@ func createTheReleaseMergeRequest(
 	integreatlyOperatorDirectory string,
 	managedTenantsDirectory string,
 	version *releaseVersion,
-	channel ReleaseChannel) error {
+	channel releaseChannel) error {
 
 	managedTenantsRepostiroy, err := git.PlainOpen(managedTenantsDirectory)
 	if err != nil {
