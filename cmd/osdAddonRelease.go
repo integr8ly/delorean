@@ -175,19 +175,23 @@ func createTheReleaseMergeRequest(
 	version *version.RHMIVersion,
 	channel releaseChannel) error {
 
+	e := func(err error) error {
+		return fmt.Errorf("failed to create the MR for the version %s and channel %s: %s", version, channel, err)
+	}
+
 	managedTenantsHead, err := managedTenantsRepostiroy.Head()
 	if err != nil {
-		return err
+		return e(err)
 	}
 
 	// Verify that the repo is on master
 	if managedTenantsHead.Name() != plumbing.NewBranchReferenceName(managedTenantsMasterBranch) {
-		return fmt.Errorf("the managed-tenants repo is pointing to %s insteand of master", managedTenantsHead.Name())
+		return e(fmt.Errorf("the managed-tenants repo is pointing to %s insteand of master", managedTenantsHead.Name()))
 	}
 
 	managedTenantsTree, err := managedTenantsRepostiroy.Worktree()
 	if err != nil {
-		return err
+		return e(err)
 	}
 
 	// Create a new branch on the managed-tenants repo
@@ -199,31 +203,31 @@ func createTheReleaseMergeRequest(
 		Create: true,
 	})
 	if err != nil {
-		return err
+		return e(err)
 	}
 
 	// Copy the OLM manifests from the integreatly-operator repo to the the managed-tenats repo
 	manifestsDirectory, err := copyTheOLMManifests(managedTenantsDirectory, integreatlyOperatorDirectory, channel, version)
 	if err != nil {
-		return err
+		return e(err)
 	}
 
 	// Add all changes
 	err = managedTenantsTree.AddGlob(fmt.Sprintf("%s/*", manifestsDirectory))
 	if err != nil {
-		return err
+		return e(err)
 	}
 
 	// Update the integreatly-operator.package.yaml
 	packageManfiest, err := udpateThePackageManifest(managedTenantsDirectory, channel, version)
 	if err != nil {
-		return err
+		return e(err)
 	}
 
 	// Add the integreatly-operator.package.yaml
 	_, err = managedTenantsTree.Add(packageManfiest)
 	if err != nil {
-		return err
+		return e(err)
 	}
 
 	// Commit
@@ -240,17 +244,17 @@ func createTheReleaseMergeRequest(
 		},
 	)
 	if err != nil {
-		return err
+		return e(err)
 	}
 
 	// Verify tha the tree is clean
 	status, err := managedTenantsTree.Status()
 	if err != nil {
-		return err
+		return e(err)
 	}
 
 	if len(status) != 0 {
-		return fmt.Errorf("the tree is not clean, uncommited changes:\n%+v", status)
+		return e(fmt.Errorf("the tree is not clean, uncommited changes:\n%+v", status))
 	}
 
 	// Push to fork
@@ -264,7 +268,7 @@ func createTheReleaseMergeRequest(
 		},
 	})
 	if err != nil {
-		return err
+		return e(err)
 	}
 
 	// Create the merge request
@@ -273,12 +277,12 @@ func createTheReleaseMergeRequest(
 		gitlab.WithBaseURL(fmt.Sprintf("%s/%s", gitlabURL, gitlabAPIEndpoint)),
 	)
 	if err != nil {
-		return err
+		return e(err)
 	}
 
 	project, _, err := gitlabClient.Projects.GetProject(managedTenantsOriginFlag, &gitlab.GetProjectOptions{})
 	if err != nil {
-		return err
+		return e(err)
 	}
 
 	fmt.Print("create the MR to the managed-tenants origin\n")
@@ -290,7 +294,7 @@ func createTheReleaseMergeRequest(
 		TargetProjectID: gitlab.Int(project.ID),
 	})
 	if err != nil {
-		return err
+		return e(err)
 	}
 
 	fmt.Printf("Merge request for version %s and environment %s created successfully\n", version, channel)
@@ -299,7 +303,7 @@ func createTheReleaseMergeRequest(
 	// Reset the managed repostiroy to master
 	err = managedTenantsTree.Checkout(&git.CheckoutOptions{Branch: plumbing.NewBranchReferenceName(managedTenantsMasterBranch)})
 	if err != nil {
-		return err
+		return e(err)
 	}
 
 	return nil
