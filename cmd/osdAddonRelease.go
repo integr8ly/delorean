@@ -171,13 +171,9 @@ func udpateThePackageManifest(
 func createTheReleaseMergeRequest(
 	integreatlyOperatorDirectory string,
 	managedTenantsDirectory string,
+	managedTenantsRepostiroy *git.Repository,
 	version *version.RHMIVersion,
 	channel releaseChannel) error {
-
-	managedTenantsRepostiroy, err := git.PlainOpen(managedTenantsDirectory)
-	if err != nil {
-		return fmt.Errorf("failed to open the git repository %s: %s", managedTenantsDirectory, err)
-	}
 
 	managedTenantsHead, err := managedTenantsRepostiroy.Head()
 	if err != nil {
@@ -370,7 +366,13 @@ var osdAddonReleaseCmd = &cobra.Command{
 		if version.IsPreRrelease() {
 
 			// Release to stage
-			err = createTheReleaseMergeRequest(integreatlyOperatorDirectory, managedTenatDirectory, version, stageChannel)
+			err = createTheReleaseMergeRequest(
+				integreatlyOperatorDirectory,
+				managedTenatDirectory,
+				managedTenantsRepository,
+				version,
+				stageChannel,
+			)
 			if err != nil {
 				panic(err)
 			}
@@ -379,17 +381,35 @@ var osdAddonReleaseCmd = &cobra.Command{
 
 			// When the version is not a prerelease version and is a final release
 			// then create the release against stage, edge and stable
-			err = createTheReleaseMergeRequest(integreatlyOperatorDirectory, managedTenatDirectory, version, stageChannel)
+			err = createTheReleaseMergeRequest(
+				integreatlyOperatorDirectory,
+				managedTenatDirectory,
+				managedTenantsRepository,
+				version,
+				stageChannel,
+			)
 			if err != nil {
 				panic(err)
 			}
 
-			err = createTheReleaseMergeRequest(integreatlyOperatorDirectory, managedTenatDirectory, version, edgeChannel)
+			err = createTheReleaseMergeRequest(
+				integreatlyOperatorDirectory,
+				managedTenatDirectory,
+				managedTenantsRepository,
+				version,
+				edgeChannel,
+			)
 			if err != nil {
 				panic(err)
 			}
 
-			err = createTheReleaseMergeRequest(integreatlyOperatorDirectory, managedTenatDirectory, version, stableChannel)
+			err = createTheReleaseMergeRequest(
+				integreatlyOperatorDirectory,
+				managedTenatDirectory,
+				managedTenantsRepository,
+				version,
+				stableChannel,
+			)
 			if err != nil {
 				panic(err)
 			}
