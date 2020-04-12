@@ -102,8 +102,10 @@ type osdAddonReleaseCmd struct {
 	managedTenantsForkFlag      string
 	integreatlyOperatorFlag     string
 
-	print services.PrintService
-	git   services.GitService
+	print               services.PrintService
+	git                 services.GitService
+	gitlabMergeRequests services.GitLabMergeRequestsService
+	gitlabProjects      services.GitLabProjectsService
 }
 
 func (c *osdAddonReleaseCmd) copyTheOLMManifests(
@@ -290,26 +292,18 @@ func (c *osdAddonReleaseCmd) createTheReleaseMergeRequest(
 	}
 
 	// Create the merge request
-	gitlabClient, err := gitlab.NewClient(
-		c.gitlabTokenFlag,
-		gitlab.WithBaseURL(fmt.Sprintf("%s/%s", gitlabURL, gitlabAPIEndpoint)),
-	)
-	if err != nil {
-		return e(err)
-	}
-
-	project, _, err := gitlabClient.Projects.GetProject(c.managedTenantsOriginFlag, &gitlab.GetProjectOptions{})
+	targetProject, _, err := c.gitlabProjects.GetProject(c.managedTenantsOriginFlag, &gitlab.GetProjectOptions{})
 	if err != nil {
 		return e(err)
 	}
 
 	c.print.Print("create the MR to the managed-tenants origin\n")
-	mr, _, err := gitlabClient.MergeRequests.CreateMergeRequest(c.managedTenantsForkFlag, &gitlab.CreateMergeRequestOptions{
+	mr, _, err := c.gitlabMergeRequests.CreateMergeRequest(c.managedTenantsForkFlag, &gitlab.CreateMergeRequestOptions{
 		Title:           gitlab.String(fmt.Sprintf(mergeRequestTitleTemplate, channel, version)),
 		Description:     gitlab.String(c.mergeRequestDescriptionFlag),
 		SourceBranch:    gitlab.String(managedTenantsBranch),
 		TargetBranch:    gitlab.String(managedTenantsMasterBranch),
-		TargetProjectID: gitlab.Int(project.ID),
+		TargetProjectID: gitlab.Int(targetProject.ID),
 	})
 	if err != nil {
 		return e(err)
@@ -427,7 +421,19 @@ func init() {
 		Short: "crete a release MR for the integreatly-operator to the managed-tenats repo",
 		Run: func(cmd *cobra.Command, args []string) {
 
-			err := c.run()
+			// Prepare the GitLab Client
+			gitlabClient, err := gitlab.NewClient(
+				c.gitlabTokenFlag,
+				gitlab.WithBaseURL(fmt.Sprintf("%s/%s", gitlabURL, gitlabAPIEndpoint)),
+			)
+			if err != nil {
+				panic(err)
+			}
+			c.gitlabMergeRequests = gitlabClient.MergeRequests
+			c.gitlabProjects = gitlabClient.Projects
+
+			// Run
+			err = c.run()
 			if err != nil {
 				panic(err)
 			}
