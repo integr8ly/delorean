@@ -381,39 +381,18 @@ var osdAddonReleaseCmd = &cobra.Command{
 
 			// When the version is not a prerelease version and is a final release
 			// then create the release against stage, edge and stable
-			err = createTheReleaseMergeRequest(
-				integreatlyOperatorDirectory,
-				managedTenatDirectory,
-				managedTenantsRepository,
-				version,
-				stageChannel,
-			)
-			if err != nil {
-				panic(err)
+			for _, channel := range []releaseChannel{stageChannel, edgeChannel, stableChannel} {
+				err = createTheReleaseMergeRequest(
+					integreatlyOperatorDirectory,
+					managedTenatDirectory,
+					managedTenantsRepository,
+					version,
+					channel,
+				)
+				if err != nil {
+					panic(err)
+				}
 			}
-
-			err = createTheReleaseMergeRequest(
-				integreatlyOperatorDirectory,
-				managedTenatDirectory,
-				managedTenantsRepository,
-				version,
-				edgeChannel,
-			)
-			if err != nil {
-				panic(err)
-			}
-
-			err = createTheReleaseMergeRequest(
-				integreatlyOperatorDirectory,
-				managedTenatDirectory,
-				managedTenantsRepository,
-				version,
-				stableChannel,
-			)
-			if err != nil {
-				panic(err)
-			}
-
 		}
 	},
 }
