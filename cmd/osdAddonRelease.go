@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-	"strings"
 	"time"
 
 	"github.com/go-git/go-git/v5"
@@ -14,6 +13,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/integr8ly/delorean/pkg/utils"
+	"github.com/integr8ly/delorean/pkg/version"
 	"github.com/operator-framework/operator-registry/pkg/registry"
 	"github.com/spf13/cobra"
 	"github.com/xanzy/go-gitlab"
@@ -97,51 +97,9 @@ func (c *releaseChannel) operatorName() string {
 	}
 }
 
-// ReleaseVersion rappresents an integreatly version composed by a base part (2.0.0, 2.0.1, ...)
-// and a build part (ER1, RC2, ..) if it's a prerelase version
-type releaseVersion struct {
-	base  string
-	build string
-}
-
-// newReleaseVersion parse the integreatly version as a string and returns a Version object
-func newReleaseVersion(version string) (*releaseVersion, error) {
-
-	if version == "" {
-		return nil, fmt.Errorf("the version can not be empty")
-	}
-
-	p := strings.Split(version, "-")
-	switch len(p) {
-	case 1:
-		return &releaseVersion{base: p[0], build: ""}, nil
-	case 2:
-		if p[1] == "" {
-			return nil, fmt.Errorf("the build part of the version %s is empty", version)
-		}
-
-		return &releaseVersion{base: p[0], build: p[1]}, nil
-	default:
-		return nil, fmt.Errorf("the version %s is invalid", version)
-	}
-}
-
-func (v *releaseVersion) String() string {
-	p := []string{v.base}
-	if v.build != "" {
-		p = append(p, v.build)
-	}
-	return strings.Join(p, "-")
-}
-
-// isPreRrelease returns true if the version end with -ER1, -RC1, ...
-func (v *releaseVersion) isPreRrelease() bool {
-	return v.build != ""
-}
-
 func copyTheOLMManifests(
 	managedTenantsDirectory, integreatlyOperatorDirectory string,
-	channel releaseChannel, version *releaseVersion) (string, error) {
+	channel releaseChannel, version *version.RHMIVersion) (string, error) {
 
 	source := path.Join(integreatlyOperatorDirectory, fmt.Sprintf(sourceOLMManifestsDirectory, version))
 
@@ -157,7 +115,10 @@ func copyTheOLMManifests(
 	return relativeDestination, nil
 }
 
-func udpateThePackageManifest(managedTenantsDirectory string, channel releaseChannel, version *releaseVersion) (string, error) {
+func udpateThePackageManifest(
+	managedTenantsDirectory string,
+	channel releaseChannel,
+	version *version.RHMIVersion) (string, error) {
 
 	relative := fmt.Sprintf("%s/%s.package.yaml", channel.directory(), channel.operatorName())
 	manifest := path.Join(managedTenantsDirectory, relative)
@@ -210,7 +171,7 @@ func udpateThePackageManifest(managedTenantsDirectory string, channel releaseCha
 func createTheReleaseMergeRequest(
 	integreatlyOperatorDirectory string,
 	managedTenantsDirectory string,
-	version *releaseVersion,
+	version *version.RHMIVersion,
 	channel releaseChannel) error {
 
 	managedTenantsRepostiroy, err := git.PlainOpen(managedTenantsDirectory)
@@ -354,7 +315,7 @@ var osdAddonReleaseCmd = &cobra.Command{
 	Short: "crete a release MR for the integreatly-operator to the managed-tenats repo",
 	Run: func(cmd *cobra.Command, args []string) {
 
-		version, err := newReleaseVersion(versionFlag)
+		version, err := version.NewRHMIVersion(versionFlag)
 		if err != nil {
 			panic(err)
 		}
@@ -406,7 +367,7 @@ var osdAddonReleaseCmd = &cobra.Command{
 		}
 		// defer os.RemoveAll(integreatlyOperatorDirectory)
 
-		if version.isPreRrelease() {
+		if version.IsPreRrelease() {
 
 			// Release to stage
 			err = createTheReleaseMergeRequest(integreatlyOperatorDirectory, managedTenatDirectory, version, stageChannel)
