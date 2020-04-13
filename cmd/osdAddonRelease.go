@@ -55,12 +55,12 @@ const (
 
 // directory returns the relative path of the managed-teneants repo to the
 // integreatly-operator for the given channel
-func (c *releaseChannel) directory() string {
+func (c releaseChannel) directory() string {
 
 	name := c.operatorName()
 
 	var template string
-	switch *c {
+	switch c {
 	case stageChannel:
 		template = "addons-stage/%s"
 	case edgeChannel:
@@ -68,22 +68,22 @@ func (c *releaseChannel) directory() string {
 	case stableChannel:
 		template = "addons-production/%s"
 	default:
-		panic(fmt.Sprintf("unsopported channel %s", *c))
+		panic(fmt.Sprintf("unsopported channel %s", c))
 	}
 
 	return fmt.Sprintf(template, name)
 }
 
 // OperatorName returns the name of the integreatly-operator depending on the channel
-func (c *releaseChannel) operatorName() string {
+func (c releaseChannel) operatorName() string {
 
-	switch *c {
+	switch c {
 	case stageChannel, stableChannel:
 		return "integreatly-operator"
 	case edgeChannel:
 		return "integreatly-operator-internal"
 	default:
-		panic(fmt.Sprintf("unsopported channel %s", *c))
+		panic(fmt.Sprintf("unsopported channel %s", c))
 	}
 }
 
@@ -127,7 +127,7 @@ type osdAddonReleaseCmd struct {
 	managedTenantsRepo     services.GitRepositoryService
 }
 
-func newOsdAddonReleseCmd(flags *osdAddonReleaseFlags) (*osdAddonReleaseCmd, error) {
+func newOSDAddonReleseCmd(flags *osdAddonReleaseFlags) (*osdAddonReleaseCmd, error) {
 
 	version, err := utils.NewRHMIVersion(flags.version)
 	if err != nil {
@@ -190,12 +190,10 @@ func newOsdAddonReleseCmd(flags *osdAddonReleaseFlags) (*osdAddonReleaseCmd, err
 
 func (c *osdAddonReleaseCmd) run() error {
 
-	// defer os.RemoveAll(integreatlyOperatorDirectory)
-
 	if c.version.IsPreRrelease() {
 
 		// Release to stage
-		err := c.createTheReleaseMergeRequest(stageChannel)
+		err := c.createReleaseMergeRequest(stageChannel)
 		if err != nil {
 			return err
 		}
@@ -205,7 +203,7 @@ func (c *osdAddonReleaseCmd) run() error {
 		// When the version is not a prerelease version and is a final release
 		// then create the release against stage, edge and stable
 		for _, channel := range []releaseChannel{stageChannel, edgeChannel, stableChannel} {
-			err := c.createTheReleaseMergeRequest(channel)
+			err := c.createReleaseMergeRequest(channel)
 			if err != nil {
 				return err
 			}
@@ -215,7 +213,7 @@ func (c *osdAddonReleaseCmd) run() error {
 	return nil
 }
 
-func (c *osdAddonReleaseCmd) createTheReleaseMergeRequest(channel releaseChannel) error {
+func (c *osdAddonReleaseCmd) createReleaseMergeRequest(channel releaseChannel) error {
 
 	e := func(err error) error {
 		return fmt.Errorf("failed to create the MR for the version %s and channel %s: %s", c.version, channel, err)
@@ -303,7 +301,6 @@ func (c *osdAddonReleaseCmd) createTheReleaseMergeRequest(channel releaseChannel
 	fmt.Printf("push the managed-tenats repo to the fork remote\n")
 	err = c.managedTenantsRepo.Push(&git.PushOptions{
 		RemoteName: "fork",
-		Progress:   os.Stdout,
 		Auth: &http.BasicAuth{
 			Username: c.flags.gitlabUsername,
 			Password: c.flags.gitlabToken,
@@ -420,7 +417,7 @@ func init() {
 		Run: func(cmd *cobra.Command, args []string) {
 
 			// Prepare
-			c, err := newOsdAddonReleseCmd(f)
+			c, err := newOSDAddonReleseCmd(f)
 			if err != nil {
 				panic(err)
 			}

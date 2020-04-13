@@ -40,7 +40,10 @@ func CopyDirectory(src, dest string) error {
 
 		switch fileInfo.Mode() & os.ModeType {
 		case os.ModeDir:
-			return fmt.Errorf("unexpected directory %s to copy", srcFile)
+			err = CopyDirectory(srcFile, destFile)
+			if err != nil {
+				return fmt.Errorf("failed to copy the directory form %s to %s: %s", srcFile, destFile, err)
+			}
 		case os.ModeSymlink:
 			return fmt.Errorf("unxepcted symlink %s to coyp", srcFile)
 		default:
