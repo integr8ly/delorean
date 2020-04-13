@@ -133,7 +133,7 @@ func newOsdAddonReleseCmd(flags *osdAddonReleaseFlags) (*osdAddonReleaseCmd, err
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("create osd addon release for RHMI v%s", version)
+	fmt.Printf("create osd addon release for RHMI v%s\n", version)
 
 	// Prepare the GitLab Client
 	gitlabClient, err := gitlab.NewClient(
@@ -331,7 +331,7 @@ func (c *osdAddonReleaseCmd) createTheReleaseMergeRequest(channel releaseChannel
 		return e(err)
 	}
 
-	fmt.Printf("merge request for version %s and channel %s created successfully\n", c.flags, channel)
+	fmt.Printf("merge request for version %s and channel %s created successfully\n", c.version, channel)
 	fmt.Printf("MR: %s\n", mr.WebURL)
 
 	// Reset the managed repostiroy to master
