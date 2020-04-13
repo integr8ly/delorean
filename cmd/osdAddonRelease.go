@@ -364,7 +364,7 @@ func (c *osdAddonReleaseCmd) udpateThePackageManifest(channel releaseChannel) (s
 	relative := fmt.Sprintf("%s/%s.package.yaml", channel.directory(), channel.operatorName())
 	manifest := path.Join(c.managedTenantsDir, relative)
 
-	fmt.Printf("upte the version of the manifest files %s to %s\n", relative, c.version)
+	fmt.Printf("update the version of the manifest files %s to %s\n", relative, c.version)
 	read, err := os.Open(manifest)
 	if err != nil {
 		return "", err
