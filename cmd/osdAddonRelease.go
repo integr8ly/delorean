@@ -40,14 +40,8 @@ const (
 	commitMessageTemplate     = "update integreatly-operator %s to %s"
 	gitlabAuthorName          = "Delorean"
 	gitlabAuthorEmail         = "cloud-services-delorean@redhat.com"
-	mergeRequestTitleTemplate = "Update integreatly-operator %s to %s" // environment, version
+	mergeRequestTitleTemplate = "Update integreatly-operator %s to %s" // channel, version
 )
-
-type gitServiceImpl struct{}
-
-func (g *gitServiceImpl) PlainClone(path string, isBare bool, o *git.CloneOptions) (*git.Repository, error) {
-	return git.PlainClone(path, isBare, o)
-}
 
 // releaseChannel rappresents one of the three places (stage, edge, stable)
 // where to update the integreatly-operator
@@ -93,33 +87,270 @@ func (c *releaseChannel) operatorName() string {
 	}
 }
 
-type osdAddonReleaseCmd struct {
-	versionFlag                 string
-	gitlabUsernameFlag          string
-	gitlabTokenFlag             string
-	mergeRequestDescriptionFlag string
-	managedTenantsOriginFlag    string
-	managedTenantsForkFlag      string
-	integreatlyOperatorFlag     string
+// c.print.Printf("clone the managed-tenants repo to %s\n", managedTenatDirectory)
+func gitCloneToTmp(prefix string, url string, reference plumbing.ReferenceName) (string, *git.Repository, error) {
 
-	print               services.PrintService
-	git                 services.GitService
-	gitlabMergeRequests services.GitLabMergeRequestsService
-	gitlabProjects      services.GitLabProjectsService
+	// Clone the managed tenants
+	dir, err := ioutil.TempDir(os.TempDir(), prefix)
+	if err != nil {
+		return "", nil, err
+	}
+
+	repo, err := git.PlainClone(dir, false, &git.CloneOptions{
+		URL:           url,
+		ReferenceName: reference,
+	})
+	if err != nil {
+		return "", nil, err
+	}
+
+	return dir, repo, nil
 }
 
-func (c *osdAddonReleaseCmd) copyTheOLMManifests(
-	managedTenantsDirectory string,
-	integreatlyOperatorDirectory string,
-	channel releaseChannel,
-	version *utils.RHMIVersion) (string, error) {
+type osdAddonReleaseFlags struct {
+	version                 string
+	gitlabUsername          string
+	gitlabToken             string
+	mergeRequestDescription string
+	managedTenantsOrigin    string
+	managedTenantsFork      string
+	integreatlyOperator     string
+}
 
-	source := path.Join(integreatlyOperatorDirectory, fmt.Sprintf(sourceOLMManifestsDirectory, version))
+type osdAddonReleaseCmd struct {
+	flags                  *osdAddonReleaseFlags
+	version                *utils.RHMIVersion
+	gitlabMergeRequests    services.GitLabMergeRequestsService
+	gitlabProjects         services.GitLabProjectsService
+	integreatlyOperatorDir string
+	managedTenantsDir      string
+	managedTenantsRepo     services.GitRepositoryService
+}
 
-	relativeDestination := fmt.Sprintf("%s/%s", channel.directory(), version.String())
-	destination := path.Join(managedTenantsDirectory, relativeDestination)
+func newOsdAddonReleseCmd(flags *osdAddonReleaseFlags) (*osdAddonReleaseCmd, error) {
 
-	c.print.Printf("copy files from %s to %s\n", source, destination)
+	version, err := utils.NewRHMIVersion(flags.version)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("create osd addon release for RHMI v%s", version)
+
+	// Prepare the GitLab Client
+	gitlabClient, err := gitlab.NewClient(
+		flags.gitlabToken,
+		gitlab.WithBaseURL(fmt.Sprintf("%s/%s", gitlabURL, gitlabAPIEndpoint)),
+	)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Print("gitlab client initialized and authenticated\n")
+
+	// Clone the managed tenants
+	managedTenatsDir, managedTenantsRepo, err := gitCloneToTmp(
+		"managed-tenants-",
+		fmt.Sprintf("%s/%s", gitlabURL, flags.managedTenantsOrigin),
+		plumbing.NewBranchReferenceName(managedTenantsMasterBranch),
+	)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("managed-tenants repo cloned to %s\n", managedTenatsDir)
+
+	// Add the fork remote to the managed-tenats repo
+	_, err = managedTenantsRepo.CreateRemote(&config.RemoteConfig{
+		Name: "fork",
+		URLs: []string{fmt.Sprintf("%s/%s", gitlabURL, flags.managedTenantsFork)},
+	})
+	if err != nil {
+		return nil, err
+	}
+	fmt.Print("added the fork remote to the managed-tenants repo\n")
+
+	// Clone the integreatly-operator
+	integreatlyOperatorDir, _, err := gitCloneToTmp(
+		"integreatly-operator-",
+		fmt.Sprintf("%s/%s", githubURL, flags.integreatlyOperator),
+		plumbing.NewTagReferenceName(fmt.Sprintf("v%s", version)),
+	)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("integreatly-operator cloned to %s\n", integreatlyOperatorDir)
+
+	return &osdAddonReleaseCmd{
+		flags:                  flags,
+		version:                version,
+		gitlabMergeRequests:    gitlabClient.MergeRequests,
+		gitlabProjects:         gitlabClient.Projects,
+		integreatlyOperatorDir: integreatlyOperatorDir,
+		managedTenantsDir:      managedTenatsDir,
+		managedTenantsRepo:     managedTenantsRepo,
+	}, nil
+}
+
+func (c *osdAddonReleaseCmd) run() error {
+
+	// defer os.RemoveAll(integreatlyOperatorDirectory)
+
+	if c.version.IsPreRrelease() {
+
+		// Release to stage
+		err := c.createTheReleaseMergeRequest(stageChannel)
+		if err != nil {
+			return err
+		}
+
+	} else {
+
+		// When the version is not a prerelease version and is a final release
+		// then create the release against stage, edge and stable
+		for _, channel := range []releaseChannel{stageChannel, edgeChannel, stableChannel} {
+			err := c.createTheReleaseMergeRequest(channel)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func (c *osdAddonReleaseCmd) createTheReleaseMergeRequest(channel releaseChannel) error {
+
+	e := func(err error) error {
+		return fmt.Errorf("failed to create the MR for the version %s and channel %s: %s", c.version, channel, err)
+	}
+
+	managedTenantsHead, err := c.managedTenantsRepo.Head()
+	if err != nil {
+		return e(err)
+	}
+
+	// Verify that the repo is on master
+	if managedTenantsHead.Name() != plumbing.NewBranchReferenceName(managedTenantsMasterBranch) {
+		return e(fmt.Errorf("the managed-tenants repo is pointing to %s insteand of master", managedTenantsHead.Name()))
+	}
+
+	managedTenantsTree, err := c.managedTenantsRepo.Worktree()
+	if err != nil {
+		return e(err)
+	}
+
+	// Create a new branch on the managed-tenants repo
+	managedTenantsBranch := fmt.Sprintf(branchNameTemplate, channel, c.version)
+
+	fmt.Printf("create the branch %s in the managed-tenants repo\n", managedTenantsBranch)
+	err = managedTenantsTree.Checkout(&git.CheckoutOptions{
+		Branch: plumbing.NewBranchReferenceName(managedTenantsBranch),
+		Create: true,
+	})
+	if err != nil {
+		return e(err)
+	}
+
+	// Copy the OLM manifests from the integreatly-operator repo to the the managed-tenats repo
+	manifestsDirectory, err := c.copyTheOLMManifests(channel)
+	if err != nil {
+		return e(err)
+	}
+
+	// Add all changes
+	err = managedTenantsTree.AddGlob(fmt.Sprintf("%s/*", manifestsDirectory))
+	if err != nil {
+		return e(err)
+	}
+
+	// Update the integreatly-operator.package.yaml
+	packageManfiest, err := c.udpateThePackageManifest(channel)
+	if err != nil {
+		return e(err)
+	}
+
+	// Add the integreatly-operator.package.yaml
+	_, err = managedTenantsTree.Add(packageManfiest)
+	if err != nil {
+		return e(err)
+	}
+
+	// Commit
+	fmt.Print("commit all changes in the managed-tenats repo\n")
+	_, err = managedTenantsTree.Commit(
+		fmt.Sprintf(commitMessageTemplate, channel, c.version),
+		&git.CommitOptions{
+			All: true,
+			Author: &object.Signature{
+				Name:  gitlabAuthorName,
+				Email: gitlabAuthorEmail,
+				When:  time.Now(),
+			},
+		},
+	)
+	if err != nil {
+		return e(err)
+	}
+
+	// Verify tha the tree is clean
+	status, err := managedTenantsTree.Status()
+	if err != nil {
+		return e(err)
+	}
+
+	if len(status) != 0 {
+		return e(fmt.Errorf("the tree is not clean, uncommited changes:\n%+v", status))
+	}
+
+	// Push to fork
+	fmt.Printf("push the managed-tenats repo to the fork remote\n")
+	err = c.managedTenantsRepo.Push(&git.PushOptions{
+		RemoteName: "fork",
+		Progress:   os.Stdout,
+		Auth: &http.BasicAuth{
+			Username: c.flags.gitlabUsername,
+			Password: c.flags.gitlabToken,
+		},
+	})
+	if err != nil {
+		return e(err)
+	}
+
+	// Create the merge request
+	targetProject, _, err := c.gitlabProjects.GetProject(c.flags.managedTenantsOrigin, &gitlab.GetProjectOptions{})
+	if err != nil {
+		return e(err)
+	}
+
+	fmt.Print("create the MR to the managed-tenants origin\n")
+	mr, _, err := c.gitlabMergeRequests.CreateMergeRequest(c.flags.managedTenantsFork, &gitlab.CreateMergeRequestOptions{
+		Title:           gitlab.String(fmt.Sprintf(mergeRequestTitleTemplate, channel, c.version)),
+		Description:     gitlab.String(c.flags.mergeRequestDescription),
+		SourceBranch:    gitlab.String(managedTenantsBranch),
+		TargetBranch:    gitlab.String(managedTenantsMasterBranch),
+		TargetProjectID: gitlab.Int(targetProject.ID),
+	})
+	if err != nil {
+		return e(err)
+	}
+
+	fmt.Printf("merge request for version %s and channel %s created successfully\n", c.flags, channel)
+	fmt.Printf("MR: %s\n", mr.WebURL)
+
+	// Reset the managed repostiroy to master
+	err = managedTenantsTree.Checkout(&git.CheckoutOptions{Branch: plumbing.NewBranchReferenceName(managedTenantsMasterBranch)})
+	if err != nil {
+		return e(err)
+	}
+
+	return nil
+}
+
+func (c *osdAddonReleaseCmd) copyTheOLMManifests(channel releaseChannel) (string, error) {
+
+	source := path.Join(c.integreatlyOperatorDir, fmt.Sprintf(sourceOLMManifestsDirectory, c.version))
+
+	relativeDestination := fmt.Sprintf("%s/%s", channel.directory(), c.version)
+	destination := path.Join(c.managedTenantsDir, relativeDestination)
+
+	fmt.Printf("copy files from %s to %s\n", source, destination)
 	err := utils.CopyDirectory(source, destination)
 	if err != nil {
 		return "", err
@@ -128,15 +359,12 @@ func (c *osdAddonReleaseCmd) copyTheOLMManifests(
 	return relativeDestination, nil
 }
 
-func (c *osdAddonReleaseCmd) udpateThePackageManifest(
-	managedTenantsDirectory string,
-	channel releaseChannel,
-	version *utils.RHMIVersion) (string, error) {
+func (c *osdAddonReleaseCmd) udpateThePackageManifest(channel releaseChannel) (string, error) {
 
 	relative := fmt.Sprintf("%s/%s.package.yaml", channel.directory(), channel.operatorName())
-	manifest := path.Join(managedTenantsDirectory, relative)
+	manifest := path.Join(c.managedTenantsDir, relative)
 
-	c.print.Printf("upte the version of the manifest files %s to %s\n", relative, version)
+	fmt.Printf("upte the version of the manifest files %s to %s\n", relative, c.version)
 	read, err := os.Open(manifest)
 	if err != nil {
 		return "", err
@@ -156,7 +384,7 @@ func (c *osdAddonReleaseCmd) udpateThePackageManifest(
 	}
 
 	// Set channels[0].currentCSV value
-	p.Channels[0].CurrentCSVName = fmt.Sprintf("integreatly-operator.v%s", version)
+	p.Channels[0].CurrentCSVName = fmt.Sprintf("integreatly-operator.v%s", c.version)
 
 	bytes, err = yaml.Marshal(p)
 	if err != nil {
@@ -182,255 +410,20 @@ func (c *osdAddonReleaseCmd) udpateThePackageManifest(
 	return relative, nil
 }
 
-func (c *osdAddonReleaseCmd) createTheReleaseMergeRequest(
-	integreatlyOperatorDirectory string,
-	managedTenantsDirectory string,
-	managedTenantsRepostiroy services.GitRepositoryService,
-	version *utils.RHMIVersion,
-	channel releaseChannel,
-) error {
-
-	e := func(err error) error {
-		return fmt.Errorf("failed to create the MR for the version %s and channel %s: %s", version, channel, err)
-	}
-
-	managedTenantsHead, err := managedTenantsRepostiroy.Head()
-	if err != nil {
-		return e(err)
-	}
-
-	// Verify that the repo is on master
-	if managedTenantsHead.Name() != plumbing.NewBranchReferenceName(managedTenantsMasterBranch) {
-		return e(fmt.Errorf("the managed-tenants repo is pointing to %s insteand of master", managedTenantsHead.Name()))
-	}
-
-	managedTenantsTree, err := managedTenantsRepostiroy.Worktree()
-	if err != nil {
-		return e(err)
-	}
-
-	// Create a new branch on the managed-tenants repo
-	managedTenantsBranch := fmt.Sprintf(branchNameTemplate, channel, version)
-
-	c.print.Printf("create the branch %s in the managed-tenants repo\n", managedTenantsBranch)
-	err = managedTenantsTree.Checkout(&git.CheckoutOptions{
-		Branch: plumbing.NewBranchReferenceName(managedTenantsBranch),
-		Create: true,
-	})
-	if err != nil {
-		return e(err)
-	}
-
-	// Copy the OLM manifests from the integreatly-operator repo to the the managed-tenats repo
-	manifestsDirectory, err := c.copyTheOLMManifests(
-		managedTenantsDirectory,
-		integreatlyOperatorDirectory,
-		channel,
-		version,
-	)
-	if err != nil {
-		return e(err)
-	}
-
-	// Add all changes
-	err = managedTenantsTree.AddGlob(fmt.Sprintf("%s/*", manifestsDirectory))
-	if err != nil {
-		return e(err)
-	}
-
-	// Update the integreatly-operator.package.yaml
-	packageManfiest, err := c.udpateThePackageManifest(managedTenantsDirectory, channel, version)
-	if err != nil {
-		return e(err)
-	}
-
-	// Add the integreatly-operator.package.yaml
-	_, err = managedTenantsTree.Add(packageManfiest)
-	if err != nil {
-		return e(err)
-	}
-
-	// Commit
-	c.print.Print("commit all changes in the managed-tenats repo\n")
-	_, err = managedTenantsTree.Commit(
-		fmt.Sprintf(commitMessageTemplate, channel, version),
-		&git.CommitOptions{
-			All: true,
-			Author: &object.Signature{
-				Name:  gitlabAuthorName,
-				Email: gitlabAuthorEmail,
-				When:  time.Now(),
-			},
-		},
-	)
-	if err != nil {
-		return e(err)
-	}
-
-	// Verify tha the tree is clean
-	status, err := managedTenantsTree.Status()
-	if err != nil {
-		return e(err)
-	}
-
-	if len(status) != 0 {
-		return e(fmt.Errorf("the tree is not clean, uncommited changes:\n%+v", status))
-	}
-
-	// Push to fork
-	c.print.Printf("push the managed-tenats repo to the fork remote\n")
-	err = managedTenantsRepostiroy.Push(&git.PushOptions{
-		RemoteName: "fork",
-		Progress:   os.Stdout,
-		Auth: &http.BasicAuth{
-			Username: c.gitlabUsernameFlag,
-			Password: c.gitlabTokenFlag,
-		},
-	})
-	if err != nil {
-		return e(err)
-	}
-
-	// Create the merge request
-	targetProject, _, err := c.gitlabProjects.GetProject(c.managedTenantsOriginFlag, &gitlab.GetProjectOptions{})
-	if err != nil {
-		return e(err)
-	}
-
-	c.print.Print("create the MR to the managed-tenants origin\n")
-	mr, _, err := c.gitlabMergeRequests.CreateMergeRequest(c.managedTenantsForkFlag, &gitlab.CreateMergeRequestOptions{
-		Title:           gitlab.String(fmt.Sprintf(mergeRequestTitleTemplate, channel, version)),
-		Description:     gitlab.String(c.mergeRequestDescriptionFlag),
-		SourceBranch:    gitlab.String(managedTenantsBranch),
-		TargetBranch:    gitlab.String(managedTenantsMasterBranch),
-		TargetProjectID: gitlab.Int(targetProject.ID),
-	})
-	if err != nil {
-		return e(err)
-	}
-
-	c.print.Printf("Merge request for version %s and environment %s created successfully\n", version, channel)
-	c.print.Printf("MR: %s\n", mr.WebURL)
-
-	// Reset the managed repostiroy to master
-	err = managedTenantsTree.Checkout(&git.CheckoutOptions{Branch: plumbing.NewBranchReferenceName(managedTenantsMasterBranch)})
-	if err != nil {
-		return e(err)
-	}
-
-	return nil
-}
-
-func (c *osdAddonReleaseCmd) run() error {
-
-	version, err := utils.NewRHMIVersion(c.versionFlag)
-	if err != nil {
-		return err
-	}
-
-	// Clone the managed tenants
-	managedTenatDirectory, err := ioutil.TempDir(os.TempDir(), "managed-tenants-")
-	if err != nil {
-		return err
-	}
-
-	c.print.Printf("clone the managed-tenants repo to %s\n", managedTenatDirectory)
-	managedTenantsRepository, err := c.git.PlainClone(
-		managedTenatDirectory,
-		false,
-		&git.CloneOptions{
-			URL:           fmt.Sprintf("%s/%s", gitlabURL, c.managedTenantsOriginFlag),
-			ReferenceName: plumbing.NewBranchReferenceName(managedTenantsMasterBranch),
-		},
-	)
-	if err != nil {
-		return err
-	}
-	// defer os.RemoveAll(managedTenatDirectory)
-
-	// Add the fork remote to the managed-tenats repo
-	_, err = managedTenantsRepository.CreateRemote(&config.RemoteConfig{
-		Name: "fork",
-		URLs: []string{fmt.Sprintf("%s/%s", gitlabURL, c.managedTenantsForkFlag)},
-	})
-	if err != nil {
-		return err
-	}
-
-	// Clone the integreatly-operator
-	integreatlyOperatorDirectory, err := ioutil.TempDir(os.TempDir(), "integreatly-operator-")
-	if err != nil {
-		return err
-	}
-
-	c.print.Printf("clone the integreatly-operator to %s\n", integreatlyOperatorDirectory)
-	_, err = c.git.PlainClone(
-		integreatlyOperatorDirectory,
-		false,
-		&git.CloneOptions{
-			URL:           fmt.Sprintf("%s/%s", githubURL, c.integreatlyOperatorFlag),
-			ReferenceName: plumbing.NewTagReferenceName(fmt.Sprintf("v%s", version)),
-		},
-	)
-	if err != nil {
-		return err
-	}
-	// defer os.RemoveAll(integreatlyOperatorDirectory)
-
-	if version.IsPreRrelease() {
-
-		// Release to stage
-		err = c.createTheReleaseMergeRequest(
-			integreatlyOperatorDirectory,
-			managedTenatDirectory,
-			managedTenantsRepository,
-			version,
-			stageChannel,
-		)
-		if err != nil {
-			return err
-		}
-
-	} else {
-
-		// When the version is not a prerelease version and is a final release
-		// then create the release against stage, edge and stable
-		for _, channel := range []releaseChannel{stageChannel, edgeChannel, stableChannel} {
-			err = c.createTheReleaseMergeRequest(
-				integreatlyOperatorDirectory,
-				managedTenatDirectory,
-				managedTenantsRepository,
-				version,
-				channel,
-			)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
 func init() {
 
-	c := &osdAddonReleaseCmd{}
+	f := &osdAddonReleaseFlags{}
 
 	cmd := &cobra.Command{
 		Use:   "osd-addon-release",
 		Short: "crete a release MR for the integreatly-operator to the managed-tenats repo",
 		Run: func(cmd *cobra.Command, args []string) {
 
-			// Prepare the GitLab Client
-			gitlabClient, err := gitlab.NewClient(
-				c.gitlabTokenFlag,
-				gitlab.WithBaseURL(fmt.Sprintf("%s/%s", gitlabURL, gitlabAPIEndpoint)),
-			)
+			// Prepare
+			c, err := newOsdAddonReleseCmd(f)
 			if err != nil {
 				panic(err)
 			}
-			c.gitlabMergeRequests = gitlabClient.MergeRequests
-			c.gitlabProjects = gitlabClient.Projects
 
 			// Run
 			err = c.run()
@@ -443,37 +436,37 @@ func init() {
 	rootCmd.AddCommand(cmd)
 
 	cmd.Flags().StringVar(
-		&c.versionFlag, "version", "",
+		&f.version, "version", "",
 		"the integreatly-operator version to push to the managed-tenats repo (ex: 2.0.0, 2.0.0-er4)")
 	cmd.MarkFlagRequired("version")
 
-	cmd.Flags().StringVar(&c.gitlabUsernameFlag, "gitlab-user", "", "the gitlab user for commiting the changes")
+	cmd.Flags().StringVar(&f.gitlabUsername, "gitlab-user", "", "the gitlab user for commiting the changes")
 	cmd.MarkFlagRequired("gitlab-user")
 
-	cmd.Flags().StringVar(&c.gitlabTokenFlag, "gitlab-token", "", "the gitlab token to commit the changes and open the MR")
+	cmd.Flags().StringVar(&f.gitlabToken, "gitlab-token", "", "the gitlab token to commit the changes and open the MR")
 	cmd.MarkFlagRequired("gitlab-token")
 
 	cmd.Flags().StringVar(
-		&c.mergeRequestDescriptionFlag,
+		&f.mergeRequestDescription,
 		"merge-request-description",
 		"",
 		"an optional merge request description that can be used to notify secific users (ex \"ping: @dbizzarr\"",
 	)
 
 	cmd.Flags().StringVar(
-		&c.managedTenantsOriginFlag,
+		&f.managedTenantsOrigin,
 		"managed-tenants-origin",
 		"service/managed-tenants",
 		"managed-tenants origin repository namespace and name")
 
 	cmd.Flags().StringVar(
-		&c.managedTenantsForkFlag,
+		&f.managedTenantsFork,
 		"managed-tenants-fork",
 		"integreatly-qe/managed-tenants",
 		"managed-tenants fork where to push the release files")
 
 	cmd.Flags().StringVar(
-		&c.integreatlyOperatorFlag,
+		&f.integreatlyOperator,
 		"integreatly-operator",
 		"integr8ly/integreatly-operator.git",
 		"integreatly operator branch where to take the release file")
