@@ -293,7 +293,14 @@ func TestCreateReleaseMergeRequest(t *testing.T) {
 			}
 
 			// Verify the manage-tenents repo HEAD is pointing to master
-			t.Fatal("TODO")
+			head, err := managedTenantsRepo.Head()
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if founded := head.Name(); founded != "refs/heads/master" {
+				t.Fatalf("the managed-tenants repo HEAD doesn't point to the master branch\nexpected: refs/heads/master\nfounded: %s", founded)
+			}
 		})
 	}
 }
