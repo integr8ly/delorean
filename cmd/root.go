@@ -2,9 +2,9 @@ package cmd
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/google/go-github/v30/github"
+	"github.com/integr8ly/delorean/pkg/quay"
 	"github.com/spf13/cobra"
 	"golang.org/x/oauth2"
 	"os"
@@ -17,12 +17,21 @@ import (
 var cfgFile string
 var integreatlyGHOrg string
 var integreatlyOperatorRepo string
+var quayRepo string
+var releaseVersion string
 
 const (
-	GithubTokenKey                 = "github_token"
-	DefaultIntegreatlyGithubOrg    = "integr8ly"
-	DefaultIntegreatlyOperatorRepo = "integreatly-operator"
+	GithubTokenKey                     = "github_token"
+	DefaultIntegreatlyGithubOrg        = "integr8ly"
+	DefaultIntegreatlyOperatorRepo     = "integreatly-operator"
+	QuayTokenKey                       = "quay_token"
+	DefaultIntegreatlyOperatorQuayRepo = "integreatly/integreatly-operator"
 )
+
+type githubRepoInfo struct {
+	owner string
+	repo  string
+}
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -65,8 +74,12 @@ func init() {
 	//flags for the release command (available for all its subcommands)
 	releaseCmd.PersistentFlags().StringP("token", "t", "", fmt.Sprintf("Github access token. Can be set via the %s env var.", strings.ToUpper(GithubTokenKey)))
 	viper.BindPFlag(GithubTokenKey, releaseCmd.PersistentFlags().Lookup("token"))
-	releaseCmd.PersistentFlags().StringVarP(&integreatlyGHOrg, "org", "o", DefaultIntegreatlyGithubOrg, "Github organisation")
+	releaseCmd.PersistentFlags().StringVarP(&releaseVersion, "version", "v", "", "Release version")
+	releaseCmd.PersistentFlags().StringVarP(&integreatlyGHOrg, "owner", "o", DefaultIntegreatlyGithubOrg, "Github owner")
 	releaseCmd.PersistentFlags().StringVarP(&integreatlyOperatorRepo, "repo", "r", DefaultIntegreatlyOperatorRepo, "Github repository")
+	releaseCmd.PersistentFlags().String("quayToken", "", fmt.Sprintf("Access token for quay. Can be set via the %s env var", strings.ToUpper(QuayTokenKey)))
+	viper.BindPFlag(QuayTokenKey, releaseCmd.PersistentFlags().Lookup("quayToken"))
+	releaseCmd.PersistentFlags().StringVar(&quayRepo, "quayRepo", DefaultIntegreatlyOperatorQuayRepo, "Quay repository")
 
 	rootCmd.AddCommand(releaseCmd)
 	rootCmd.AddCommand(ewsCmd)
@@ -98,12 +111,12 @@ func initConfig() {
 	}
 }
 
-func requireGithubToken() (string, error) {
-	githubToken := viper.GetString(GithubTokenKey)
-	if githubToken == "" {
-		return "", errors.New("Github token is not defined. Please check usage instructions.")
+func requireToken(key string) (string, error) {
+	token := viper.GetString(key)
+	if token == "" {
+		return "", fmt.Errorf("token for key %s is not defined. Please see usage.", key)
 	}
-	return githubToken, nil
+	return token, nil
 }
 
 func newGithubClient(token string) *github.Client {
@@ -114,4 +127,19 @@ func newGithubClient(token string) *github.Client {
 	tc := oauth2.NewClient(ctx, ts)
 	client := github.NewClient(tc)
 	return client
+}
+
+func newQuayClient(token string) *quay.Client {
+	ctx := context.Background()
+	ts := oauth2.StaticTokenSource(
+		&oauth2.Token{AccessToken: token},
+	)
+	tc := oauth2.NewClient(ctx, ts)
+	client := quay.NewClient(tc)
+	return client
+}
+
+func handleError(err error) {
+	fmt.Println("Error:", err)
+	os.Exit(1)
 }
