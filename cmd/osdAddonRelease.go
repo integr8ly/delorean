@@ -126,6 +126,69 @@ type osdAddonReleaseCmd struct {
 	managedTenantsRepo     services.GitRepositoryService
 }
 
+func init() {
+
+	f := &osdAddonReleaseFlags{}
+
+	cmd := &cobra.Command{
+		Use:   "osd-addon",
+		Short: "Create the integreatly-operator MR to the managed-tenants repo",
+		Run: func(cmd *cobra.Command, args []string) {
+
+			// Prepare
+			c, err := newOSDAddonReleseCmd(f)
+			if err != nil {
+				panic(err)
+			}
+
+			// Run
+			err = c.run()
+			if err != nil {
+				panic(err)
+			}
+		},
+	}
+
+	releaseCmd.AddCommand(cmd)
+
+	cmd.Flags().StringVar(
+		&f.version, "version", "",
+		"The RHMI version to push to the managed-tenats repo (ex \"2.0.0\", \"2.0.0-er4\")")
+	cmd.MarkFlagRequired("version")
+
+	cmd.Flags().StringVar(
+		&f.gitlabToken,
+		"gitlab-token",
+		"",
+		"GitLab token to Push the changes and open the MR")
+	cmd.MarkFlagRequired("gitlab-token")
+
+	cmd.Flags().StringVar(
+		&f.mergeRequestDescription,
+		"merge-request-description",
+		"",
+		"Optional merge request description that can be used to notify secific users (ex \"ping: @dbizzarr\")",
+	)
+
+	cmd.Flags().StringVar(
+		&f.managedTenantsOrigin,
+		"managed-tenants-origin",
+		"service/managed-tenants",
+		"managed-tenants origin repository from where to frok the master branch")
+
+	cmd.Flags().StringVar(
+		&f.managedTenantsFork,
+		"managed-tenants-fork",
+		"integreatly-qe/managed-tenants",
+		"managed-tenants fork repository where to push the release files")
+
+	cmd.Flags().StringVar(
+		&f.integreatlyOperator,
+		"integreatly-operator",
+		"integr8ly/integreatly-operator.git",
+		"integreatly-operator repository from where to retrieve the release file")
+}
+
 func newOSDAddonReleseCmd(flags *osdAddonReleaseFlags) (*osdAddonReleaseCmd, error) {
 
 	version, err := utils.NewRHMIVersion(flags.version)
@@ -401,63 +464,4 @@ func (c *osdAddonReleaseCmd) udpateThePackageManifest(channel releaseChannel) (s
 	}
 
 	return relative, nil
-}
-
-func init() {
-
-	f := &osdAddonReleaseFlags{}
-
-	cmd := &cobra.Command{
-		Use:   "osd-addon",
-		Short: "create the merge request to the managed-tenants repo in order to release the integreatly-operator as OSD addon",
-		Run: func(cmd *cobra.Command, args []string) {
-
-			// Prepare
-			c, err := newOSDAddonReleseCmd(f)
-			if err != nil {
-				panic(err)
-			}
-
-			// Run
-			err = c.run()
-			if err != nil {
-				panic(err)
-			}
-		},
-	}
-
-	rootCmd.AddCommand(cmd)
-
-	cmd.Flags().StringVar(
-		&f.version, "version", "",
-		"the integreatly-operator version to push to the managed-tenats repo (ex: 2.0.0, 2.0.0-er4)")
-	cmd.MarkFlagRequired("version")
-
-	cmd.Flags().StringVar(&f.gitlabToken, "gitlab-token", "", "the gitlab token to commit the changes and open the MR")
-	cmd.MarkFlagRequired("gitlab-token")
-
-	cmd.Flags().StringVar(
-		&f.mergeRequestDescription,
-		"merge-request-description",
-		"",
-		"an optional merge request description that can be used to notify secific users (ex \"ping: @dbizzarr\"",
-	)
-
-	cmd.Flags().StringVar(
-		&f.managedTenantsOrigin,
-		"managed-tenants-origin",
-		"service/managed-tenants",
-		"managed-tenants origin repository namespace and name")
-
-	cmd.Flags().StringVar(
-		&f.managedTenantsFork,
-		"managed-tenants-fork",
-		"integreatly-qe/managed-tenants",
-		"managed-tenants fork where to push the release files")
-
-	cmd.Flags().StringVar(
-		&f.integreatlyOperator,
-		"integreatly-operator",
-		"integr8ly/integreatly-operator.git",
-		"integreatly operator branch where to take the release file")
 }
