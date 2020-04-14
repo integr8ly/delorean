@@ -109,7 +109,6 @@ func gitCloneToTmp(prefix string, url string, reference plumbing.ReferenceName) 
 
 type osdAddonReleaseFlags struct {
 	version                 string
-	gitlabUsername          string
 	gitlabToken             string
 	mergeRequestDescription string
 	managedTenantsOrigin    string
@@ -301,10 +300,7 @@ func (c *osdAddonReleaseCmd) createReleaseMergeRequest(channel releaseChannel) e
 	fmt.Printf("push the managed-tenats repo to the fork remote\n")
 	err = c.managedTenantsRepo.Push(&git.PushOptions{
 		RemoteName: "fork",
-		Auth: &http.BasicAuth{
-			Username: c.flags.gitlabUsername,
-			Password: c.flags.gitlabToken,
-		},
+		Auth:       &http.BasicAuth{Password: c.flags.gitlabToken},
 	})
 	if err != nil {
 		return e(err)
@@ -412,8 +408,8 @@ func init() {
 	f := &osdAddonReleaseFlags{}
 
 	cmd := &cobra.Command{
-		Use:   "osd-addon-release",
-		Short: "crete a release MR for the integreatly-operator to the managed-tenats repo",
+		Use:   "osd-addon",
+		Short: "create the merge request to the managed-tenants repo in order to release the integreatly-operator as OSD addon",
 		Run: func(cmd *cobra.Command, args []string) {
 
 			// Prepare
@@ -436,9 +432,6 @@ func init() {
 		&f.version, "version", "",
 		"the integreatly-operator version to push to the managed-tenats repo (ex: 2.0.0, 2.0.0-er4)")
 	cmd.MarkFlagRequired("version")
-
-	cmd.Flags().StringVar(&f.gitlabUsername, "gitlab-user", "", "the gitlab user for commiting the changes")
-	cmd.MarkFlagRequired("gitlab-user")
 
 	cmd.Flags().StringVar(&f.gitlabToken, "gitlab-token", "", "the gitlab token to commit the changes and open the MR")
 	cmd.MarkFlagRequired("gitlab-token")
