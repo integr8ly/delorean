@@ -113,7 +113,6 @@ type osdAddonReleaseFlags struct {
 	mergeRequestDescription string
 	managedTenantsOrigin    string
 	managedTenantsFork      string
-	integreatlyOperator     string
 }
 
 type osdAddonReleaseCmd struct {
@@ -138,13 +137,15 @@ func init() {
 			// Prepare
 			c, err := newOSDAddonReleseCmd(f)
 			if err != nil {
-				panic(err)
+				fmt.Printf("error: %s\n", err)
+				os.Exit(1)
 			}
 
 			// Run
 			err = c.run()
 			if err != nil {
-				panic(err)
+				fmt.Printf("error: %s\n", err)
+				os.Exit(1)
 			}
 		},
 	}
@@ -181,12 +182,6 @@ func init() {
 		"managed-tenants-fork",
 		"integreatly-qe/managed-tenants",
 		"managed-tenants fork repository where to push the release files")
-
-	cmd.Flags().StringVar(
-		&f.integreatlyOperator,
-		"integreatly-operator",
-		"integr8ly/integreatly-operator.git",
-		"integreatly-operator repository from where to retrieve the release file")
 }
 
 func newOSDAddonReleseCmd(flags *osdAddonReleaseFlags) (*osdAddonReleaseCmd, error) {
@@ -231,7 +226,7 @@ func newOSDAddonReleseCmd(flags *osdAddonReleaseFlags) (*osdAddonReleaseCmd, err
 	// Clone the integreatly-operator
 	integreatlyOperatorDir, _, err := gitCloneToTmp(
 		"integreatly-operator-",
-		fmt.Sprintf("%s/%s", githubURL, flags.integreatlyOperator),
+		fmt.Sprintf("%s/%s/%s", githubURL, integreatlyGHOrg, integreatlyOperatorRepo),
 		plumbing.NewTagReferenceName(fmt.Sprintf("v%s", version)),
 	)
 	if err != nil {
