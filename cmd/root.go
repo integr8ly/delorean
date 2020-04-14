@@ -41,6 +41,13 @@ var releaseCmd = &cobra.Command{
 	Long:  `Commands for creating a RHMI release`,
 }
 
+// ewsCmd represents the release command
+var ewsCmd = &cobra.Command{
+	Use:   "ews",
+	Short: "RHMI EWS Commands",
+	Long:  `RHMI Early Warning System Commands`,
+}
+
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
@@ -62,6 +69,7 @@ func init() {
 	releaseCmd.PersistentFlags().StringVarP(&integreatlyOperatorRepo, "repo", "r", DefaultIntegreatlyOperatorRepo, "Github repository")
 
 	rootCmd.AddCommand(releaseCmd)
+	rootCmd.AddCommand(ewsCmd)
 }
 
 // initConfig reads in config file and ENV variables if set.
