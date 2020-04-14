@@ -8,7 +8,7 @@ import (
 
 // processCSVImagesCmd represents the processCSVImages command
 var processCSVImagesCmd = &cobra.Command{
-	Use:   "processCSVImages",
+	Use:   "process-csv-images",
 	Short: "Replace internal image registry references and generates an image mirror mapping file.",
 	Long: `Locates the current cluster service version file (csv) for a given product and replaces all occurrences of 
 internal image registries with a deloeran version and generates an image_mirror_mapping file.`,
@@ -18,7 +18,7 @@ internal image registries with a deloeran version and generates an image_mirror_
 }
 
 func init() {
-	rootCmd.AddCommand(processCSVImagesCmd)
+	ewsCmd.AddCommand(processCSVImagesCmd)
 
 	// Here you will define your flags and configuration settings.
 

@@ -2,6 +2,6 @@ package cmd
 
 import "testing"
 
-func TestProcessImageManifests(t *testing.T) {
+func TestExtractManifests(t *testing.T) {
 	t.Log("ToDo Add Some Tests!!")
 }

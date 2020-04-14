@@ -8,7 +8,7 @@ import (
 
 // mirrorImagesCmd represents the mirrorImages command
 var mirrorImagesCmd = &cobra.Command{
-	Use:   "mirrorImages",
+	Use:   "mirror-images",
 	Short: "Mirror images defined in image mirror mapping files.",
 	Long: `Iterate through all image mappings found in any image_mirror_mapping files
 inside each products manifest directory and mirrors the images defined.`,
@@ -18,7 +18,7 @@ inside each products manifest directory and mirrors the images defined.`,
 }
 
 func init() {
-	rootCmd.AddCommand(mirrorImagesCmd)
+	ewsCmd.AddCommand(mirrorImagesCmd)
 
 	// Here you will define your flags and configuration settings.
 
