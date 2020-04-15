@@ -1,0 +1,5 @@
+packageName: rhmi
+channels:
+- name: stable
+  currentCSV: integreatly-operator.v2.0.0
+defaultChannel: stable
