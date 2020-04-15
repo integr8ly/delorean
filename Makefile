@@ -10,7 +10,7 @@ test: test/lint test/unit
 .PHONY: test
 
 test/lint:
-	@echo "ToDo Implement me (test/lint)!!"
+	@shellcheck scripts/ocm/*.sh
 .PHONY: lint
 
 test/unit:
