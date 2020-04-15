@@ -1,3 +1,5 @@
+include ./make/*.mk
+
 SHELL=/usr/bin/env bash -o pipefail
 BUILD_TARGET=./
 
