@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"github.com/google/go-github/v30/github"
 	"github.com/integr8ly/delorean/pkg/quay"
-	"github.com/integr8ly/delorean/pkg/release"
 	"github.com/integr8ly/delorean/pkg/services"
+	"github.com/integr8ly/delorean/pkg/utils"
 	"github.com/spf13/cobra"
 	"net/http"
 	"time"
@@ -54,7 +54,7 @@ var tagReleaseCmd = &cobra.Command{
 }
 
 func DoTagRelease(ctx context.Context, ghClient services.GitService, gitRepoInfo *githubRepoInfo, quayClient *quay.Client, quayRepo string, cmdOpts *tagReleaseOptions) error {
-	rv, err := release.NewReleaseVersion(cmdOpts.releaseVersion)
+	rv, err := utils.NewRHMIVersion(cmdOpts.releaseVersion)
 	if err != nil {
 		return err
 	}

@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/google/go-github/v30/github"
-	"github.com/integr8ly/delorean/pkg/release"
 	"github.com/integr8ly/delorean/pkg/services"
+	"github.com/integr8ly/delorean/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -37,7 +37,7 @@ var mergeReleaseCmd = &cobra.Command{
 }
 
 func DoMergeRelease(ctx context.Context, client services.PullRequestsService, repoInfo *githubRepoInfo, cmdOpts *mergeReleaseOptions) error {
-	rv, err := release.NewReleaseVersion(cmdOpts.releaseVersion)
+	rv, err := utils.NewRHMIVersion(cmdOpts.releaseVersion)
 	if err != nil {
 		return err
 	}
