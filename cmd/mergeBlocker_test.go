@@ -76,7 +76,7 @@ func TestSearchMergeBlockers(t *testing.T) {
 				ListByRepoFunc: func(ctx context.Context, owner string, repo string, opts *github.IssueListByRepoOptions) (issues []*github.Issue, response *github.Response, err error) {
 					title := "release blocker|branch:master"
 					return []*github.Issue{
-						&github.Issue{
+						{
 							Title: &title,
 						},
 					}, responseWithCode(200), nil
@@ -99,7 +99,7 @@ func TestSearchMergeBlockers(t *testing.T) {
 				ListByRepoFunc: func(ctx context.Context, owner string, repo string, opts *github.IssueListByRepoOptions) (issues []*github.Issue, response *github.Response, err error) {
 					title := "master|branch:release-v2.1"
 					return []*github.Issue{
-						&github.Issue{
+						{
 							Title: &title,
 						},
 					}, responseWithCode(200), nil
@@ -178,7 +178,7 @@ func TestDoMergeBlocker(t *testing.T) {
 					title := "release blocker|branch:master"
 					url := "http://test"
 					return []*github.Issue{
-						&github.Issue{
+						{
 							Title:   &title,
 							HTMLURL: &url,
 						},
@@ -200,7 +200,7 @@ func TestDoMergeBlocker(t *testing.T) {
 					return []*github.Issue{}, responseWithCode(200), nil
 				},
 				CreateFunc: func(ctx context.Context, owner string, repo string, issue *github.IssueRequest) (issue2 *github.Issue, response *github.Response, err error) {
-					return nil, nil, errors.New("Unexpected error")
+					return nil, nil, errors.New("unexpected error")
 				},
 				EditFunc: nil,
 			},
@@ -218,7 +218,7 @@ func TestDoMergeBlocker(t *testing.T) {
 					url := "http://test"
 					num := 1
 					return []*github.Issue{
-						&github.Issue{
+						{
 							Title:   &title,
 							HTMLURL: &url,
 							Number:  &num,
@@ -259,7 +259,7 @@ func TestDoMergeBlocker(t *testing.T) {
 					url := "http://test"
 					num := 1
 					return []*github.Issue{
-						&github.Issue{
+						{
 							Title:   &title,
 							HTMLURL: &url,
 							Number:  &num,
@@ -268,7 +268,7 @@ func TestDoMergeBlocker(t *testing.T) {
 				},
 				CreateFunc: nil,
 				EditFunc: func(ctx context.Context, owner string, repo string, number int, issue *github.IssueRequest) (issue2 *github.Issue, response *github.Response, err error) {
-					return nil, nil, errors.New("Unexpected error")
+					return nil, nil, errors.New("unexpected error")
 				},
 			},
 			expectError: true,

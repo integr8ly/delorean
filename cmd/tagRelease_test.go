@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"errors"
 	"github.com/google/go-github/v30/github"
 	"github.com/integr8ly/delorean/pkg/quay"
 	"github.com/integr8ly/delorean/pkg/services"
@@ -10,7 +9,6 @@ import (
 	"net/url"
 	"strings"
 	"testing"
-	"time"
 )
 
 type mockGitService struct {
@@ -34,7 +32,7 @@ func (m *mockGitService) CreateRef(ctx context.Context, owner string, repo strin
 
 type mockTagsService struct {
 	listFunc   func(ctx context.Context, repository string, options *quay.ListTagsOptions) (*quay.TagList, *http.Response, error)
-	changeFunc func(ctx context.Context, repository string, tag string, input *quay.ChangTag) (*quay.Tag, *http.Response, error)
+	changeFunc func(ctx context.Context, repository string, tag string, input *quay.ChangTag) (*http.Response, error)
 }
 
 func (m *mockTagsService) List(ctx context.Context, repository string, options *quay.ListTagsOptions) (*quay.TagList, *http.Response, error) {
@@ -44,7 +42,7 @@ func (m *mockTagsService) List(ctx context.Context, repository string, options *
 	panic("implement me")
 }
 
-func (m mockTagsService) Change(ctx context.Context, repository string, tag string, input *quay.ChangTag) (*quay.Tag, *http.Response, error) {
+func (m mockTagsService) Change(ctx context.Context, repository string, tag string, input *quay.ChangTag) (*http.Response, error) {
 	if m.changeFunc != nil {
 		return m.changeFunc(ctx, repository, tag, input)
 	}
@@ -67,7 +65,7 @@ func TestDoTagRelease(t *testing.T) {
 	sha := "testsha"
 	testTagName := "test"
 	testTagDigest := "testdigest"
-	labelKey := commitIdLabelFilter
+	labelKey := commitIDLabelFilter
 	cases := []struct {
 		desc              string
 		ghClient          services.GitService
@@ -110,11 +108,8 @@ func TestDoTagRelease(t *testing.T) {
 							},
 						}, nil, nil
 					},
-					changeFunc: func(ctx context.Context, repository string, tag string, input *quay.ChangTag) (tag2 *quay.Tag, response *http.Response, err error) {
-						return &quay.Tag{
-							Name:           &testTagName,
-							ManifestDigest: &testTagDigest,
-						}, nil, nil
+					changeFunc: func(ctx context.Context, repository string, tag string, input *quay.ChangTag) (response *http.Response, err error) {
+						return nil, nil
 					},
 				},
 				Manifests: &mockManifestService{listLabelsFunc: func(ctx context.Context, repository string, manifestRef string, options *quay.ListManifestLabelsOptions) (list *quay.ManifestLabelsList, response *http.Response, err error) {
@@ -195,11 +190,8 @@ func TestDoTagRelease(t *testing.T) {
 							},
 						}, nil, nil
 					},
-					changeFunc: func(ctx context.Context, repository string, tag string, input *quay.ChangTag) (tag2 *quay.Tag, response *http.Response, err error) {
-						return &quay.Tag{
-							Name:           &testTagName,
-							ManifestDigest: &testTagDigest,
-						}, nil, nil
+					changeFunc: func(ctx context.Context, repository string, tag string, input *quay.ChangTag) (response *http.Response, err error) {
+						return nil, nil
 					},
 				},
 				Manifests: &mockManifestService{listLabelsFunc: func(ctx context.Context, repository string, manifestRef string, options *quay.ListManifestLabelsOptions) (list *quay.ManifestLabelsList, response *http.Response, err error) {
@@ -225,36 +217,5 @@ func TestDoTagRelease(t *testing.T) {
 				t.Errorf("unexpected error: %v", err)
 			}
 		})
-	}
-}
-
-func TestRetry_ok(t *testing.T) {
-	i := 0
-	err := Retry(1*time.Millisecond, 3*time.Millisecond, func() error {
-		i = i + 1
-		return nil
-	})
-	if err != nil {
-		t.Errorf("error should be nil")
-	}
-	if i != 1 {
-		t.Errorf("function should be only called once")
-	}
-}
-
-func TestRetry_timeout(t *testing.T) {
-	i := 0
-	err := Retry(1*time.Millisecond, 3*time.Millisecond, func() error {
-		i = i + 1
-		return errors.New("error")
-	})
-	if err == nil {
-		t.Errorf("error should not be nil")
-	}
-	if i < 2 {
-		t.Errorf("function should be called at least twice")
-	}
-	if err.Error() != "timeout" {
-		t.Errorf("it should be timed out")
 	}
 }

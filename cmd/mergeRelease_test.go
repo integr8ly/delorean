@@ -49,7 +49,7 @@ func TestDoMergeRelease(t *testing.T) {
 				ListFunc: func(ctx context.Context, owner string, repo string, opts *github.PullRequestListOptions) (requests []*github.PullRequest, response *github.Response, err error) {
 					url := "http://test"
 					num := 1
-					return []*github.PullRequest{&github.PullRequest{
+					return []*github.PullRequest{{
 						HTMLURL: &url,
 						Number:  &num,
 					}}, responseWithCode(http.StatusOK), nil
@@ -98,7 +98,7 @@ func TestDoMergeRelease(t *testing.T) {
 				ListFunc: func(ctx context.Context, owner string, repo string, opts *github.PullRequestListOptions) (requests []*github.PullRequest, response *github.Response, err error) {
 					url := "http://test"
 					num := 1
-					return []*github.PullRequest{&github.PullRequest{
+					return []*github.PullRequest{{
 						HTMLURL: &url,
 						Number:  &num,
 					}}, responseWithCode(http.StatusOK), nil
@@ -117,7 +117,7 @@ func TestDoMergeRelease(t *testing.T) {
 				ListFunc: func(ctx context.Context, owner string, repo string, opts *github.PullRequestListOptions) (requests []*github.PullRequest, response *github.Response, err error) {
 					url := "http://test"
 					num := 1
-					return []*github.PullRequest{&github.PullRequest{
+					return []*github.PullRequest{{
 						HTMLURL: &url,
 						Number:  &num,
 					}}, responseWithCode(http.StatusOK), nil
@@ -147,7 +147,7 @@ func TestDoMergeRelease(t *testing.T) {
 				ListFunc: func(ctx context.Context, owner string, repo string, opts *github.PullRequestListOptions) (requests []*github.PullRequest, response *github.Response, err error) {
 					url := "http://test"
 					num := 1
-					return []*github.PullRequest{&github.PullRequest{
+					return []*github.PullRequest{{
 						HTMLURL: &url,
 						Number:  &num,
 					}}, responseWithCode(http.StatusOK), nil
@@ -177,7 +177,7 @@ func TestDoMergeRelease(t *testing.T) {
 				ListFunc: func(ctx context.Context, owner string, repo string, opts *github.PullRequestListOptions) (requests []*github.PullRequest, response *github.Response, err error) {
 					url := "http://test"
 					num := 1
-					return []*github.PullRequest{&github.PullRequest{
+					return []*github.PullRequest{{
 						HTMLURL: &url,
 						Number:  &num,
 					}}, responseWithCode(http.StatusOK), nil
@@ -207,7 +207,7 @@ func TestDoMergeRelease(t *testing.T) {
 				ListFunc: func(ctx context.Context, owner string, repo string, opts *github.PullRequestListOptions) (requests []*github.PullRequest, response *github.Response, err error) {
 					url := "http://test"
 					num := 1
-					return []*github.PullRequest{&github.PullRequest{
+					return []*github.PullRequest{{
 						HTMLURL: &url,
 						Number:  &num,
 					}}, responseWithCode(http.StatusOK), nil

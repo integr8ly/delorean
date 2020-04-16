@@ -54,7 +54,7 @@ type ChangTag struct {
 // See https://docs.quay.io/api/swagger/#!/tag/
 type TagsServiceManager interface {
 	List(ctx context.Context, repository string, options *ListTagsOptions) (*TagList, *http.Response, error)
-	Change(ctx context.Context, repository string, tag string, input *ChangTag) (*Tag, *http.Response, error)
+	Change(ctx context.Context, repository string, tag string, input *ChangTag) (*http.Response, error)
 }
 
 // ManifestLabel represents a label for an image
@@ -226,18 +226,17 @@ func (t *TagsService) List(ctx context.Context, repository string, options *List
 
 // Change an image tag on the repo.
 // See https://docs.quay.io/api/swagger/#!/tag/changeTag
-func (t *TagsService) Change(ctx context.Context, repository string, tag string, input *ChangTag) (*Tag, *http.Response, error) {
+func (t *TagsService) Change(ctx context.Context, repository string, tag string, input *ChangTag) (*http.Response, error) {
 	u := fmt.Sprintf("repository/%v/tag/%v", repository, tag)
 	req, err := t.client.NewRequest("PUT", u, input)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	i := new(Tag)
-	resp, err := t.client.Do(ctx, req, i)
+	resp, err := t.client.Do(ctx, req, nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	return i, resp, err
+	return resp, err
 }
 
 // Get labels for the given manifest of an image

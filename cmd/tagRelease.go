@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/google/go-github/v30/github"
 	"github.com/integr8ly/delorean/pkg/quay"
@@ -14,7 +13,7 @@ import (
 )
 
 const (
-	commitIdLabelFilter = "io.openshift.build.commit.id"
+	commitIDLabelFilter = "io.openshift.build.commit.id"
 )
 
 type tagReleaseOptions struct {
@@ -64,19 +63,22 @@ func DoTagRelease(ctx context.Context, ghClient services.GitService, gitRepoInfo
 		return err
 	}
 	fmt.Println("Create git tag:", rv.TagName())
+	if headRef == nil {
+		return fmt.Errorf("can not find git ref: refs/heads/%s", cmdOpts.branch)
+	}
 	tagRef, err := createGitTag(ctx, ghClient, gitRepoInfo, rv.TagName(), headRef.GetObject().GetSHA())
 	if err != nil {
 		return err
 	}
 	fmt.Println("Git tag", rv.TagName(), "created:", tagRef.GetURL())
 	fmt.Println("Try to create image tag on quay.io")
-	_, err = tryCreateQuayTag(ctx, quayClient, quayRepo, cmdOpts.branch, rv.TagName(), headRef.GetObject().GetSHA())
+	err = tryCreateQuayTag(ctx, quayClient, quayRepo, cmdOpts.branch, rv.TagName(), headRef.GetObject().GetSHA())
 	if err != nil {
 		if cmdOpts.wait {
 			fmt.Println("Wait for the latest image to be available on quay.io. Will check every", cmdOpts.waitInterval, "minutes for", cmdOpts.waitMax, "minutes")
-			err = Retry(time.Duration(cmdOpts.waitInterval)*time.Minute, time.Duration(cmdOpts.waitMax)*time.Minute, func() error {
+			err = utils.Retry(time.Duration(cmdOpts.waitInterval)*time.Minute, time.Duration(cmdOpts.waitMax)*time.Minute, func() error {
 				fmt.Println("Try to create image tag on quay.io")
-				_, err = tryCreateQuayTag(ctx, quayClient, quayRepo, cmdOpts.branch, rv.TagName(), headRef.GetObject().GetSHA())
+				err = tryCreateQuayTag(ctx, quayClient, quayRepo, cmdOpts.branch, rv.TagName(), headRef.GetObject().GetSHA())
 				if err != nil {
 					fmt.Println("Failed. Will try again later.")
 				}
@@ -114,9 +116,8 @@ func createGitTag(ctx context.Context, client services.GitService, gitRepoInfo *
 	if tagRef != nil {
 		if tagRef.GetObject().GetSHA() != sha {
 			return nil, fmt.Errorf("tag %s is already created but pointing to a different commit. Please delete it first", tag)
-		} else {
-			return tagRef, nil
 		}
+		return tagRef, nil
 	}
 	tagRef = &github.Reference{
 		Ref: &tagRefVal,
@@ -131,49 +132,34 @@ func createGitTag(ctx context.Context, client services.GitService, gitRepoInfo *
 	return created, nil
 }
 
-func tryCreateQuayTag(ctx context.Context, quayClient *quay.Client, quayRepo string, existingTag string, newTag string, commitSHA string) (*quay.Tag, error) {
+func tryCreateQuayTag(ctx context.Context, quayClient *quay.Client, quayRepo string, existingTag string, newTag string, commitSHA string) error {
 	tags, _, err := quayClient.Tags.List(ctx, quayRepo, &quay.ListTagsOptions{
 		SpecificTag: existingTag,
 	})
 	if err != nil {
-		return nil, err
+		return err
+	}
+	if len(tags.Tags) == 0 {
+		return fmt.Errorf("tag %s doesn't exit", existingTag)
 	}
 	tag := tags.Tags[0]
-	commitId, _, err := quayClient.Manifests.ListLabels(ctx, quayRepo, *tag.ManifestDigest, &quay.ListManifestLabelsOptions{Filter: commitIdLabelFilter})
+	commitID, _, err := quayClient.Manifests.ListLabels(ctx, quayRepo, *tag.ManifestDigest, &quay.ListManifestLabelsOptions{Filter: commitIDLabelFilter})
 	if err != nil {
-		return nil, err
+		return err
 	}
-	if *commitId.Labels[0].Value != commitSHA {
-		return nil, fmt.Errorf("can't find an image with given tag %s that matches the given commit SHA: %s", existingTag, commitSHA)
+	if len(commitID.Labels) == 0 {
+		return fmt.Errorf("label %s doesn't exist", commitIDLabelFilter)
+	}
+	if *commitID.Labels[0].Value != commitSHA {
+		return fmt.Errorf("can't find an image with given tag %s that matches the given commit SHA: %s", existingTag, commitSHA)
 	} else {
-		created, _, err := quayClient.Tags.Change(ctx, quayRepo, newTag, &quay.ChangTag{
+		_, err := quayClient.Tags.Change(ctx, quayRepo, newTag, &quay.ChangTag{
 			ManifestDigest: *tag.ManifestDigest,
 		})
 		if err != nil {
-			return nil, err
+			return err
 		}
-		return created, nil
-	}
-}
-
-func Retry(interval time.Duration, timeout time.Duration, f func() error) error {
-	done := make(chan bool)
-	go func() {
-		for {
-			time.Sleep(interval)
-			err := f()
-			if err == nil {
-				done <- true
-			}
-		}
-	}()
-	for {
-		select {
-		case <-done:
-			return nil
-		case <-time.After(timeout):
-			return errors.New("timeout")
-		}
+		return nil
 	}
 }
 
