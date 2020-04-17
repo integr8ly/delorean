@@ -298,7 +298,7 @@ func TestCreateReleaseMergeRequest(t *testing.T) {
 					if deployment == nil {
 						t.Fatalf("can not find rhmi-operator deployment spec in csv file:\n%s", content)
 					}
-					_, container := findContainerByName(deployment.Spec, "rhmi-operator")
+					_, container := findContainerByName(deployment.Spec.Template.Spec.Containers, "rhmi-operator")
 					if container == nil {
 						t.Fatalf("can not find rhmi-operator container spec in csv file:\n%s", content)
 					}

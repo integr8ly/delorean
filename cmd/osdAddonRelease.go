@@ -3,13 +3,11 @@ package cmd
 import (
 	"fmt"
 	"io/ioutil"
-	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"os"
 	"path"
 	"time"
 
-	"github.com/ghodss/yaml"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -435,7 +433,7 @@ func (c *osdAddonReleaseCmd) udpateThePackageManifest(channel releaseChannel) (s
 
 	fmt.Printf("update the version of the manifest files %s to %s\n", relative, c.version)
 	p := &registry.PackageManifest{}
-	err := populateObjectFromYAML(manifest, p)
+	err := utils.PopulateObjectFromYAML(manifest, p)
 	if err != nil {
 		return "", err
 	}
@@ -443,7 +441,7 @@ func (c *osdAddonReleaseCmd) udpateThePackageManifest(channel releaseChannel) (s
 	// Set channels[0].currentCSV value
 	p.Channels[0].CurrentCSVName = fmt.Sprintf("integreatly-operator.v%s", c.version.Base())
 
-	err = writeObjectToYAML(p, manifest)
+	err = utils.WriteObjectToYAML(p, manifest)
 	if err != nil {
 		return "", err
 	}
@@ -457,14 +455,14 @@ func (c *osdAddonReleaseCmd) udpateTheCSVManifest(channel releaseChannel) (strin
 
 	fmt.Printf("update csv manifest file %s\n", relative)
 	csv := &olmapiv1alpha1.ClusterServiceVersion{}
-	err := populateObjectFromYAML(csvFile, csv)
+	err := utils.PopulateObjectFromYAML(csvFile, csv)
 	if err != nil {
 		return "", err
 	}
 
 	_, deployment := findDeploymentByName(csv.Spec.InstallStrategy.StrategySpec.DeploymentSpecs, rhmiOperatorDeploymentName)
 	if deployment != nil {
-		i, container := findContainerByName(deployment.Spec, rhmiOperatorContainerName)
+		i, container := findContainerByName(deployment.Spec.Template.Spec.Containers, rhmiOperatorContainerName)
 		if container != nil {
 			// Update USE_CLUSTER_STORAGE env var to empty string
 			container.Env = addOrUpdateEnvVar(container.Env, envVarNameUseClusterStorage, "")
@@ -481,55 +479,11 @@ func (c *osdAddonReleaseCmd) udpateTheCSVManifest(channel releaseChannel) (strin
 	}
 	csv.Spec.InstallModes[mi] = *m
 
-	err = writeObjectToYAML(csv, csvFile)
+	err = utils.WriteObjectToYAML(csv, csvFile)
 	if err != nil {
 		return "", err
 	}
 	return relative, nil
-}
-
-func populateObjectFromYAML(yamlFile string, obj interface{}) error {
-	read, err := os.Open(yamlFile)
-	if err != nil {
-		return err
-	}
-
-	bytes, err := ioutil.ReadAll(read)
-
-	err = read.Close()
-	if err != nil {
-		return err
-	}
-
-	err = yaml.Unmarshal(bytes, obj)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func writeObjectToYAML(obj interface{}, yamlFile string) error {
-	bytes, err := yaml.Marshal(obj)
-	if err != nil {
-		return err
-	}
-
-	// truncate the existing file
-	write, err := os.Create(yamlFile)
-	if err != nil {
-		return err
-	}
-
-	_, err = write.Write(bytes)
-	if err != nil {
-		return err
-	}
-
-	err = write.Close()
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func findDeploymentByName(deployments []olmapiv1alpha1.StrategyDeploymentSpec, name string) (int, *olmapiv1alpha1.StrategyDeploymentSpec) {
@@ -541,8 +495,8 @@ func findDeploymentByName(deployments []olmapiv1alpha1.StrategyDeploymentSpec, n
 	return -1, nil
 }
 
-func findContainerByName(deploymentSpec v1.DeploymentSpec, containerName string) (int, *corev1.Container) {
-	for i, c := range deploymentSpec.Template.Spec.Containers {
+func findContainerByName(containers []corev1.Container, containerName string) (int, *corev1.Container) {
+	for i, c := range containers {
 		if c.Name == containerName {
 			return i, &c
 		}
