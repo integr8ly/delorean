@@ -1,5 +1,0 @@
-apiVersion: operators.coreos.com/v1alpha1
-kind: ClusterServiceVersion
-metadata:
-  name: integreatly-operator.v2.1.0-rc1
-spec: {}
