@@ -12,6 +12,7 @@ require (
 	github.com/go-git/go-git/v5 v5.0.0
 	github.com/gofrs/uuid v3.2.0+incompatible // indirect
 	github.com/google/go-github/v30 v30.1.0
+	github.com/google/go-querystring v1.0.0
 	github.com/gorilla/handlers v1.4.2 // indirect
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/operator-framework/operator-registry v1.9.0

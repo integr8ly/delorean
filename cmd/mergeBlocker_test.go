@@ -76,7 +76,7 @@ func TestSearchMergeBlockers(t *testing.T) {
 				ListByRepoFunc: func(ctx context.Context, owner string, repo string, opts *github.IssueListByRepoOptions) (issues []*github.Issue, response *github.Response, err error) {
 					title := "release blocker|branch:master"
 					return []*github.Issue{
-						&github.Issue{
+						{
 							Title: &title,
 						},
 					}, responseWithCode(200), nil
@@ -99,7 +99,7 @@ func TestSearchMergeBlockers(t *testing.T) {
 				ListByRepoFunc: func(ctx context.Context, owner string, repo string, opts *github.IssueListByRepoOptions) (issues []*github.Issue, response *github.Response, err error) {
 					title := "master|branch:release-v2.1"
 					return []*github.Issue{
-						&github.Issue{
+						{
 							Title: &title,
 						},
 					}, responseWithCode(200), nil
@@ -110,24 +110,6 @@ func TestSearchMergeBlockers(t *testing.T) {
 			verify: func(t *testing.T, issue *github.Issue, err error) {
 				if err != nil {
 					t.Fatal("error found:", err)
-				} else if issue != nil {
-					t.Fatal("issue should be nil, but found:", issue)
-				}
-			},
-		},
-		{
-			description: "test non-200 response",
-			branch:      "master",
-			client: &mockGithubIssuesService{
-				ListByRepoFunc: func(ctx context.Context, owner string, repo string, opts *github.IssueListByRepoOptions) (issues []*github.Issue, response *github.Response, err error) {
-					return nil, responseWithCode(404), nil
-				},
-				CreateFunc: nil,
-				EditFunc:   nil,
-			},
-			verify: func(t *testing.T, issue *github.Issue, err error) {
-				if err == nil {
-					t.Fatal("error should not be nil")
 				} else if issue != nil {
 					t.Fatal("issue should be nil, but found:", issue)
 				}
@@ -155,22 +137,25 @@ func TestSearchMergeBlockers(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.description, func(t *testing.T) {
-			issue, err := searchMergeBlockers(context.TODO(), c.client, DefaultIntegreatlyOperatorRepo, DefaultIntegreatlyGithubOrg, c.branch)
+			issue, err := searchMergeBlockers(context.TODO(), c.client, &githubRepoInfo{owner: DefaultIntegreatlyGithubOrg, repo: DefaultIntegreatlyOperatorRepo}, c.branch)
 			c.verify(t, issue, err)
 		})
 	}
 }
 
-func TestCreateMergeBlockers(t *testing.T) {
+func TestDoMergeBlocker(t *testing.T) {
 	cases := []struct {
 		description string
 		client      services.GithubIssuesService
-		branch      string
-		verify      func(t *testing.T, issue *github.Issue, err error)
+		opts        *mergeBlockerCmdOptions
+		expectError bool
 	}{
 		{
 			description: "test create ok",
-			branch:      "master",
+			opts: &mergeBlockerCmdOptions{
+				baseBranch: "master",
+				isDeletion: false,
+			},
 			client: &mockGithubIssuesService{
 				ListByRepoFunc: func(ctx context.Context, owner string, repo string, opts *github.IssueListByRepoOptions) (issues []*github.Issue, response *github.Response, err error) {
 					return []*github.Issue{}, responseWithCode(200), nil
@@ -180,29 +165,20 @@ func TestCreateMergeBlockers(t *testing.T) {
 				},
 				EditFunc: nil,
 			},
-			verify: func(t *testing.T, issue *github.Issue, err error) {
-				if err != nil {
-					t.Fatal("error found:", err)
-				} else if issue == nil {
-					t.Fatal("issue is not found")
-				}
-				if *issue.Title != "Merge Blocker|branch:master" {
-					t.Fatal("Wrong issue title:", issue.Title)
-				}
-				if *issue.Labels[0].Name != MergeBlockerLabel {
-					t.Fatal("Label not found")
-				}
-			},
+			expectError: false,
 		},
 		{
 			description: "test issue already exists",
-			branch:      "master",
+			opts: &mergeBlockerCmdOptions{
+				baseBranch: "master",
+				isDeletion: false,
+			},
 			client: &mockGithubIssuesService{
 				ListByRepoFunc: func(ctx context.Context, owner string, repo string, opts *github.IssueListByRepoOptions) (issues []*github.Issue, response *github.Response, err error) {
 					title := "release blocker|branch:master"
 					url := "http://test"
 					return []*github.Issue{
-						&github.Issue{
+						{
 							Title:   &title,
 							HTMLURL: &url,
 						},
@@ -211,81 +187,38 @@ func TestCreateMergeBlockers(t *testing.T) {
 				CreateFunc: nil,
 				EditFunc:   nil,
 			},
-			verify: func(t *testing.T, issue *github.Issue, err error) {
-				if err != nil {
-					t.Fatal("error found:", err)
-				} else if issue == nil {
-					t.Fatal("issue is not found")
-				}
-			},
+			expectError: false,
 		},
 		{
-			description: "test non-201 status",
-			branch:      "master",
+			description: "test create error",
+			opts: &mergeBlockerCmdOptions{
+				baseBranch: "master",
+				isDeletion: false,
+			},
 			client: &mockGithubIssuesService{
 				ListByRepoFunc: func(ctx context.Context, owner string, repo string, opts *github.IssueListByRepoOptions) (issues []*github.Issue, response *github.Response, err error) {
 					return []*github.Issue{}, responseWithCode(200), nil
 				},
 				CreateFunc: func(ctx context.Context, owner string, repo string, issue *github.IssueRequest) (issue2 *github.Issue, response *github.Response, err error) {
-					return nil, responseWithCode(500), nil
+					return nil, nil, errors.New("unexpected error")
 				},
 				EditFunc: nil,
 			},
-			verify: func(t *testing.T, issue *github.Issue, err error) {
-				if err == nil {
-					t.Fatal("error should not be nil")
-				} else if issue != nil {
-					t.Fatal("issue should be nil")
-				}
-			},
+			expectError: true,
 		},
-		{
-			description: "test error",
-			branch:      "master",
-			client: &mockGithubIssuesService{
-				ListByRepoFunc: func(ctx context.Context, owner string, repo string, opts *github.IssueListByRepoOptions) (issues []*github.Issue, response *github.Response, err error) {
-					return []*github.Issue{}, responseWithCode(200), nil
-				},
-				CreateFunc: func(ctx context.Context, owner string, repo string, issue *github.IssueRequest) (issue2 *github.Issue, response *github.Response, err error) {
-					return nil, nil, errors.New("Unexpected error")
-				},
-				EditFunc: nil,
-			},
-			verify: func(t *testing.T, issue *github.Issue, err error) {
-				if err == nil {
-					t.Fatal("error should not be nil")
-				} else if issue != nil {
-					t.Fatal("issue should be nil")
-				}
-			},
-		},
-	}
-
-	for _, c := range cases {
-		t.Run(c.description, func(t *testing.T) {
-			issue, err := createMergeBlocker(context.TODO(), c.client, DefaultIntegreatlyGithubOrg, DefaultIntegreatlyOperatorRepo, c.branch)
-			c.verify(t, issue, err)
-		})
-	}
-}
-
-func TestCloseMergeBlockers(t *testing.T) {
-	cases := []struct {
-		description string
-		client      services.GithubIssuesService
-		branch      string
-		verify      func(t *testing.T, issue *github.Issue, err error)
-	}{
 		{
 			description: "test close ok",
-			branch:      "master",
+			opts: &mergeBlockerCmdOptions{
+				baseBranch: "master",
+				isDeletion: true,
+			},
 			client: &mockGithubIssuesService{
 				ListByRepoFunc: func(ctx context.Context, owner string, repo string, opts *github.IssueListByRepoOptions) (issues []*github.Issue, response *github.Response, err error) {
 					title := "release blocker|branch:master"
 					url := "http://test"
 					num := 1
 					return []*github.Issue{
-						&github.Issue{
+						{
 							Title:   &title,
 							HTMLURL: &url,
 							Number:  &num,
@@ -297,20 +230,14 @@ func TestCloseMergeBlockers(t *testing.T) {
 					return toIssue(issue), responseWithCode(200), nil
 				},
 			},
-			verify: func(t *testing.T, issue *github.Issue, err error) {
-				if err != nil {
-					t.Fatal("error found:", err)
-				} else if issue == nil {
-					t.Fatal("issue is not found")
-				}
-				if *issue.State != "closed" {
-					t.Fatal("issue is not closed", issue.State)
-				}
-			},
+			expectError: false,
 		},
 		{
 			description: "test issue not exists",
-			branch:      "master",
+			opts: &mergeBlockerCmdOptions{
+				baseBranch: "master",
+				isDeletion: true,
+			},
 			client: &mockGithubIssuesService{
 				ListByRepoFunc: func(ctx context.Context, owner string, repo string, opts *github.IssueListByRepoOptions) (issues []*github.Issue, response *github.Response, err error) {
 					return []*github.Issue{}, responseWithCode(200), nil
@@ -318,22 +245,21 @@ func TestCloseMergeBlockers(t *testing.T) {
 				CreateFunc: nil,
 				EditFunc:   nil,
 			},
-			verify: func(t *testing.T, issue *github.Issue, err error) {
-				if err == nil {
-					t.Fatal("error should not be nil")
-				}
-			},
+			expectError: true,
 		},
 		{
-			description: "test non-200 status",
-			branch:      "master",
+			description: "test close error",
+			opts: &mergeBlockerCmdOptions{
+				baseBranch: "master",
+				isDeletion: true,
+			},
 			client: &mockGithubIssuesService{
 				ListByRepoFunc: func(ctx context.Context, owner string, repo string, opts *github.IssueListByRepoOptions) (issues []*github.Issue, response *github.Response, err error) {
 					title := "release blocker|branch:master"
 					url := "http://test"
 					num := 1
 					return []*github.Issue{
-						&github.Issue{
+						{
 							Title:   &title,
 							HTMLURL: &url,
 							Number:  &num,
@@ -342,52 +268,21 @@ func TestCloseMergeBlockers(t *testing.T) {
 				},
 				CreateFunc: nil,
 				EditFunc: func(ctx context.Context, owner string, repo string, number int, issue *github.IssueRequest) (issue2 *github.Issue, response *github.Response, err error) {
-					return nil, responseWithCode(500), nil
+					return nil, nil, errors.New("unexpected error")
 				},
 			},
-			verify: func(t *testing.T, issue *github.Issue, err error) {
-				if err == nil {
-					t.Fatal("error should not be nil")
-				} else if issue != nil {
-					t.Fatal("issue should be nil")
-				}
-			},
-		},
-		{
-			description: "test error",
-			branch:      "master",
-			client: &mockGithubIssuesService{
-				ListByRepoFunc: func(ctx context.Context, owner string, repo string, opts *github.IssueListByRepoOptions) (issues []*github.Issue, response *github.Response, err error) {
-					title := "release blocker|branch:master"
-					url := "http://test"
-					num := 1
-					return []*github.Issue{
-						&github.Issue{
-							Title:   &title,
-							HTMLURL: &url,
-							Number:  &num,
-						},
-					}, responseWithCode(200), nil
-				},
-				CreateFunc: nil,
-				EditFunc: func(ctx context.Context, owner string, repo string, number int, issue *github.IssueRequest) (issue2 *github.Issue, response *github.Response, err error) {
-					return nil, nil, errors.New("Unexpected error")
-				},
-			},
-			verify: func(t *testing.T, issue *github.Issue, err error) {
-				if err == nil {
-					t.Fatal("error should not be nil")
-				} else if issue != nil {
-					t.Fatal("issue should be nil")
-				}
-			},
+			expectError: true,
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.description, func(t *testing.T) {
-			issue, err := closeMergeBlocker(context.TODO(), c.client, DefaultIntegreatlyGithubOrg, DefaultIntegreatlyOperatorRepo, c.branch)
-			c.verify(t, issue, err)
+			err := DoMergeBlocker(context.TODO(), c.client, &githubRepoInfo{owner: DefaultIntegreatlyGithubOrg, repo: DefaultIntegreatlyOperatorRepo}, c.opts)
+			if c.expectError && err == nil {
+				t.Errorf("error should not be nil")
+			} else if !c.expectError && err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
 		})
 	}
 }

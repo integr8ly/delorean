@@ -46,3 +46,11 @@ func (v *RHMIVersion) String() string {
 func (v *RHMIVersion) IsPreRrelease() bool {
 	return v.build != ""
 }
+
+func (v *RHMIVersion) ReleaseBranchName() string {
+	return fmt.Sprintf("release-v%s", v.base)
+}
+
+func (v *RHMIVersion) TagName() string {
+	return fmt.Sprintf("v%s", v.String())
+}

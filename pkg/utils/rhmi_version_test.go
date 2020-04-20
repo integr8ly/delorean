@@ -9,66 +9,65 @@ func TestReleaseVersion(t *testing.T) {
 	cases := []struct {
 		description string
 		version     string
-		verify      func(t *testing.T, version string, v *RHMIVersion, err error)
+		branchName  string
+		tagName     string
+		preRelease  bool
+		expectError bool
 	}{
 		{
 			description: "Verify release version",
 			version:     "2.0.0",
-			verify: func(t *testing.T, version string, v *RHMIVersion, err error) {
-				if err != nil {
-					t.Fatalf("expected to parse %s but it fails with: %s", version, err)
-				}
-
-				if v.IsPreRrelease() {
-					t.Fatalf("expected %s to not be a prerelease version", version)
-				}
-
-				if s := v.String(); version != s {
-					t.Fatalf("expected %s when stringify the version but found %s", version, s)
-				}
-			},
+			branchName:  "release-v2.0.0",
+			tagName:     "v2.0.0",
+			preRelease:  false,
+			expectError: false,
 		},
 		{
 			description: "Verify pre release version",
 			version:     "2.0.0-ER1",
-			verify: func(t *testing.T, version string, v *RHMIVersion, err error) {
-				if err != nil {
-					t.Fatalf("expected to parse %s but it fails with: %s", version, err)
-				}
-
-				if !v.IsPreRrelease() {
-					t.Fatalf("expected %s to be a prerelease version", version)
-				}
-
-				if s := v.String(); version != s {
-					t.Fatalf("expected %s when stringify the version but found %s", version, s)
-				}
-			},
+			branchName:  "release-v2.0.0",
+			tagName:     "v2.0.0-ER1",
+			preRelease:  true,
+			expectError: false,
 		},
 		{
 			description: "When the version is empty it should fails",
 			version:     "",
-			verify: func(t *testing.T, _ string, _ *RHMIVersion, err error) {
-				if err == nil {
-					t.Fatalf("expected to fail when parsing an empty version")
-				}
-			},
+			expectError: true,
 		},
 		{
 			description: "When the version is wrong it should fails",
 			version:     "2.0.0-er1-two",
-			verify: func(t *testing.T, version string, _ *RHMIVersion, err error) {
-				if err == nil {
-					t.Fatalf("expected to fail when parsing the wrong version %s", version)
-				}
-			},
+			expectError: true,
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.description, func(t *testing.T) {
 			v, err := NewRHMIVersion(c.version)
-			c.verify(t, c.version, v, err)
+
+			if c.expectError && err == nil {
+				t.Fatalf("error should not be nil")
+			} else if !c.expectError {
+				if err != nil {
+					t.Fatalf("expected to parse %s but it fails with: %v", c.version, err)
+				}
+				if actual, wanted := v.IsPreRrelease(), c.preRelease; actual != wanted {
+					t.Fatalf("expected %s to not be a prerelease version", c.version)
+				}
+
+				if actual, wanted := v.String(), c.version; actual != wanted {
+					t.Fatalf("expected %s when stringify the version but found %s", wanted, actual)
+				}
+
+				if actual, wanted := v.ReleaseBranchName(), c.branchName; actual != wanted {
+					t.Fatalf("expected %s when build branch name but found %s", wanted, actual)
+				}
+
+				if actual, wanted := v.TagName(), c.tagName; actual != wanted {
+					t.Fatalf("expected %s when build tag name but found %s", wanted, actual)
+				}
+			}
 		})
 	}
 }
