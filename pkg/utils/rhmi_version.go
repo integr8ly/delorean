@@ -54,3 +54,7 @@ func (v *RHMIVersion) ReleaseBranchName() string {
 func (v *RHMIVersion) TagName() string {
 	return fmt.Sprintf("v%s", v.String())
 }
+
+func (v *RHMIVersion) Base() string {
+	return v.base
+}

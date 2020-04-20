@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"io/ioutil"
+	corev1 "k8s.io/api/core/v1"
 	"os"
 	"path"
 	"time"
@@ -14,10 +15,10 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/integr8ly/delorean/pkg/services"
 	"github.com/integr8ly/delorean/pkg/utils"
+	olmapiv1alpha1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
 	"github.com/operator-framework/operator-registry/pkg/registry"
 	"github.com/spf13/cobra"
 	"github.com/xanzy/go-gitlab"
-	"gopkg.in/yaml.v2"
 )
 
 const (
@@ -36,11 +37,16 @@ const (
 	managedTenantsMasterBranch = "master"
 
 	// Info for the commit and merge request
-	branchNameTemplate        = "integreatly-operator-%s-v%s"
-	commitMessageTemplate     = "update integreatly-operator %s to %s"
-	gitlabAuthorName          = "Delorean"
-	gitlabAuthorEmail         = "cloud-services-delorean@redhat.com"
-	mergeRequestTitleTemplate = "Update integreatly-operator %s to %s" // channel, version
+	branchNameTemplate           = "integreatly-operator-%s-v%s"
+	commitMessageTemplate        = "update integreatly-operator %s to %s"
+	gitlabAuthorName             = "Delorean"
+	gitlabAuthorEmail            = "cloud-services-delorean@redhat.com"
+	mergeRequestTitleTemplate    = "Update integreatly-operator %s to %s" // channel, version
+	rhmiOperatorDeploymentName   = "rhmi-operator"
+	rhmiOperatorContainerName    = "rhmi-operator"
+	envVarNameUseClusterStorage  = "USE_CLUSTER_STORAGE"
+	envVarNameAlerEmailAddress   = "ALERTING_EMAIL_ADDRESS"
+	integreatlyAlertEmailAddress = "integreatly-notifications@redhat.com"
 )
 
 // releaseChannel rappresents one of the three places (stage, edge, stable)
@@ -327,6 +333,16 @@ func (c *osdAddonReleaseCmd) createReleaseMergeRequest(channel releaseChannel) e
 		return e(err)
 	}
 
+	//Update the integreatly-operator.vx.x.x.clusterserviceversion.yaml
+	csvManifest, err := c.udpateTheCSVManifest(channel)
+	if err != nil {
+		return e(err)
+	}
+	_, err = managedTenantsTree.Add(csvManifest)
+	if err != nil {
+		return e(err)
+	}
+
 	// Commit
 	fmt.Print("commit all changes in the managed-tenats repo\n")
 	_, err = managedTenantsTree.Commit(
@@ -396,9 +412,9 @@ func (c *osdAddonReleaseCmd) createReleaseMergeRequest(channel releaseChannel) e
 
 func (c *osdAddonReleaseCmd) copyTheOLMManifests(channel releaseChannel) (string, error) {
 
-	source := path.Join(c.integreatlyOperatorDir, fmt.Sprintf(sourceOLMManifestsDirectory, c.version))
+	source := path.Join(c.integreatlyOperatorDir, fmt.Sprintf(sourceOLMManifestsDirectory, c.version.Base()))
 
-	relativeDestination := fmt.Sprintf("%s/%s", channel.directory(), c.version)
+	relativeDestination := fmt.Sprintf("%s/%s", channel.directory(), c.version.Base())
 	destination := path.Join(c.managedTenantsDir, relativeDestination)
 
 	fmt.Printf("copy files from %s to %s\n", source, destination)
@@ -416,47 +432,97 @@ func (c *osdAddonReleaseCmd) udpateThePackageManifest(channel releaseChannel) (s
 	manifest := path.Join(c.managedTenantsDir, relative)
 
 	fmt.Printf("update the version of the manifest files %s to %s\n", relative, c.version)
-	read, err := os.Open(manifest)
-	if err != nil {
-		return "", err
-	}
-
-	bytes, err := ioutil.ReadAll(read)
-
-	err = read.Close()
-	if err != nil {
-		return "", err
-	}
-
-	var p registry.PackageManifest
-	err = yaml.Unmarshal(bytes, &p)
+	p := &registry.PackageManifest{}
+	err := utils.PopulateObjectFromYAML(manifest, p)
 	if err != nil {
 		return "", err
 	}
 
 	// Set channels[0].currentCSV value
-	p.Channels[0].CurrentCSVName = fmt.Sprintf("integreatly-operator.v%s", c.version)
+	p.Channels[0].CurrentCSVName = fmt.Sprintf("integreatly-operator.v%s", c.version.Base())
 
-	bytes, err = yaml.Marshal(p)
-	if err != nil {
-		return "", err
-	}
-
-	// truncate the existing file
-	write, err := os.Create(manifest)
-	if err != nil {
-		return "", err
-	}
-
-	_, err = write.Write(bytes)
-	if err != nil {
-		return "", err
-	}
-
-	err = write.Close()
+	err = utils.WriteObjectToYAML(p, manifest)
 	if err != nil {
 		return "", err
 	}
 
 	return relative, nil
+}
+
+func (c *osdAddonReleaseCmd) udpateTheCSVManifest(channel releaseChannel) (string, error) {
+	relative := fmt.Sprintf("%s/%s/%s.v%s.clusterserviceversion.yaml", channel.directory(), c.version.Base(), "integreatly-operator", c.version.Base())
+	csvFile := path.Join(c.managedTenantsDir, relative)
+
+	fmt.Printf("update csv manifest file %s\n", relative)
+	csv := &olmapiv1alpha1.ClusterServiceVersion{}
+	err := utils.PopulateObjectFromYAML(csvFile, csv)
+	if err != nil {
+		return "", err
+	}
+
+	_, deployment := findDeploymentByName(csv.Spec.InstallStrategy.StrategySpec.DeploymentSpecs, rhmiOperatorDeploymentName)
+	if deployment != nil {
+		i, container := findContainerByName(deployment.Spec.Template.Spec.Containers, rhmiOperatorContainerName)
+		if container != nil {
+			// Update USE_CLUSTER_STORAGE env var to empty string
+			container.Env = addOrUpdateEnvVar(container.Env, envVarNameUseClusterStorage, "")
+			// Add ALERTING_EMAIL_ADDRESS env var
+			container.Env = addOrUpdateEnvVar(container.Env, envVarNameAlerEmailAddress, integreatlyAlertEmailAddress)
+		}
+		deployment.Spec.Template.Spec.Containers[i] = *container
+	}
+
+	//Set SingleNamespace install mode to true
+	mi, m := findInstallMode(csv.Spec.InstallModes, olmapiv1alpha1.InstallModeTypeSingleNamespace)
+	if m != nil {
+		m.Supported = true
+	}
+	csv.Spec.InstallModes[mi] = *m
+
+	err = utils.WriteObjectToYAML(csv, csvFile)
+	if err != nil {
+		return "", err
+	}
+	return relative, nil
+}
+
+func findDeploymentByName(deployments []olmapiv1alpha1.StrategyDeploymentSpec, name string) (int, *olmapiv1alpha1.StrategyDeploymentSpec) {
+	for i, d := range deployments {
+		if d.Name == name {
+			return i, &d
+		}
+	}
+	return -1, nil
+}
+
+func findContainerByName(containers []corev1.Container, containerName string) (int, *corev1.Container) {
+	for i, c := range containers {
+		if c.Name == containerName {
+			return i, &c
+		}
+	}
+	return -1, nil
+}
+
+func addOrUpdateEnvVar(envVars []corev1.EnvVar, envName string, envVal string) []corev1.EnvVar {
+	v := corev1.EnvVar{
+		Name:  envName,
+		Value: envVal,
+	}
+	for i, env := range envVars {
+		if env.Name == envName {
+			envVars[i] = v
+			return envVars
+		}
+	}
+	return append(envVars, v)
+}
+
+func findInstallMode(installModes []olmapiv1alpha1.InstallMode, typeName olmapiv1alpha1.InstallModeType) (int, *olmapiv1alpha1.InstallMode) {
+	for i, m := range installModes {
+		if m.Type == typeName {
+			return i, &m
+		}
+	}
+	return -1, nil
 }

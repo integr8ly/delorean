@@ -2,10 +2,13 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/ghodss/yaml"
+	olmapiv1alpha1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
 	"io/ioutil"
 	"os"
 	"path"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/go-git/go-git/v5"
@@ -253,20 +256,28 @@ func TestCreateReleaseMergeRequest(t *testing.T) {
 			}
 
 			packageManifest := fmt.Sprintf("%s/%s.package.yaml", c.channel.directory(), c.channel.operatorName())
-			clusterServiceVersion := fmt.Sprintf("%s/%s/integreatly-operator.v%s.clusterserviceversion.yaml", c.channel.directory(), version, version)
-			customResourceDefinition := fmt.Sprintf("%s/%s/integreatly.org_rhmis_crd.yaml", c.channel.directory(), version)
+			clusterServiceVersion := fmt.Sprintf("%s/%s/integreatly-operator.v%s.clusterserviceversion.yaml", c.channel.directory(), version.Base(), version.Base())
+			customResourceDefinition := fmt.Sprintf("%s/%s/integreatly.org_rhmis_crd.yaml", c.channel.directory(), version.Base())
 
 			for _, p := range patches {
 				_, file := p.Files()
 				switch file.Path() {
 				case packageManifest:
 					if found := len(p.Chunks()); found != 4 {
-						t.Fatalf("expected 3 but found %d chunk changes for %s", found, packageManifest)
+						t.Fatalf("expected 4 but found %d chunk changes for %s", found, packageManifest)
 					}
-					expected := fmt.Sprintf("  currentCSV: integreatly-operator.v%s\n", version)
-					if found := p.Chunks()[2].Content(); found != expected {
-						t.Fatalf("expected '%s' but found '%s' for the third cunks of %s", expected, found, packageManifest)
+					expected := fmt.Sprintf("currentCSV: integreatly-operator.v%s\n", version.Base())
+					chunks := p.Chunks()
+					found := false
+					for _, c := range chunks {
+						if strings.Index(c.Content(), expected) > -1 {
+							found = true
+						}
 					}
+					if !found {
+						t.Fatalf("can not find expected change: %s", expected)
+					}
+
 				case clusterServiceVersion:
 					if found := len(p.Chunks()); found != 1 {
 						t.Fatalf("expected 1 but found %d chunk changes for %s", found, clusterServiceVersion)
@@ -274,9 +285,43 @@ func TestCreateReleaseMergeRequest(t *testing.T) {
 					if found := p.Chunks()[0].Type(); found != diff.Add {
 						t.Fatalf("the frist and only chunk type should be Add but found %d for %s", found, clusterServiceVersion)
 					}
-					if found := len(p.Chunks()[0].Content()); found <= 0 {
+					content := p.Chunks()[0].Content()
+					if found := len(content); found <= 0 {
 						t.Fatalf("expected %s to be largern then 0 but found %d", clusterServiceVersion, found)
 					}
+					csv := &olmapiv1alpha1.ClusterServiceVersion{}
+					err := yaml.Unmarshal([]byte(content), csv)
+					if err != nil {
+						t.Fatalf("invalid CSV file content:\n%s", content)
+					}
+					_, deployment := findDeploymentByName(csv.Spec.InstallStrategy.StrategySpec.DeploymentSpecs, "rhmi-operator")
+					if deployment == nil {
+						t.Fatalf("can not find rhmi-operator deployment spec in csv file:\n%s", content)
+					}
+					_, container := findContainerByName(deployment.Spec.Template.Spec.Containers, "rhmi-operator")
+					if container == nil {
+						t.Fatalf("can not find rhmi-operator container spec in csv file:\n%s", content)
+					}
+					storageEnvVarChecked, alertEnvVarChecked := false, false
+					for _, env := range container.Env {
+						if env.Name == envVarNameUseClusterStorage && env.Value == "" {
+							storageEnvVarChecked = true
+						}
+						if env.Name == envVarNameAlerEmailAddress && env.Value == integreatlyAlertEmailAddress {
+							alertEnvVarChecked = true
+						}
+					}
+					if !storageEnvVarChecked {
+						t.Fatalf("%s env var should be empty in csv file:\n%s", envVarNameUseClusterStorage, content)
+					}
+					if !alertEnvVarChecked {
+						t.Fatalf("%s env var should be set to %s in csv file:\n%s", envVarNameAlerEmailAddress, "integreatly-notifications@redhat.com", content)
+					}
+					_, installMode := findInstallMode(csv.Spec.InstallModes, olmapiv1alpha1.InstallModeTypeSingleNamespace)
+					if !installMode.Supported {
+						t.Fatalf("%s value should be true in csv file:\n%s", olmapiv1alpha1.InstallModeTypeSingleNamespace, content)
+					}
+
 				case customResourceDefinition:
 					if found := len(p.Chunks()); found != 1 {
 						t.Fatalf("expected 1 but found %d chunk changes for %s", found, customResourceDefinition)

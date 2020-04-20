@@ -8,6 +8,7 @@ import (
 )
 
 func writeFile(t *testing.T, file string, content string) {
+	t.Helper()
 	f, err := os.Create(file)
 	if err != nil {
 		t.Fatal(err)
@@ -21,6 +22,7 @@ func writeFile(t *testing.T, file string, content string) {
 }
 
 func readFile(t *testing.T, file string) string {
+	t.Helper()
 	f, err := os.Open(file)
 	if err != nil {
 		t.Fatal(err)
