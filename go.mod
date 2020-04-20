@@ -3,6 +3,7 @@ module github.com/integr8ly/delorean
 go 1.13
 
 require (
+	github.com/blang/semver v3.5.1+incompatible
 	github.com/bugsnag/bugsnag-go v1.5.3 // indirect
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-git/go-git/v5 v5.0.0

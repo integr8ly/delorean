@@ -2,17 +2,30 @@ package utils
 
 import (
 	"fmt"
-	"github.com/operator-framework/api/pkg/operators"
-	olmapiv1alpha1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
-	"github.com/operator-framework/operator-registry/pkg/registry"
 	"io/ioutil"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
-	k8syaml "k8s.io/apimachinery/pkg/util/yaml"
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
+
+	"github.com/blang/semver"
+	"github.com/operator-framework/api/pkg/operators"
+	olmapiv1alpha1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
+	"github.com/operator-framework/operator-registry/pkg/registry"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	k8syaml "k8s.io/apimachinery/pkg/util/yaml"
 )
+
+type csvName struct {
+	Name    string
+	Version semver.Version
+}
+type csvNames []csvName
+
+func (c csvNames) Len() int           { return len(c) }
+func (c csvNames) Less(i, j int) bool { return c[i].Version.LT(c[j].Version) }
+func (c csvNames) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
 
 // ReadCSVFromBundleDirectory tries to parse every YAML file in the directory and see if they are CSV.
 // According to the strict one CSV rule for every bundle, we return the first file that is considered a CSV type.
@@ -96,6 +109,25 @@ func GetPackageManifest(packageDir string) (*registry.PackageManifest, string, e
 	}
 
 	return pkgManifest, pkgManifestFile, nil
+}
+
+func GetSortedCSVNames(packageDir string) (csvNames, error) {
+	bundleDirs, err := ioutil.ReadDir(packageDir)
+	var sortedCSVNames csvNames
+	if err != nil {
+		return nil, err
+	}
+	for _, bundlePath := range bundleDirs {
+		if bundlePath.IsDir() {
+			csv, _, err := ReadCSVFromBundleDirectory(filepath.Join(packageDir, bundlePath.Name()))
+			if err != nil {
+				return nil, err
+			}
+			sortedCSVNames = append(sortedCSVNames, csvName{Name: csv.Name, Version: csv.Spec.Version.Version})
+		}
+	}
+	sort.Sort(sortedCSVNames)
+	return sortedCSVNames, nil
 }
 
 func GetCurrentCSV(packageDir string) (*olmapiv1alpha1.ClusterServiceVersion, string, error) {
