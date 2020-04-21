@@ -131,14 +131,14 @@ func TestGetCurrentCSV(t *testing.T) {
 			args:    args{"./testdata/validManifests/3scale"},
 			wantErr: false,
 			want:    "3scale-operator.v0.4.0",
-			want1:   "testdata/validManifests/3scale/0.4.0",
+			want1:   "testdata/validManifests/3scale/0.4.0/3scale-operator.v0.4.0.clusterserviceversion.yaml",
 		},
 		{
 			name:    "valid package dir 2",
 			args:    args{"./testdata/validManifests/3scale2"},
 			wantErr: false,
 			want:    "3scale-operator.v0.5.0",
-			want1:   "testdata/validManifests/3scale2/0.5.0",
+			want1:   "testdata/validManifests/3scale2/0.5.0/3scale-operator.v0.5.0.clusterserviceversion.yaml",
 		},
 		{
 			name:    "invalid package dir",
@@ -178,6 +178,7 @@ func TestReadCSVFromBundleDirectory(t *testing.T) {
 		name    string
 		args    args
 		want    string
+		want1   string
 		wantErr bool
 	}{
 		{
@@ -185,6 +186,7 @@ func TestReadCSVFromBundleDirectory(t *testing.T) {
 			args:    args{"./testdata/validManifests/3scale/0.4.0"},
 			wantErr: false,
 			want:    "3scale-operator.v0.4.0",
+			want1:   "testdata/validManifests/3scale/0.4.0/3scale-operator.v0.4.0.clusterserviceversion.yaml",
 		},
 		{
 			name:    "invalid bundle dir",
@@ -199,7 +201,7 @@ func TestReadCSVFromBundleDirectory(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := ReadCSVFromBundleDirectory(tt.args.bundleDir)
+			got, got1, err := ReadCSVFromBundleDirectory(tt.args.bundleDir)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ReadCSVFromBundleDirectory() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -207,11 +209,14 @@ func TestReadCSVFromBundleDirectory(t *testing.T) {
 			if !tt.wantErr {
 				if got != nil {
 					if got.Name != tt.want {
-						t.Errorf("GetCurrentCSV() got1 = %v, want %v", got.Name, tt.want)
+						t.Errorf("ReadCSVFromBundleDirectory() got1 = %v, want %v", got.Name, tt.want)
 					}
 				} else {
-					t.Errorf("GetCurrentCSV() got = %v", got)
+					t.Errorf("ReadCSVFromBundleDirectory() got = %v", got)
 				}
+			}
+			if got1 != tt.want1 {
+				t.Errorf("ReadCSVFromBundleDirectory() got1 = %v, want %v", got1, tt.want1)
 			}
 		})
 	}

@@ -41,12 +41,14 @@ func extractImageManifests(image string, destDir string) error {
 
 func copyLatestManifest(srcPkgDir, destPkgDir string) (string, string, error) {
 
-	csv, srcBundleDir, err := utils.GetCurrentCSV(srcPkgDir)
+	csv, csvFile, err := utils.GetCurrentCSV(srcPkgDir)
 	if err != nil {
 		return "", "", err
 	}
 
+	srcBundleDir := filepath.Dir(csvFile)
 	destBundleDir := filepath.Join(destPkgDir, filepath.Base(srcBundleDir))
+
 	err = utils.CopyDirectory(srcBundleDir, destBundleDir)
 	if err != nil {
 		return "", "", err
