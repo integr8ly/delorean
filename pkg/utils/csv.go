@@ -16,10 +16,10 @@ import (
 
 // ReadCSVFromBundleDirectory tries to parse every YAML file in the directory and see if they are CSV.
 // According to the strict one CSV rule for every bundle, we return the first file that is considered a CSV type.
-func ReadCSVFromBundleDirectory(bundleDir string) (*olmapiv1alpha1.ClusterServiceVersion, error) {
+func ReadCSVFromBundleDirectory(bundleDir string) (*olmapiv1alpha1.ClusterServiceVersion, string, error) {
 	dirContent, err := ioutil.ReadDir(bundleDir)
 	if err != nil {
-		return nil, fmt.Errorf("error reading bundle directory %s, %v", bundleDir, err)
+		return nil, "", fmt.Errorf("error reading bundle directory %s, %v", bundleDir, err)
 	}
 
 	files := []string{}
@@ -30,7 +30,8 @@ func ReadCSVFromBundleDirectory(bundleDir string) (*olmapiv1alpha1.ClusterServic
 	}
 
 	for _, file := range files {
-		yamlReader, err := os.Open(path.Join(bundleDir, file))
+		bundleFilepath := path.Join(bundleDir, file)
+		yamlReader, err := os.Open(bundleFilepath)
 		if err != nil {
 			continue
 		}
@@ -49,12 +50,12 @@ func ReadCSVFromBundleDirectory(bundleDir string) (*olmapiv1alpha1.ClusterServic
 
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructuredCSV.UnstructuredContent(),
 			&csv); err != nil {
-			return nil, err
+			return nil, "", err
 		}
 
-		return &csv, nil
+		return &csv, bundleFilepath, nil
 	}
-	return nil, fmt.Errorf("no ClusterServiceVersion object found in %s", bundleDir)
+	return nil, "", fmt.Errorf("no ClusterServiceVersion object found in %s", bundleDir)
 
 }
 
@@ -119,12 +120,12 @@ func GetCurrentCSV(packageDir string) (*olmapiv1alpha1.ClusterServiceVersion, st
 	for _, bundlePath := range bundleDirs {
 		if bundlePath.IsDir() {
 			bundleDir := filepath.Join(packageDir, bundlePath.Name())
-			csv, err := ReadCSVFromBundleDirectory(bundleDir)
+			csv, csvFile, err := ReadCSVFromBundleDirectory(bundleDir)
 			if err != nil {
 				return nil, "", err
 			}
 			if csv.Name == currentCSVName {
-				return csv, bundleDir, nil
+				return csv, csvFile, nil
 			}
 		}
 	}
