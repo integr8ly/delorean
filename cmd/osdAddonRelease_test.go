@@ -117,21 +117,6 @@ func gitDiff(t *testing.T, repo *git.Repository, from, to string) *object.Patch 
 	return patch
 }
 
-func readFile(t *testing.T, file string) []byte {
-	f, err := os.Open(file)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer f.Close()
-
-	b, err := ioutil.ReadAll(f)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	return b
-}
-
 func TestCreateReleaseMergeRequest(t *testing.T) {
 
 	basedir, err := os.Getwd()
