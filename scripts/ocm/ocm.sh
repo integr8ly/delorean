@@ -9,6 +9,11 @@ readonly REPO_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 readonly OCM_DIR="${REPO_DIR}/ocm"
 
 readonly AWS_CREDENTIALS_FILE="${OCM_DIR}/aws.json"
+readonly TEMPLATES_DIR="${REPO_DIR}/templates/ocm"
+readonly CLUSTER_TEMPLATE_FILE="${TEMPLATES_DIR}/cluster-template.json"
+readonly CR_AWS_STRATEGIES_CONFIGMAP_FILE="${TEMPLATES_DIR}/cr-aws-strategies.yml"
+readonly LB_CLUSTER_QUOTA_FILE="${TEMPLATES_DIR}/load-balancer-cluster-quota.json"
+readonly CLUSTER_STORAGE_QUOTA_FILE="${TEMPLATES_DIR}/cluster-storage-quota.json"
 readonly CLUSTER_KUBECONFIG_FILE="${OCM_DIR}/cluster.kubeconfig"
 readonly CLUSTER_CONFIGURATION_FILE="${OCM_DIR}/cluster.json"
 readonly CLUSTER_DETAILS_FILE="${OCM_DIR}/cluster-details.json"
@@ -79,7 +84,7 @@ create_cluster_configuration_file() {
     timestamp=$(get_expiration_timestamp "${OCM_CLUSTER_LIFESPAN}")
 
     jq ".expiration_timestamp = \"${timestamp}\" | .name = \"${OCM_CLUSTER_NAME}\" | .region.id = \"${OCM_CLUSTER_REGION}\"" \
-        < "${REPO_DIR}/templates/ocm/cluster-template.json" \
+        < "${CLUSTER_TEMPLATE_FILE}" \
         > "${CLUSTER_CONFIGURATION_FILE}"
 	
     if [ "${BYOC}" = true ]; then
@@ -116,6 +121,7 @@ install_rhmi() {
     local infra_id
     local csv_name
 
+    : "${USE_CLUSTER_STORAGE:=true}"
     cluster_id=$(get_cluster_id)
 
     echo '{"addon":{"id":"rhmi"}}' | ocm post "/api/clusters_mgmt/v1/clusters/${cluster_id}/addons"
@@ -124,12 +130,17 @@ install_rhmi() {
 
     rhmi_name=$(get_rhmi_name)
 
+    if [[ "${USE_CLUSTER_STORAGE}" == false ]]; then
+        oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" create -f \
+        "${CR_AWS_STRATEGIES_CONFIGMAP_FILE},${LB_CLUSTER_QUOTA_FILE},${CLUSTER_STORAGE_QUOTA_FILE}"
+    fi
+
     oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" patch rhmi "${rhmi_name}" -n ${RHMI_OPERATOR_NAMESPACE} \
-        --type=merge -p "{\"spec\":{\"useClusterStorage\": \"${USE_CLUSTER_STORAGE:-true}\", \"selfSignedCerts\": ${SELF_SIGNED_CERTS:-true} }}"
+        --type=merge -p "{\"spec\":{\"useClusterStorage\": \"${USE_CLUSTER_STORAGE}\", \"selfSignedCerts\": ${SELF_SIGNED_CERTS:-true} }}"
 
     # Change alerting email address is ALERTING_EMAIL_ADDRESS variable is set
     if [[ -n "${ALERTING_EMAIL_ADDRESS:-}" ]]; then
-        csv_name=$(oc get csv -n ${RHMI_OPERATOR_NAMESPACE} | grep integreatly-operator | awk '{print $1}')
+        csv_name=$(oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get csv -n ${RHMI_OPERATOR_NAMESPACE} | grep integreatly-operator | awk '{print $1}')
         oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" patch csv "${csv_name}" -n ${RHMI_OPERATOR_NAMESPACE} \
             --type=json -p "[{\"op\": \"replace\", \"path\": \"/spec/install/spec/deployments/0/spec/template/spec/containers/0/env/4/value\", \"value\": \"${ALERTING_EMAIL_ADDRESS}\" }]"
     fi

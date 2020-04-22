@@ -1,0 +1,25 @@
+{
+    "apiVersion": "quota.openshift.io/v1",
+    "kind": "ClusterResourceQuota",
+    "metadata": {
+        "name": "rhmi-persistent-volume-quota"
+    },
+    "spec": {
+        "quota": {
+            "hard": {
+                "requests.storage": "100Gi"
+            }
+        },
+        "selector": {
+            "annotations": null,
+            "labels": {
+                "matchExpressions": [
+                    {
+                        "key": "managed.openshift.io/storage-pv-quota-exempt",
+                        "operator": "DoesNotExist"
+                    }
+                ]
+            }
+        }
+    }
+}

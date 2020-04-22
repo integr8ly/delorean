@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cloud-resources-aws-strategies
+  namespace: redhat-rhmi-operator
+data:
+  blobstorage: |
+    {"production": { "createStrategy": {}, "deleteStrategy": {} }}
+  postgres: |
+    {"production": { "createStrategy": {"PreferredMaintenanceWindow":"sun:23:00-mon:01:30","PreferredBackupWindow":"02:00-02:30"}, "deleteStrategy": {} }}
+  redis: |
+    {"production": { "createStrategy": {"PreferredMaintenanceWindow":"sun:23:00-mon:01:30","SnapshotWindow":"02:00-03:00"}, "deleteStrategy": {} }}

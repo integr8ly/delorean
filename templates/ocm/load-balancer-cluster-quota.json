@@ -1,0 +1,25 @@
+{
+    "apiVersion": "quota.openshift.io/v1",
+    "kind": "ClusterResourceQuota",
+    "metadata": {
+        "name": "rhmi-loadbalancer-quota"
+    },
+    "spec": {
+        "quota": {
+            "hard": {
+                "services.loadbalancers": "0"
+            }
+        },
+        "selector": {
+            "annotations": null,
+            "labels": {
+                "matchExpressions": [
+                    {
+                        "key": "managed.openshift.io/service-lb-quota-exempt",
+                        "operator": "DoesNotExist"
+                    }
+                ]
+            }
+        }
+    }
+}
