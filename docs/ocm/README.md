@@ -4,7 +4,7 @@ If you want to test your changes on a cluster, the easiest solution would be to 
 
 #### Prerequisites
 * [OCM CLI](https://github.com/openshift-online/ocm-cli/releases)
-* [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html)
+* [AWS CLI v1.18](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html)
 * [jq](https://stedolan.github.io/jq/)
 * :apple: (Mac users) - install `gtimeout` util and create a symbolic link (so it can be referenced as `timeout`): 
   * `brew install coreutils && sudo ln -s /usr/local/bin/gtimeout /usr/local/bin/timeout`
@@ -19,8 +19,8 @@ make ocm/login
 ```
 
 **BYOC**
-Make sure you have credentials for IAM user with admin access to AWS and other IAM user called "osdCcsAdmin" created in AWS, also with admin access.
-Export the credentials for your IAM user, set BYOC variable to `true` and create a new access key for "osdCcsAdmin" user:
+Make sure you have credentials for **your own IAM user** with admin access to AWS and **other IAM user called "osdCcsAdmin"** created in AWS, also with admin access.
+Export the credentials for **your own IAM user**, set BYOC variable to `true` and create a new access key for "osdCcsAdmin" user:
 ```
 export AWS_ACCOUNT_ID=<REPLACE_ME>
 export AWS_ACCESS_KEY_ID=<REPLACE_ME>
