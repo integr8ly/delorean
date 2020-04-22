@@ -14,3 +14,7 @@
 
 # Dependency directories (remove the comment below to include it)
 # vendor/
+
+# Temporary files under ocm directory
+/ocm
+scripts/ocm/downtime.json
