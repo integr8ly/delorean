@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-	"reflect"
 	"strings"
 	"testing"
 
@@ -117,7 +116,7 @@ func gitDiff(t *testing.T, repo *git.Repository, from, to string) *object.Patch 
 	return patch
 }
 
-func TestCreateReleaseMergeRequest(t *testing.T) {
+func TestOSDAddonRelease(t *testing.T) {
 
 	basedir, err := os.Getwd()
 	if err != nil {
@@ -125,13 +124,17 @@ func TestCreateReleaseMergeRequest(t *testing.T) {
 	}
 
 	cases := []struct {
-		version string
-		channel releaseChannel
+		version     string
+		channel     releaseChannel
+		expectError bool
 	}{
-		{version: "2.1.0-rc1", channel: stageChannel},
-		{version: "2.1.0", channel: stageChannel},
-		{version: "2.1.0", channel: edgeChannel},
-		{version: "2.1.0", channel: stableChannel},
+		{version: "2.1.0-rc1", channel: stageChannel, expectError: false},
+		{version: "2.1.0-rc1", channel: edgeChannel, expectError: true},
+		{version: "2.1.0-rc1", channel: stableChannel, expectError: true},
+		{version: "2.1.0-rc1", channel: releaseChannel("some"), expectError: true},
+		{version: "2.1.0", channel: stageChannel, expectError: false},
+		{version: "2.1.0", channel: edgeChannel, expectError: false},
+		{version: "2.1.0", channel: stableChannel, expectError: false},
 	}
 
 	for _, c := range cases {
@@ -142,7 +145,7 @@ func TestCreateReleaseMergeRequest(t *testing.T) {
 
 			var managedTenantsPatch *object.Patch
 
-			flags := &osdAddonReleaseFlags{version: c.version}
+			flags := &osdAddonReleaseFlags{version: c.version, channel: string(c.channel)}
 
 			// Prepare the version
 			version, err := utils.NewRHMIVersion(flags.version)
@@ -194,6 +197,7 @@ func TestCreateReleaseMergeRequest(t *testing.T) {
 			cmd := &osdAddonReleaseCmd{
 				flags:                  flags,
 				version:                version,
+				channel:                releaseChannel(flags.channel),
 				gitlabMergeRequests:    gitlabMergeRequestMock,
 				gitlabProjects:         gitlabProjectsMock,
 				integreatlyOperatorDir: integreatlyOperatorDir,
@@ -202,9 +206,19 @@ func TestCreateReleaseMergeRequest(t *testing.T) {
 			}
 
 			// Run the osdAddonReleaseCmd
-			err = cmd.createReleaseMergeRequest(c.channel)
+			err = cmd.run()
+
+			if c.expectError {
+				if err != nil {
+					// Test Succeded
+					return
+				}
+
+				t.Fatalf("expected osdAddonReleaseCmd.run to fails but it succed")
+			}
+
 			if err != nil {
-				t.Fatalf("createReleaseMergeRequest failed with error: %s", err)
+				t.Fatalf("osdAddonReleaseCmd.run failed with error: %s", err)
 			}
 
 			// Verify the managed-tenants push has been call
@@ -327,110 +341,6 @@ func TestCreateReleaseMergeRequest(t *testing.T) {
 
 			if founded := head.Name(); founded != "refs/heads/master" {
 				t.Fatalf("the managed-tenants repo HEAD doesn't point to the master branch\nexpected: refs/heads/master\nfounded: %s", founded)
-			}
-		})
-	}
-}
-
-func TestOSDAddonRelease(t *testing.T) {
-
-	basedir, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	cases := []struct {
-		version               string
-		expectedMergeRequests []string
-	}{
-		{
-			version: "2.1.0-rc1",
-			expectedMergeRequests: []string{
-				fmt.Sprintf(mergeRequestTitleTemplate, "stage", "2.1.0-rc1"),
-			},
-		},
-		{
-			version: "2.1.0",
-			expectedMergeRequests: []string{
-				fmt.Sprintf(mergeRequestTitleTemplate, "stage", "2.1.0"),
-				fmt.Sprintf(mergeRequestTitleTemplate, "edge", "2.1.0"),
-				fmt.Sprintf(mergeRequestTitleTemplate, "stable", "2.1.0"),
-			},
-		},
-	}
-
-	for _, c := range cases {
-		t.Run(fmt.Sprintf("test osd addon release for version %s", c.version), func(t *testing.T) {
-
-			createdMergeRequests := []string{}
-
-			flags := &osdAddonReleaseFlags{version: c.version}
-
-			// Prepare the version
-			version, err := utils.NewRHMIVersion(flags.version)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			// Prepare the integreatly-operator directory
-			integreatlyOperatorDir := path.Join(basedir, fmt.Sprintf("testdata/osdAddonReleaseIntegreatlyOperator%s", version))
-
-			// Prepare the managed-teneants repo and dir
-			managedTenantsDir, managedTenantsRepo := prepareManagedTenants(t, basedir)
-
-			// Mock the managed-tenants repo
-			managedTenantsRepoMock := &gitRepositoryMock{
-				repository: managedTenantsRepo,
-				push:       func(o *git.PushOptions) error { return nil },
-			}
-
-			// Mock the gitlab api
-			gitlabProjectsMock := &gitlabProjectsMock{
-				getProject: func(
-					_ interface{},
-					_ *gitlab.GetProjectOptions,
-					_ ...gitlab.RequestOptionFunc,
-				) (*gitlab.Project, *gitlab.Response, error) {
-					return &gitlab.Project{}, &gitlab.Response{}, nil
-				},
-			}
-			gitlabMergeRequestMock := &gitlabMergeRequestMock{
-				createMergeRequest: func(
-					_ interface{},
-					o *gitlab.CreateMergeRequestOptions,
-					_ ...gitlab.RequestOptionFunc,
-				) (*gitlab.MergeRequest, *gitlab.Response, error) {
-
-					// Push each merge request into the
-					createdMergeRequests = append(createdMergeRequests, *o.Title)
-
-					return &gitlab.MergeRequest{}, &gitlab.Response{}, nil
-				},
-			}
-
-			// Create the osdAddonReleaseCmd object
-			cmd := &osdAddonReleaseCmd{
-				flags:                  flags,
-				version:                version,
-				gitlabMergeRequests:    gitlabMergeRequestMock,
-				gitlabProjects:         gitlabProjectsMock,
-				integreatlyOperatorDir: integreatlyOperatorDir,
-				managedTenantsDir:      managedTenantsDir,
-				managedTenantsRepo:     managedTenantsRepoMock,
-			}
-
-			// Run
-			err = cmd.run()
-			if err != nil {
-				t.Fatalf("osdAddonReleaseCmd failed with error: %s", err)
-			}
-
-			// Verif that Merge Requests created
-			if !reflect.DeepEqual(c.expectedMergeRequests, createdMergeRequests) {
-				t.Fatalf(
-					"the expected merge requests don't match the created merge requests\nexpected: %s\ncreated: %s",
-					c.expectedMergeRequests, createdMergeRequests,
-				)
 			}
 		})
 	}
