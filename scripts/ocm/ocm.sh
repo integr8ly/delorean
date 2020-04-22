@@ -126,7 +126,7 @@ install_rhmi() {
 
     echo '{"addon":{"id":"rhmi"}}' | ocm post "/api/clusters_mgmt/v1/clusters/${cluster_id}/addons"
 
-    wait_for "oc --kubeconfig ${CLUSTER_KUBECONFIG_FILE} get rhmi -n ${RHMI_OPERATOR_NAMESPACE} | grep -q NAME" "installation CR created" "10m" "30"
+    wait_for "oc --kubeconfig ${CLUSTER_KUBECONFIG_FILE} get rhmi -n ${RHMI_OPERATOR_NAMESPACE} | grep -q NAME" "rhmi installation CR to be created" "15m" "30"
 
     rhmi_name=$(get_rhmi_name)
 
