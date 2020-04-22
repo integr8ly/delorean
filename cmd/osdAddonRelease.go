@@ -3,10 +3,11 @@ package cmd
 import (
 	"fmt"
 	"io/ioutil"
-	corev1 "k8s.io/api/core/v1"
 	"os"
 	"path"
 	"time"
+
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
@@ -18,10 +19,13 @@ import (
 	olmapiv1alpha1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
 	"github.com/operator-framework/operator-registry/pkg/registry"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"github.com/xanzy/go-gitlab"
 )
 
 const (
+	gitlabTokenKey = "gitlab_token"
+
 	// Base URL for gitlab API and for the managed-tenenats fork and origin repos
 	gitlabURL = "https://gitlab.cee.redhat.com"
 
@@ -115,7 +119,6 @@ func gitCloneToTmp(prefix string, url string, reference plumbing.ReferenceName) 
 
 type osdAddonReleaseFlags struct {
 	version                 string
-	gitlabToken             string
 	mergeRequestDescription string
 	managedTenantsOrigin    string
 	managedTenantsFork      string
@@ -123,6 +126,7 @@ type osdAddonReleaseFlags struct {
 
 type osdAddonReleaseCmd struct {
 	flags                  *osdAddonReleaseFlags
+	gitlabToken            string
 	version                *utils.RHMIVersion
 	gitlabMergeRequests    services.GitLabMergeRequestsService
 	gitlabProjects         services.GitLabProjectsService
@@ -140,8 +144,14 @@ func init() {
 		Short: "Create the integreatly-operator MR to the managed-tenants repo",
 		Run: func(cmd *cobra.Command, args []string) {
 
+			gitlabToken, err := requireToken(gitlabTokenKey)
+			if err != nil {
+				fmt.Printf("error: %s\n", err)
+				os.Exit(1)
+			}
+
 			// Prepare
-			c, err := newOSDAddonReleseCmd(f)
+			c, err := newOSDAddonReleseCmd(f, gitlabToken)
 			if err != nil {
 				fmt.Printf("error: %s\n", err)
 				os.Exit(1)
@@ -163,12 +173,11 @@ func init() {
 		"The RHMI version to push to the managed-tenats repo (ex \"2.0.0\", \"2.0.0-er4\")")
 	cmd.MarkFlagRequired("version")
 
-	cmd.Flags().StringVar(
-		&f.gitlabToken,
+	cmd.Flags().String(
 		"gitlab-token",
 		"",
 		"GitLab token to Push the changes and open the MR")
-	cmd.MarkFlagRequired("gitlab-token")
+	viper.BindPFlag(gitlabTokenKey, cmd.Flags().Lookup("gitlab-token"))
 
 	cmd.Flags().StringVar(
 		&f.mergeRequestDescription,
@@ -190,7 +199,7 @@ func init() {
 		"managed-tenants fork repository where to push the release files")
 }
 
-func newOSDAddonReleseCmd(flags *osdAddonReleaseFlags) (*osdAddonReleaseCmd, error) {
+func newOSDAddonReleseCmd(flags *osdAddonReleaseFlags, gitlabToken string) (*osdAddonReleaseCmd, error) {
 
 	version, err := utils.NewRHMIVersion(flags.version)
 	if err != nil {
@@ -200,7 +209,7 @@ func newOSDAddonReleseCmd(flags *osdAddonReleaseFlags) (*osdAddonReleaseCmd, err
 
 	// Prepare the GitLab Client
 	gitlabClient, err := gitlab.NewClient(
-		flags.gitlabToken,
+		gitlabToken,
 		gitlab.WithBaseURL(fmt.Sprintf("%s/%s", gitlabURL, gitlabAPIEndpoint)),
 	)
 	if err != nil {
@@ -242,6 +251,7 @@ func newOSDAddonReleseCmd(flags *osdAddonReleaseFlags) (*osdAddonReleaseCmd, err
 
 	return &osdAddonReleaseCmd{
 		flags:                  flags,
+		gitlabToken:            gitlabToken,
 		version:                version,
 		gitlabMergeRequests:    gitlabClient.MergeRequests,
 		gitlabProjects:         gitlabClient.Projects,
@@ -374,7 +384,7 @@ func (c *osdAddonReleaseCmd) createReleaseMergeRequest(channel releaseChannel) e
 	fmt.Printf("push the managed-tenats repo to the fork remote\n")
 	err = c.managedTenantsRepo.Push(&git.PushOptions{
 		RemoteName: "fork",
-		Auth:       &http.BasicAuth{Password: c.flags.gitlabToken},
+		Auth:       &http.BasicAuth{Password: c.gitlabToken},
 	})
 	if err != nil {
 		return e(err)
