@@ -2,14 +2,15 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/ghodss/yaml"
-	olmapiv1alpha1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
 	"io/ioutil"
 	"os"
 	"path"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/ghodss/yaml"
+	olmapiv1alpha1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -87,10 +88,6 @@ func prepareManagedTenants(t *testing.T, basedir string) (string, *git.Repositor
 	}
 
 	return dir, repo
-}
-
-func prepareTestEnviornment() {
-
 }
 
 func commitObject(t *testing.T, repo *git.Repository, ref string) *object.Commit {
