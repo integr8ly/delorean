@@ -52,40 +52,47 @@ func (m *gitRepositoryMock) Push(o *git.PushOptions) error {
 	return m.push(o)
 }
 
-func prepareManagedTenants(t *testing.T, basedir string) (string, *git.Repository) {
-
-	dir, err := ioutil.TempDir(os.TempDir(), "managed-tenants-")
+func initRepoFromTestDir(prefix string, testDir string) (string, *git.Repository, error) {
+	dir, err := ioutil.TempDir(os.TempDir(), prefix)
 	if err != nil {
-		t.Fatal(err)
+		return "", nil, err
 	}
 
-	err = utils.CopyDirectory(path.Join(basedir, "testdata/osdAddonReleaseManagedTenants"), dir)
+	err = utils.CopyDirectory(testDir, dir)
 	if err != nil {
-		t.Fatal(err)
+		return "", nil, err
 	}
 
 	repo, err := git.PlainInit(dir, false)
 	if err != nil {
-		t.Fatal(err)
+		return "", nil, err
 	}
 
 	tree, err := repo.Worktree()
 	if err != nil {
-		t.Fatal(err)
+		return "", nil, err
 	}
 
 	err = tree.AddGlob(".")
 	if err != nil {
-		t.Fatal(err)
+		return "", nil, err
 	}
 
-	_, err = tree.Commit("fake", &git.CommitOptions{
+	_, err = tree.Commit("initial commit", &git.CommitOptions{
 		Author: &object.Signature{},
 	})
 	if err != nil {
-		t.Fatal(err)
+		return "", nil, err
 	}
 
+	return dir, repo, nil
+}
+
+func prepareManagedTenants(t *testing.T, basedir string) (string, *git.Repository) {
+	dir, repo, err := initRepoFromTestDir("managed-tenants-", path.Join(basedir, "testdata/osdAddonReleaseManagedTenants"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	return dir, repo
 }
 

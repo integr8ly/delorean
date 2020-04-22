@@ -24,7 +24,7 @@ var mergeReleaseCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		var token string
 		var err error
-		if token, err = requireToken(GithubTokenKey); err != nil {
+		if token, err = requireValue(GithubTokenKey); err != nil {
 			handleError(err)
 		}
 		client := newGithubClient(token)

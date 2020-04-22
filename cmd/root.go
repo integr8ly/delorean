@@ -22,6 +22,7 @@ var releaseVersion string
 
 const (
 	GithubTokenKey                     = "github_token"
+	GithubUserKey                      = "github_user"
 	DefaultIntegreatlyGithubOrg        = "integr8ly"
 	DefaultIntegreatlyOperatorRepo     = "integreatly-operator"
 	QuayTokenKey                       = "quay_token"
@@ -74,6 +75,8 @@ func init() {
 	//flags for the release command (available for all its subcommands)
 	releaseCmd.PersistentFlags().StringP("token", "t", "", fmt.Sprintf("Github access token. Can be set via the %s env var.", strings.ToUpper(GithubTokenKey)))
 	viper.BindPFlag(GithubTokenKey, releaseCmd.PersistentFlags().Lookup("token"))
+	releaseCmd.PersistentFlags().StringP("user", "u", "", fmt.Sprintf("Github user. Can be set via the %s env var.", strings.ToUpper(GithubUserKey)))
+	viper.BindPFlag(GithubUserKey, releaseCmd.PersistentFlags().Lookup("user"))
 	releaseCmd.PersistentFlags().StringVarP(&releaseVersion, "version", "v", "", "Release version")
 	releaseCmd.PersistentFlags().StringVarP(&integreatlyGHOrg, "owner", "o", DefaultIntegreatlyGithubOrg, "Github owner")
 	releaseCmd.PersistentFlags().StringVarP(&integreatlyOperatorRepo, "repo", "r", DefaultIntegreatlyOperatorRepo, "Github repository")
@@ -111,7 +114,7 @@ func initConfig() {
 	}
 }
 
-func requireToken(key string) (string, error) {
+func requireValue(key string) (string, error) {
 	token := viper.GetString(key)
 	if token == "" {
 		return "", fmt.Errorf("token for key %s is not defined. Please see usage.", key)

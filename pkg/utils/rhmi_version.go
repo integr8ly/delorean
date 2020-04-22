@@ -58,3 +58,7 @@ func (v *RHMIVersion) TagName() string {
 func (v *RHMIVersion) Base() string {
 	return v.base
 }
+
+func (v *RHMIVersion) Build() string {
+	return v.build
+}
