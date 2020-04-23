@@ -48,7 +48,7 @@ func (v *RHMIVersion) IsPreRrelease() bool {
 }
 
 func (v *RHMIVersion) ReleaseBranchName() string {
-	return fmt.Sprintf("release-v%s", v.base)
+	return fmt.Sprintf("release-v%s", v.MajorMinor())
 }
 
 func (v *RHMIVersion) TagName() string {
@@ -61,4 +61,13 @@ func (v *RHMIVersion) Base() string {
 
 func (v *RHMIVersion) Build() string {
 	return v.build
+}
+
+func (v *RHMIVersion) InitialPointReleaseTag() string {
+	return fmt.Sprintf("v%s.0", v.MajorMinor())
+}
+
+func (v *RHMIVersion) MajorMinor() string {
+	parts := strings.Split(v.base, ".")
+	return fmt.Sprintf("%s.%s", parts[0], parts[1])
 }

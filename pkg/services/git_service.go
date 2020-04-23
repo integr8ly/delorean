@@ -2,6 +2,7 @@ package services
 
 import (
 	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"io/ioutil"
 	"os"
@@ -27,6 +28,13 @@ func (s *DefaultGitCloneService) CloneToTmpDir(prefix string, url string, refere
 		URL:           url,
 		ReferenceName: reference,
 		Progress:      os.Stdout,
+	})
+	if err != nil {
+		return "", nil, err
+	}
+
+	err = repo.Fetch(&git.FetchOptions{
+		RefSpecs: []config.RefSpec{"refs/*:refs/*", "HEAD:refs/heads/HEAD"},
 	})
 	if err != nil {
 		return "", nil, err
