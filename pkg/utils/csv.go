@@ -7,14 +7,11 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/blang/semver"
-	"github.com/operator-framework/api/pkg/operators"
 	olmapiv1alpha1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
 	"github.com/operator-framework/operator-registry/pkg/registry"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
-	k8syaml "k8s.io/apimachinery/pkg/util/yaml"
 )
 
 type csvName struct {
@@ -43,30 +40,15 @@ func ReadCSVFromBundleDirectory(bundleDir string) (*olmapiv1alpha1.ClusterServic
 	}
 
 	for _, file := range files {
-		bundleFilepath := path.Join(bundleDir, file)
-		yamlReader, err := os.Open(bundleFilepath)
-		if err != nil {
-			continue
+		if strings.Contains(file, ".clusterserviceversion.yaml") {
+			bundleFilepath := path.Join(bundleDir, file)
+			var csv *olmapiv1alpha1.ClusterServiceVersion
+			err := PopulateObjectFromYAML(bundleFilepath, &csv)
+			if err != nil {
+				return nil, "", err
+			}
+			return csv, bundleFilepath, nil
 		}
-
-		unstructuredCSV := unstructured.Unstructured{}
-		csv := olmapiv1alpha1.ClusterServiceVersion{}
-
-		decoder := k8syaml.NewYAMLOrJSONDecoder(yamlReader, 30)
-		if err = decoder.Decode(&unstructuredCSV); err != nil {
-			continue
-		}
-
-		if unstructuredCSV.GetKind() != operators.ClusterServiceVersionKind {
-			continue
-		}
-
-		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructuredCSV.UnstructuredContent(),
-			&csv); err != nil {
-			return nil, "", err
-		}
-
-		return &csv, bundleFilepath, nil
 	}
 	return nil, "", fmt.Errorf("no ClusterServiceVersion object found in %s", bundleDir)
 
@@ -103,8 +85,7 @@ func GetPackageManifest(packageDir string) (*registry.PackageManifest, string, e
 	var pkgManifestFile = matches[0]
 
 	pkgManifest := &registry.PackageManifest{}
-	err = PopulateObjectFromYAML(pkgManifestFile, &pkgManifest)
-	if err != nil {
+	if err = PopulateObjectFromYAML(pkgManifestFile, &pkgManifest); err != nil {
 		return nil, "", err
 	}
 
