@@ -200,6 +200,7 @@ func newOSDAddonReleseCmd(flags *osdAddonReleaseFlags, gitlabToken string) (*osd
 
 	gitCloneService := &services.DefaultGitCloneService{}
 	// Clone the managed tenants
+	// TODO: Move the clone functions inise the run() method to improve the test covered code
 	managedTenatsDir, managedTenantsRepo, err := gitCloneService.CloneToTmpDir(
 		"managed-tenants-",
 		fmt.Sprintf("%s/%s", gitlabURL, flags.managedTenantsOrigin),
