@@ -444,9 +444,9 @@ func (c *osdAddonReleaseCmd) udpateTheCSVManifest(channel releaseChannel) (strin
 		i, container := findContainerByName(deployment.Spec.Template.Spec.Containers, rhmiOperatorContainerName)
 		if container != nil {
 			// Update USE_CLUSTER_STORAGE env var to empty string
-			container.Env = addOrUpdateEnvVar(container.Env, envVarNameUseClusterStorage, "")
+			container.Env = utils.AddOrUpdateEnvVar(container.Env, envVarNameUseClusterStorage, "")
 			// Add ALERTING_EMAIL_ADDRESS env var
-			container.Env = addOrUpdateEnvVar(container.Env, envVarNameAlerEmailAddress, integreatlyAlertEmailAddress)
+			container.Env = utils.AddOrUpdateEnvVar(container.Env, envVarNameAlerEmailAddress, integreatlyAlertEmailAddress)
 		}
 		deployment.Spec.Template.Spec.Containers[i] = *container
 	}
@@ -481,20 +481,6 @@ func findContainerByName(containers []corev1.Container, containerName string) (i
 		}
 	}
 	return -1, nil
-}
-
-func addOrUpdateEnvVar(envVars []corev1.EnvVar, envName string, envVal string) []corev1.EnvVar {
-	v := corev1.EnvVar{
-		Name:  envName,
-		Value: envVal,
-	}
-	for i, env := range envVars {
-		if env.Name == envName {
-			envVars[i] = v
-			return envVars
-		}
-	}
-	return append(envVars, v)
 }
 
 func findInstallMode(installModes []olmapiv1alpha1.InstallMode, typeName olmapiv1alpha1.InstallModeType) (int, *olmapiv1alpha1.InstallMode) {

@@ -42,7 +42,11 @@ var processManifestCmd = &cobra.Command{
 		}
 
 		//update "WATCH_NAMESPACE" and "NAMESPACE" env vars if present
-		updateEnvs(csv.Spec.InstallStrategy.StrategySpec.DeploymentSpecs)
+		envKeyValMap := map[string]string{
+			envVarWatchNamespace: "metadata.annotations['olm.targetNamespaces']",
+			envVarNamespace:      "metadata.annotations['olm.targetNamespaces']",
+		}
+		utils.UpdateEnvVarList(csv, envKeyValMap)
 
 		//parse object to yaml and write to back to file
 		err = utils.WriteObjectToYAML(csv, filepath)
