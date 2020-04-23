@@ -143,9 +143,8 @@ func (c *createReleaseCmd) runReleaseScript(repoDir string) error {
 	if err := os.Chmod(path.Join(repoDir, c.releaseScript), 0755); err != nil {
 		return err
 	}
-	args := []string{"", "-v", c.version.Base(), "-t", c.version.Build()}
-	releaseScript := &exec.Cmd{Dir: repoDir, Args: args, Path: c.releaseScript, Stdout: os.Stdout, Stderr: os.Stderr}
-	fmt.Println("Run command:", releaseScript.String())
+	envs := []string{fmt.Sprintf("SEMVER=%s", c.version.String())}
+	releaseScript := &exec.Cmd{Dir: repoDir, Env: envs, Path: c.releaseScript, Stdout: os.Stdout, Stderr: os.Stderr}
 	return releaseScript.Run()
 }
 
