@@ -18,6 +18,8 @@ import (
 	"time"
 )
 
+const releaseBranchNameTemplate = "prepare-for-release-%s"
+
 type createReleaseCmdFlags struct {
 	baseBranch    string
 	releaseScript string
@@ -100,14 +102,14 @@ func (c *createReleaseCmd) run(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	fmt.Println(fmt.Sprintf("Repo cloned to %s", repoDir))
+	fmt.Println("Repo cloned to", repoDir)
 
 	gitRepoTree, err := gitRepo.Worktree()
 	if err != nil {
 		return "", err
 	}
 
-	releaseBranchName := fmt.Sprintf("prepare-for-release-%s", c.version.TagName())
+	releaseBranchName := fmt.Sprintf(releaseBranchNameTemplate, c.version.TagName())
 	fmt.Println(fmt.Sprintf("Checkout branch %s", releaseBranchName))
 	if err = checkoutBranchAndPullLatset(gitRepoTree, releaseBranchName); err != nil {
 		return "", err

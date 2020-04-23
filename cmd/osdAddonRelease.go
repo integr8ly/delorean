@@ -111,7 +111,8 @@ type osdAddonReleaseCmd struct {
 	gitlabProjects         services.GitLabProjectsService
 	integreatlyOperatorDir string
 	managedTenantsDir      string
-	managedTenantsRepo     services.GitRepositoryService
+	managedTenantsRepo     *git.Repository
+	gitPushService         services.GitPushService
 }
 
 func init() {
@@ -242,6 +243,7 @@ func newOSDAddonReleseCmd(flags *osdAddonReleaseFlags, gitlabToken string) (*osd
 		integreatlyOperatorDir: integreatlyOperatorDir,
 		managedTenantsDir:      managedTenatsDir,
 		managedTenantsRepo:     managedTenantsRepo,
+		gitPushService:         &services.DefaultGitPushService{},
 	}, nil
 }
 
@@ -349,7 +351,7 @@ func (c *osdAddonReleaseCmd) run() error {
 
 	// Push to fork
 	fmt.Printf("push the managed-tenats repo to the fork remote\n")
-	err = c.managedTenantsRepo.Push(&git.PushOptions{
+	err = c.gitPushService.Push(c.managedTenantsRepo, &git.PushOptions{
 		RemoteName: "fork",
 		Auth:       &http.BasicAuth{Password: c.gitlabToken},
 	})

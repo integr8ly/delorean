@@ -7,12 +7,6 @@ import (
 	"os"
 )
 
-type GitRepositoryService interface {
-	Head() (*plumbing.Reference, error)
-	Worktree() (*git.Worktree, error)
-	Push(o *git.PushOptions) error
-}
-
 type GitCloneService interface {
 	CloneToTmpDir(prefix string, url string, reference plumbing.ReferenceName) (string, *git.Repository, error)
 }

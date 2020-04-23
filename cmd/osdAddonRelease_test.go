@@ -35,23 +35,6 @@ func (m *gitlabProjectsMock) GetProject(pid interface{}, opt *gitlab.GetProjectO
 	return m.getProject(pid, opt, options...)
 }
 
-type gitRepositoryMock struct {
-	repository *git.Repository
-	push       func(o *git.PushOptions) error
-}
-
-func (m *gitRepositoryMock) Head() (*plumbing.Reference, error) {
-	return m.repository.Head()
-}
-
-func (m *gitRepositoryMock) Worktree() (*git.Worktree, error) {
-	return m.repository.Worktree()
-}
-
-func (m *gitRepositoryMock) Push(o *git.PushOptions) error {
-	return m.push(o)
-}
-
 func initRepoFromTestDir(prefix string, testDir string) (string, *git.Repository, error) {
 	dir, err := ioutil.TempDir(os.TempDir(), prefix)
 	if err != nil {
@@ -166,18 +149,14 @@ func TestOSDAddonRelease(t *testing.T) {
 			// Prepare the managed-teneants repo and dir
 			managedTenantsDir, managedTenantsRepo := prepareManagedTenants(t, basedir)
 
-			// Mock the managed-tenants repo
-			managedTenantsRepoMock := &gitRepositoryMock{
-				repository: managedTenantsRepo,
-				push: func(o *git.PushOptions) error {
+			// Mock the push service
+			mockPushService := &mockGitPushService{pushFunc: func(gitRepo *git.Repository, opts *git.PushOptions) error {
+				// Save the last commit diff before HEAD get reset to master
+				managedTenantsPatch = gitDiff(t, managedTenantsRepo, "master", "HEAD")
 
-					// Save the last commit diff before HEAD get reset to master
-					managedTenantsPatch = gitDiff(t, managedTenantsRepo, "master", "HEAD")
-
-					managedTenantsRepoPushed = true
-					return nil
-				},
-			}
+				managedTenantsRepoPushed = true
+				return nil
+			}}
 
 			// Mock the gitlab api
 			gitlabProjectsMock := &gitlabProjectsMock{
@@ -209,7 +188,8 @@ func TestOSDAddonRelease(t *testing.T) {
 				gitlabProjects:         gitlabProjectsMock,
 				integreatlyOperatorDir: integreatlyOperatorDir,
 				managedTenantsDir:      managedTenantsDir,
-				managedTenantsRepo:     managedTenantsRepoMock,
+				managedTenantsRepo:     managedTenantsRepo,
+				gitPushService:         mockPushService,
 			}
 
 			// Run the osdAddonReleaseCmd
