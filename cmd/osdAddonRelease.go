@@ -148,22 +148,19 @@ func init() {
 
 			gitlabToken, err := requireToken(gitlabTokenKey)
 			if err != nil {
-				fmt.Printf("error: %s\n", err)
-				os.Exit(1)
+				handleError(err)
 			}
 
 			// Prepare
 			c, err := newOSDAddonReleseCmd(f, gitlabToken)
 			if err != nil {
-				fmt.Printf("error: %s\n", err)
-				os.Exit(1)
+				handleError(err)
 			}
 
 			// Run
 			err = c.run()
 			if err != nil {
-				fmt.Printf("error: %s\n", err)
-				os.Exit(1)
+				handleError(err)
 			}
 		},
 	}
