@@ -36,10 +36,10 @@ var tagReleaseCmd = &cobra.Command{
 		var ghToken string
 		var quayToken string
 		var err error
-		if ghToken, err = requireToken(GithubTokenKey); err != nil {
+		if ghToken, err = requireValue(GithubTokenKey); err != nil {
 			handleError(err)
 		}
-		if quayToken, err = requireToken(QuayTokenKey); err != nil {
+		if quayToken, err = requireValue(QuayTokenKey); err != nil {
 			handleError(err)
 		}
 		ghClient := newGithubClient(ghToken)

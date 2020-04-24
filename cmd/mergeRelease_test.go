@@ -10,9 +10,10 @@ import (
 )
 
 type mockPullRequestsService struct {
-	GetFunc   func(ctx context.Context, owner string, repo string, number int) (*github.PullRequest, *github.Response, error)
-	ListFunc  func(ctx context.Context, owner string, repo string, opts *github.PullRequestListOptions) ([]*github.PullRequest, *github.Response, error)
-	MergeFunc func(ctx context.Context, owner string, repo string, number int, commitMessage string, options *github.PullRequestOptions) (*github.PullRequestMergeResult, *github.Response, error)
+	GetFunc    func(ctx context.Context, owner string, repo string, number int) (*github.PullRequest, *github.Response, error)
+	ListFunc   func(ctx context.Context, owner string, repo string, opts *github.PullRequestListOptions) ([]*github.PullRequest, *github.Response, error)
+	MergeFunc  func(ctx context.Context, owner string, repo string, number int, commitMessage string, options *github.PullRequestOptions) (*github.PullRequestMergeResult, *github.Response, error)
+	CreateFunc func(ctx context.Context, owner string, repo string, pull *github.NewPullRequest) (*github.PullRequest, *github.Response, error)
 }
 
 func (m mockPullRequestsService) List(ctx context.Context, owner string, repo string, opts *github.PullRequestListOptions) ([]*github.PullRequest, *github.Response, error) {
@@ -32,6 +33,13 @@ func (m mockPullRequestsService) Merge(ctx context.Context, owner string, repo s
 func (m mockPullRequestsService) Get(ctx context.Context, owner string, repo string, number int) (*github.PullRequest, *github.Response, error) {
 	if m.GetFunc != nil {
 		return m.GetFunc(ctx, owner, repo, number)
+	}
+	panic("implement me")
+}
+
+func (m mockPullRequestsService) Create(ctx context.Context, owner string, repo string, pull *github.NewPullRequest) (*github.PullRequest, *github.Response, error) {
+	if m.CreateFunc != nil {
+		return m.CreateFunc(ctx, owner, repo, pull)
 	}
 	panic("implement me")
 }

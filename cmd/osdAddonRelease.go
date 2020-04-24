@@ -2,12 +2,9 @@ package cmd
 
 import (
 	"fmt"
-	"io/ioutil"
-	"os"
+	corev1 "k8s.io/api/core/v1"
 	"path"
 	"time"
-
-	corev1 "k8s.io/api/core/v1"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
@@ -43,8 +40,8 @@ const (
 	// Info for the commit and merge request
 	branchNameTemplate           = "integreatly-operator-%s-v%s"
 	commitMessageTemplate        = "update integreatly-operator %s to %s"
-	gitlabAuthorName             = "Delorean"
-	gitlabAuthorEmail            = "cloud-services-delorean@redhat.com"
+	commitAuthorName             = "Delorean"
+	commitAuthorEmail            = "cloud-services-delorean@redhat.com"
 	mergeRequestTitleTemplate    = "Update integreatly-operator %s to %s" // channel, version
 	rhmiOperatorDeploymentName   = "rhmi-operator"
 	rhmiOperatorContainerName    = "rhmi-operator"
@@ -97,26 +94,6 @@ func (c releaseChannel) operatorName() string {
 	}
 }
 
-// c.print.Printf("clone the managed-tenants repo to %s\n", managedTenatDirectory)
-func gitCloneToTmp(prefix string, url string, reference plumbing.ReferenceName) (string, *git.Repository, error) {
-
-	// Clone the managed tenants
-	dir, err := ioutil.TempDir(os.TempDir(), prefix)
-	if err != nil {
-		return "", nil, err
-	}
-
-	repo, err := git.PlainClone(dir, false, &git.CloneOptions{
-		URL:           url,
-		ReferenceName: reference,
-	})
-	if err != nil {
-		return "", nil, err
-	}
-
-	return dir, repo, nil
-}
-
 type osdAddonReleaseFlags struct {
 	version                 string
 	channel                 string
@@ -134,7 +111,8 @@ type osdAddonReleaseCmd struct {
 	gitlabProjects         services.GitLabProjectsService
 	integreatlyOperatorDir string
 	managedTenantsDir      string
-	managedTenantsRepo     services.GitRepositoryService
+	managedTenantsRepo     *git.Repository
+	gitPushService         services.GitPushService
 }
 
 func init() {
@@ -146,7 +124,7 @@ func init() {
 		Short: "Create the integreatly-operator MR to the managed-tenants repo",
 		Run: func(cmd *cobra.Command, args []string) {
 
-			gitlabToken, err := requireToken(gitlabTokenKey)
+			gitlabToken, err := requireValue(gitlabTokenKey)
 			if err != nil {
 				handleError(err)
 			}
@@ -221,8 +199,10 @@ func newOSDAddonReleseCmd(flags *osdAddonReleaseFlags, gitlabToken string) (*osd
 	}
 	fmt.Print("gitlab client initialized and authenticated\n")
 
+	gitCloneService := &services.DefaultGitCloneService{}
 	// Clone the managed tenants
-	managedTenatsDir, managedTenantsRepo, err := gitCloneToTmp(
+	// TODO: Move the clone functions inise the run() method to improve the test covered code
+	managedTenatsDir, managedTenantsRepo, err := gitCloneService.CloneToTmpDir(
 		"managed-tenants-",
 		fmt.Sprintf("%s/%s", gitlabURL, flags.managedTenantsOrigin),
 		plumbing.NewBranchReferenceName(managedTenantsMasterBranch),
@@ -243,7 +223,7 @@ func newOSDAddonReleseCmd(flags *osdAddonReleaseFlags, gitlabToken string) (*osd
 	fmt.Print("added the fork remote to the managed-tenants repo\n")
 
 	// Clone the integreatly-operator
-	integreatlyOperatorDir, _, err := gitCloneToTmp(
+	integreatlyOperatorDir, _, err := gitCloneService.CloneToTmpDir(
 		"integreatly-operator-",
 		fmt.Sprintf("%s/%s/%s", githubURL, integreatlyGHOrg, integreatlyOperatorRepo),
 		plumbing.NewTagReferenceName(fmt.Sprintf("v%s", version)),
@@ -263,6 +243,7 @@ func newOSDAddonReleseCmd(flags *osdAddonReleaseFlags, gitlabToken string) (*osd
 		integreatlyOperatorDir: integreatlyOperatorDir,
 		managedTenantsDir:      managedTenatsDir,
 		managedTenantsRepo:     managedTenantsRepo,
+		gitPushService:         &services.DefaultGitPushService{},
 	}, nil
 }
 
@@ -348,8 +329,8 @@ func (c *osdAddonReleaseCmd) run() error {
 		&git.CommitOptions{
 			All: true,
 			Author: &object.Signature{
-				Name:  gitlabAuthorName,
-				Email: gitlabAuthorEmail,
+				Name:  commitAuthorName,
+				Email: commitAuthorEmail,
 				When:  time.Now(),
 			},
 		},
@@ -370,7 +351,7 @@ func (c *osdAddonReleaseCmd) run() error {
 
 	// Push to fork
 	fmt.Printf("push the managed-tenats repo to the fork remote\n")
-	err = c.managedTenantsRepo.Push(&git.PushOptions{
+	err = c.gitPushService.Push(c.managedTenantsRepo, &git.PushOptions{
 		RemoteName: "fork",
 		Auth:       &http.BasicAuth{Password: c.gitlabToken},
 	})
