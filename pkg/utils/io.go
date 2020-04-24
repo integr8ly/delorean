@@ -1,9 +1,10 @@
 package utils
 
 import (
-	"github.com/ghodss/yaml"
 	"io/ioutil"
 	"os"
+
+	"github.com/ghodss/yaml"
 )
 
 // PopulateObjectFromYAML will read the content from the given yaml file and use it to unmarshal the given object

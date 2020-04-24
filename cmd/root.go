@@ -3,12 +3,13 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
+	"strings"
+
 	"github.com/google/go-github/v30/github"
 	"github.com/integr8ly/delorean/pkg/quay"
 	"github.com/spf13/cobra"
 	"golang.org/x/oauth2"
-	"os"
-	"strings"
 
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/viper"

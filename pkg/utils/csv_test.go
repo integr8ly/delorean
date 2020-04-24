@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/blang/semver"
 	"github.com/operator-framework/operator-registry/pkg/registry"
 )
 
@@ -113,6 +114,67 @@ func TestGetPackageManifest(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetSortedCSVNames(t *testing.T) {
+	sortedcsvs := []csvName{
+		{
+			Name: "3scale-operator.v0.4.0",
+			Version: semver.Version{
+				Major: 0,
+				Minor: 4,
+				Patch: 0,
+			},
+		},
+		{
+			Name: "3scale-operator.v0.5.0",
+			Version: semver.Version{
+				Major: 0,
+				Minor: 5,
+				Patch: 0,
+			},
+		},
+	}
+	type args struct {
+		packageDir string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    csvNames
+		wantErr bool
+	}{
+		{
+			name:    "valid get sorted dir",
+			args:    args{"./testdata/validManifests/3scale2"},
+			want:    sortedcsvs,
+			wantErr: false,
+		},
+		{
+			name:    "invalid package dir",
+			args:    args{"./testdata/validManifests/somebaddir"},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := GetSortedCSVNames(tt.args.packageDir)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetCurrentCSV() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr {
+				if got != nil {
+					if got[0].Name != tt.want[0].Name {
+						t.Errorf("GetCurrentCSV() got1 = %v, want %v", got, tt.want)
+					}
+				} else {
+					t.Errorf("GetCurrentCSV() got = %v", got)
+				}
+			}
+		})
+	}
+
 }
 
 func TestGetCurrentCSV(t *testing.T) {

@@ -2,17 +2,27 @@ package utils
 
 import (
 	"fmt"
-	"github.com/operator-framework/api/pkg/operators"
-	olmapiv1alpha1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
-	"github.com/operator-framework/operator-registry/pkg/registry"
 	"io/ioutil"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
-	k8syaml "k8s.io/apimachinery/pkg/util/yaml"
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
+	"strings"
+
+	"github.com/blang/semver"
+	olmapiv1alpha1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
+	"github.com/operator-framework/operator-registry/pkg/registry"
 )
+
+type csvName struct {
+	Name    string
+	Version semver.Version
+}
+type csvNames []csvName
+
+func (c csvNames) Len() int           { return len(c) }
+func (c csvNames) Less(i, j int) bool { return c[i].Version.LT(c[j].Version) }
+func (c csvNames) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
 
 // ReadCSVFromBundleDirectory tries to parse every YAML file in the directory and see if they are CSV.
 // According to the strict one CSV rule for every bundle, we return the first file that is considered a CSV type.
@@ -30,30 +40,15 @@ func ReadCSVFromBundleDirectory(bundleDir string) (*olmapiv1alpha1.ClusterServic
 	}
 
 	for _, file := range files {
-		bundleFilepath := path.Join(bundleDir, file)
-		yamlReader, err := os.Open(bundleFilepath)
-		if err != nil {
-			continue
+		if strings.Contains(file, ".clusterserviceversion.yaml") {
+			bundleFilepath := path.Join(bundleDir, file)
+			var csv *olmapiv1alpha1.ClusterServiceVersion
+			err := PopulateObjectFromYAML(bundleFilepath, &csv)
+			if err != nil {
+				return nil, "", err
+			}
+			return csv, bundleFilepath, nil
 		}
-
-		unstructuredCSV := unstructured.Unstructured{}
-		csv := olmapiv1alpha1.ClusterServiceVersion{}
-
-		decoder := k8syaml.NewYAMLOrJSONDecoder(yamlReader, 30)
-		if err = decoder.Decode(&unstructuredCSV); err != nil {
-			continue
-		}
-
-		if unstructuredCSV.GetKind() != operators.ClusterServiceVersionKind {
-			continue
-		}
-
-		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructuredCSV.UnstructuredContent(),
-			&csv); err != nil {
-			return nil, "", err
-		}
-
-		return &csv, bundleFilepath, nil
 	}
 	return nil, "", fmt.Errorf("no ClusterServiceVersion object found in %s", bundleDir)
 
@@ -90,12 +85,30 @@ func GetPackageManifest(packageDir string) (*registry.PackageManifest, string, e
 	var pkgManifestFile = matches[0]
 
 	pkgManifest := &registry.PackageManifest{}
-	err = PopulateObjectFromYAML(pkgManifestFile, &pkgManifest)
-	if err != nil {
+	if err = PopulateObjectFromYAML(pkgManifestFile, &pkgManifest); err != nil {
 		return nil, "", err
 	}
 
 	return pkgManifest, pkgManifestFile, nil
+}
+
+func GetSortedCSVNames(packageDir string) (csvNames, error) {
+	bundleDirs, err := ioutil.ReadDir(packageDir)
+	var sortedCSVNames csvNames
+	if err != nil {
+		return nil, err
+	}
+	for _, bundlePath := range bundleDirs {
+		if bundlePath.IsDir() {
+			csv, _, err := ReadCSVFromBundleDirectory(filepath.Join(packageDir, bundlePath.Name()))
+			if err != nil {
+				return nil, err
+			}
+			sortedCSVNames = append(sortedCSVNames, csvName{Name: csv.Name, Version: csv.Spec.Version.Version})
+		}
+	}
+	sort.Sort(sortedCSVNames)
+	return sortedCSVNames, nil
 }
 
 func GetCurrentCSV(packageDir string) (*olmapiv1alpha1.ClusterServiceVersion, string, error) {
