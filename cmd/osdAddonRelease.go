@@ -32,7 +32,7 @@ const (
 	githubURL = "https://github.com"
 
 	// Directory in the integreatly-opeartor repo with the OLM maninfest files
-	sourceOLMManifestsDirectory = "deploy/olm-catalog/integreatly-operator/integreatly-operator-%s"
+	sourceOLMManifestsDirectory = "deploy/olm-catalog/integreatly-operator/%s"
 
 	// The branch to target with the merge request
 	managedTenantsMasterBranch = "master"

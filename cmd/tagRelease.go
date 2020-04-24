@@ -9,6 +9,7 @@ import (
 	"github.com/integr8ly/delorean/pkg/utils"
 	"github.com/spf13/cobra"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -22,6 +23,7 @@ type tagReleaseOptions struct {
 	wait           bool
 	waitInterval   int64
 	waitMax        int64
+	quayRepos      string
 }
 
 var tagReleaseCmdOpts = &tagReleaseOptions{}
@@ -46,13 +48,13 @@ var tagReleaseCmd = &cobra.Command{
 		quayClient := newQuayClient(quayToken)
 		repoInfo := &githubRepoInfo{owner: integreatlyGHOrg, repo: integreatlyOperatorRepo}
 		tagReleaseCmdOpts.releaseVersion = releaseVersion
-		if err = DoTagRelease(cmd.Context(), ghClient.Git, repoInfo, quayClient, quayRepo, tagReleaseCmdOpts); err != nil {
+		if err = DoTagRelease(cmd.Context(), ghClient.Git, repoInfo, quayClient, tagReleaseCmdOpts); err != nil {
 			handleError(err)
 		}
 	},
 }
 
-func DoTagRelease(ctx context.Context, ghClient services.GitService, gitRepoInfo *githubRepoInfo, quayClient *quay.Client, quayRepo string, cmdOpts *tagReleaseOptions) error {
+func DoTagRelease(ctx context.Context, ghClient services.GitService, gitRepoInfo *githubRepoInfo, quayClient *quay.Client, cmdOpts *tagReleaseOptions) error {
 	rv, err := utils.NewRHMIVersion(cmdOpts.releaseVersion)
 	if err != nil {
 		return err
@@ -71,40 +73,48 @@ func DoTagRelease(ctx context.Context, ghClient services.GitService, gitRepoInfo
 		return err
 	}
 	fmt.Println("Git tag", rv.TagName(), "created:", tagRef.GetURL())
-	fmt.Println("Try to create image tag on quay.io")
-	err = tryCreateQuayTag(ctx, quayClient, quayRepo, cmdOpts.branch, rv.TagName(), headRef.GetObject().GetSHA())
-	if err != nil {
-		if cmdOpts.wait {
-			fmt.Println("Wait for the latest image to be available on quay.io. Will check every", cmdOpts.waitInterval, "minutes for", cmdOpts.waitMax, "minutes")
-			err = utils.Retry(time.Duration(cmdOpts.waitInterval)*time.Minute, time.Duration(cmdOpts.waitMax)*time.Minute, func() error {
-				fmt.Println("Try to create image tag on quay.io")
-				err = tryCreateQuayTag(ctx, quayClient, quayRepo, cmdOpts.branch, rv.TagName(), headRef.GetObject().GetSHA())
+	if len(cmdOpts.quayRepos) > 0 {
+		fmt.Println("Try to create image tags on quay.io")
+		ok := tryCreateQuayTag(ctx, quayClient, cmdOpts.quayRepos, cmdOpts.branch, rv.TagName(), headRef.GetObject().GetSHA())
+		if !ok {
+			if cmdOpts.wait {
+				fmt.Println("Wait for the latest image to be available on quay.io. Will check every", cmdOpts.waitInterval, "minutes for", cmdOpts.waitMax, "minutes")
+				err = utils.Retry(time.Duration(cmdOpts.waitInterval)*time.Minute, time.Duration(cmdOpts.waitMax)*time.Minute, func() error {
+					ok = tryCreateQuayTag(ctx, quayClient, cmdOpts.quayRepos, cmdOpts.branch, rv.TagName(), headRef.GetObject().GetSHA())
+					if !ok {
+						fmt.Println("Failed. Will try again later.")
+					}
+					return err
+				})
 				if err != nil {
-					fmt.Println("Failed. Will try again later.")
+					fmt.Println("Can not create image tag on quay.io")
+					return err
 				}
-				return err
-			})
-			if err != nil {
-				fmt.Println("Can not create image tag on quay.io")
+			} else {
 				return err
 			}
-		} else {
-			return err
 		}
+		fmt.Println("Image tags created:", rv.TagName())
+	} else {
+		fmt.Println("Skip creating image tags as no quay repos specified")
 	}
-	fmt.Println("Image tag created:", rv.TagName())
 	return nil
 }
 
 func getGitRef(ctx context.Context, client services.GitService, gitRepoInfo *githubRepoInfo, ref string) (*github.Reference, error) {
-	gitRef, resp, err := client.GetRef(ctx, gitRepoInfo.owner, gitRepoInfo.repo, ref)
+	gitRefs, resp, err := client.GetRefs(ctx, gitRepoInfo.owner, gitRepoInfo.repo, ref)
 	if err != nil {
 		if resp != nil && resp.StatusCode == http.StatusNotFound {
 			return nil, nil
 		}
 		return nil, err
 	}
-	return gitRef, nil
+	for _, r := range gitRefs {
+		if r.GetRef() == ref {
+			return r, nil
+		}
+	}
+	return nil, nil
 }
 
 func createGitTag(ctx context.Context, client services.GitService, gitRepoInfo *githubRepoInfo, tag string, sha string) (*github.Reference, error) {
@@ -132,7 +142,23 @@ func createGitTag(ctx context.Context, client services.GitService, gitRepoInfo *
 	return created, nil
 }
 
-func tryCreateQuayTag(ctx context.Context, quayClient *quay.Client, quayRepo string, existingTag string, newTag string, commitSHA string) error {
+func tryCreateQuayTag(ctx context.Context, quayClient *quay.Client, quayRepos string, existingTag string, newTag string, commitSHA string) bool {
+	repos := strings.Split(quayRepos, ",")
+	ok := true
+	for _, r := range repos {
+		fmt.Println("Create image tag for", r)
+		err := createTagForImage(ctx, quayClient, r, existingTag, newTag, commitSHA)
+		if err != nil {
+			ok = false
+			fmt.Println("Failed to create the image tag for", r, "due to erro", err)
+		} else {
+			fmt.Println("Image tag", newTag, "created for", r)
+		}
+	}
+	return ok
+}
+
+func createTagForImage(ctx context.Context, quayClient *quay.Client, quayRepo string, existingTag string, newTag string, commitSHA string) error {
 	tags, _, err := quayClient.Tags.List(ctx, quayRepo, &quay.ListTagsOptions{
 		SpecificTag: existingTag,
 	})
@@ -166,6 +192,7 @@ func tryCreateQuayTag(ctx context.Context, quayClient *quay.Client, quayRepo str
 func init() {
 	releaseCmd.AddCommand(tagReleaseCmd)
 	tagReleaseCmd.Flags().StringVarP(&tagReleaseCmdOpts.branch, "branch", "b", "master", "Branch to create the tag")
+	tagReleaseCmd.Flags().StringVar(&tagReleaseCmdOpts.quayRepos, "quayRepos", fmt.Sprintf("%s,%s", DefaultIntegreatlyOperatorQuayRepo, DefaultIntegreatlyOperatorTestQuayRepo), "Quay repositories. Multiple repos can be specified and separated by ','")
 	tagReleaseCmd.Flags().BoolVarP(&tagReleaseCmdOpts.wait, "wait", "w", false, "Wait for the quay tag to be created (it could take up to 1 hour)")
 	tagReleaseCmd.Flags().Int64Var(&tagReleaseCmdOpts.waitInterval, "wait-interval", 5, "Specify the interval to check tags in quay while waiting. In minutes.")
 	tagReleaseCmd.Flags().Int64Var(&tagReleaseCmdOpts.waitMax, "wait-max", 90, "Specify the max wait time for tags be to created in quay. In minutes.")

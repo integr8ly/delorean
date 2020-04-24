@@ -18,16 +18,16 @@ import (
 var cfgFile string
 var integreatlyGHOrg string
 var integreatlyOperatorRepo string
-var quayRepo string
 var releaseVersion string
 
 const (
-	GithubTokenKey                     = "github_token"
-	GithubUserKey                      = "github_user"
-	DefaultIntegreatlyGithubOrg        = "integr8ly"
-	DefaultIntegreatlyOperatorRepo     = "integreatly-operator"
-	QuayTokenKey                       = "quay_token"
-	DefaultIntegreatlyOperatorQuayRepo = "integreatly/integreatly-operator"
+	GithubTokenKey                         = "github_token"
+	GithubUserKey                          = "github_user"
+	DefaultIntegreatlyGithubOrg            = "integr8ly"
+	DefaultIntegreatlyOperatorRepo         = "integreatly-operator"
+	QuayTokenKey                           = "quay_token"
+	DefaultIntegreatlyOperatorQuayRepo     = "integreatly/integreatly-operator"
+	DefaultIntegreatlyOperatorTestQuayRepo = "integreatly/integreatly-operator-test-harness"
 )
 
 type githubRepoInfo struct {
@@ -83,7 +83,6 @@ func init() {
 	releaseCmd.PersistentFlags().StringVarP(&integreatlyOperatorRepo, "repo", "r", DefaultIntegreatlyOperatorRepo, "Github repository")
 	releaseCmd.PersistentFlags().String("quayToken", "", fmt.Sprintf("Access token for quay. Can be set via the %s env var", strings.ToUpper(QuayTokenKey)))
 	viper.BindPFlag(QuayTokenKey, releaseCmd.PersistentFlags().Lookup("quayToken"))
-	releaseCmd.PersistentFlags().StringVar(&quayRepo, "quayRepo", DefaultIntegreatlyOperatorQuayRepo, "Quay repository")
 
 	rootCmd.AddCommand(releaseCmd)
 	rootCmd.AddCommand(ewsCmd)

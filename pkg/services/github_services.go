@@ -19,6 +19,6 @@ type PullRequestsService interface {
 }
 
 type GitService interface {
-	GetRef(ctx context.Context, owner string, repo string, ref string) (*github.Reference, *github.Response, error)
+	GetRefs(ctx context.Context, owner string, repo string, ref string) ([]*github.Reference, *github.Response, error)
 	CreateRef(ctx context.Context, owner string, repo string, ref *github.Reference) (*github.Reference, *github.Response, error)
 }
