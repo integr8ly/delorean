@@ -35,7 +35,7 @@ code/fix:
 
 .PHONY: vendor/check
 vendor/check: vendor/fix
-	git diff --exit-code vendor/
+	git diff --exit-code vendor/ go.*
 
 .PHONY: vendor/fix
 vendor/fix:
