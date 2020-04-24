@@ -290,8 +290,14 @@ func TestOSDAddonRelease(t *testing.T) {
 						if env.Name == envVarNameUseClusterStorage && env.Value == "" {
 							storageEnvVarChecked = true
 						}
-						if env.Name == envVarNameAlerEmailAddress && env.Value == integreatlyAlertEmailAddress {
-							alertEnvVarChecked = true
+						if version.IsPreRrelease() {
+							if env.Name == envVarNameAlerEmailAddress && env.Value == integreatlyAlertEmailAddress {
+								alertEnvVarChecked = true
+							}
+						} else {
+							if env.Name == envVarNameAlerEmailAddress && env.Value == cssreAlertEmailAddress {
+								alertEnvVarChecked = true
+							}
 						}
 					}
 					if !storageEnvVarChecked {
