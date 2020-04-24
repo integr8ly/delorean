@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"github.com/google/go-github/v30/github"
 	"github.com/integr8ly/delorean/pkg/quay"
 	"github.com/integr8ly/delorean/pkg/services"
@@ -12,11 +13,11 @@ import (
 )
 
 type mockGitService struct {
-	getRefFunc    func(ctx context.Context, owner string, repo string, ref string) (*github.Reference, *github.Response, error)
+	getRefFunc    func(ctx context.Context, owner string, repo string, ref string) ([]*github.Reference, *github.Response, error)
 	createRefFunc func(ctx context.Context, owner string, repo string, ref *github.Reference) (*github.Reference, *github.Response, error)
 }
 
-func (m *mockGitService) GetRef(ctx context.Context, owner string, repo string, ref string) (*github.Reference, *github.Response, error) {
+func (m *mockGitService) GetRefs(ctx context.Context, owner string, repo string, ref string) ([]*github.Reference, *github.Response, error) {
 	if m.getRefFunc != nil {
 		return m.getRefFunc(ctx, owner, releaseVersion, ref)
 	}
@@ -66,6 +67,7 @@ func TestDoTagRelease(t *testing.T) {
 	testTagName := "test"
 	testTagDigest := "testdigest"
 	labelKey := commitIDLabelFilter
+	quayRepos := fmt.Sprintf("%s,%s", DefaultIntegreatlyOperatorQuayRepo, DefaultIntegreatlyOperatorTestQuayRepo)
 	cases := []struct {
 		desc              string
 		ghClient          services.GitService
@@ -76,13 +78,15 @@ func TestDoTagRelease(t *testing.T) {
 		{
 			desc: "success",
 			ghClient: &mockGitService{
-				getRefFunc: func(ctx context.Context, owner string, repo string, ref string) (reference *github.Reference, response *github.Response, err error) {
+				getRefFunc: func(ctx context.Context, owner string, repo string, ref string) (reference []*github.Reference, response *github.Response, err error) {
+					masterRef := "refs/heads/master"
 					if strings.Index(ref, "refs/heads/") > -1 {
-						return &github.Reference{
+						return []*github.Reference{{
+							Ref: &masterRef,
 							Object: &github.GitObject{
 								SHA: &sha,
 							},
-						}, nil, nil
+						}}, nil, nil
 					} else {
 						return nil, nil, nil
 					}
@@ -119,26 +123,26 @@ func TestDoTagRelease(t *testing.T) {
 					}}}, nil, nil
 				}},
 			},
-			tagReleaseOptions: &tagReleaseOptions{releaseVersion: "2.0.0-rc1", branch: "master", wait: false},
+			tagReleaseOptions: &tagReleaseOptions{releaseVersion: "2.0.0-rc1", branch: "master", wait: false, quayRepos: quayRepos},
 			expectError:       false,
 		},
 		{
 			desc: "should fail if git tag exists with a different commit SHA",
 			ghClient: &mockGitService{
-				getRefFunc: func(ctx context.Context, owner string, repo string, ref string) (reference *github.Reference, response *github.Response, err error) {
+				getRefFunc: func(ctx context.Context, owner string, repo string, ref string) (reference []*github.Reference, response *github.Response, err error) {
 					sha2 := "anothersha"
 					if strings.Index(ref, "refs/heads/") > -1 {
-						return &github.Reference{
+						return []*github.Reference{{
 							Object: &github.GitObject{
 								SHA: &sha,
 							},
-						}, nil, nil
+						}}, nil, nil
 					} else {
-						return &github.Reference{
+						return []*github.Reference{{
 							Object: &github.GitObject{
 								SHA: &sha2,
 							},
-						}, nil, nil
+						}}, nil, nil
 					}
 				},
 				createRefFunc: func(ctx context.Context, owner string, repo string, ref *github.Reference) (reference *github.Reference, response *github.Response, err error) {
@@ -152,19 +156,19 @@ func TestDoTagRelease(t *testing.T) {
 			quayClient: &quay.Client{
 				BaseURL: baseUrl,
 			},
-			tagReleaseOptions: &tagReleaseOptions{releaseVersion: "2.0.0-rc1", branch: "master", wait: false},
+			tagReleaseOptions: &tagReleaseOptions{releaseVersion: "2.0.0-rc1", branch: "master", wait: false, quayRepos: quayRepos},
 			expectError:       true,
 		},
 		{
 			desc: "should fail if image doesn't exist with the expected git commit",
 			ghClient: &mockGitService{
-				getRefFunc: func(ctx context.Context, owner string, repo string, ref string) (reference *github.Reference, response *github.Response, err error) {
+				getRefFunc: func(ctx context.Context, owner string, repo string, ref string) (reference []*github.Reference, response *github.Response, err error) {
 					if strings.Index(ref, "refs/heads/") > -1 {
-						return &github.Reference{
+						return []*github.Reference{{
 							Object: &github.GitObject{
 								SHA: &sha,
 							},
-						}, nil, nil
+						}}, nil, nil
 					} else {
 						return nil, nil, nil
 					}
@@ -202,15 +206,42 @@ func TestDoTagRelease(t *testing.T) {
 					}}}, nil, nil
 				}},
 			},
-			tagReleaseOptions: &tagReleaseOptions{releaseVersion: "2.0.0-rc1", branch: "master", wait: false},
+			tagReleaseOptions: &tagReleaseOptions{releaseVersion: "2.0.0-rc1", branch: "master", wait: false, quayRepos: quayRepos},
 			expectError:       true,
+		},
+		{
+			desc: "success but no image tags should be created",
+			ghClient: &mockGitService{
+				getRefFunc: func(ctx context.Context, owner string, repo string, ref string) (reference []*github.Reference, response *github.Response, err error) {
+					masterRef := "refs/heads/master"
+					if strings.Index(ref, "refs/heads/") > -1 {
+						return []*github.Reference{{
+							Ref: &masterRef,
+							Object: &github.GitObject{
+								SHA: &sha,
+							},
+						}}, nil, nil
+					} else {
+						return nil, nil, nil
+					}
+				},
+				createRefFunc: func(ctx context.Context, owner string, repo string, ref *github.Reference) (reference *github.Reference, response *github.Response, err error) {
+					return &github.Reference{
+						Object: &github.GitObject{
+							SHA: &sha,
+						},
+					}, nil, nil
+				},
+			},
+			tagReleaseOptions: &tagReleaseOptions{releaseVersion: "2.0.0-rc1", branch: "master", wait: false, quayRepos: ""},
+			expectError:       false,
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
 			gitRepo := &githubRepoInfo{repo: DefaultIntegreatlyOperatorRepo, owner: DefaultIntegreatlyGithubOrg}
-			err := DoTagRelease(context.TODO(), c.ghClient, gitRepo, c.quayClient, DefaultIntegreatlyOperatorQuayRepo, c.tagReleaseOptions)
+			err := DoTagRelease(context.TODO(), c.ghClient, gitRepo, c.quayClient, c.tagReleaseOptions)
 			if c.expectError && err == nil {
 				t.Errorf("error should not be nil")
 			} else if !c.expectError && err != nil {

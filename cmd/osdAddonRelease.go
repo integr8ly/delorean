@@ -32,7 +32,7 @@ const (
 	githubURL = "https://github.com"
 
 	// Directory in the integreatly-opeartor repo with the OLM maninfest files
-	sourceOLMManifestsDirectory = "deploy/olm-catalog/integreatly-operator/integreatly-operator-%s"
+	sourceOLMManifestsDirectory = "deploy/olm-catalog/integreatly-operator/%s"
 
 	// The branch to target with the merge request
 	managedTenantsMasterBranch = "master"
@@ -48,6 +48,7 @@ const (
 	envVarNameUseClusterStorage  = "USE_CLUSTER_STORAGE"
 	envVarNameAlerEmailAddress   = "ALERTING_EMAIL_ADDRESS"
 	integreatlyAlertEmailAddress = "integreatly-notifications@redhat.com"
+	cssreAlertEmailAddress       = "cssre-alerts@redhat.com"
 )
 
 // releaseChannel rappresents one of the three places (stage, edge, stable)
@@ -446,7 +447,11 @@ func (c *osdAddonReleaseCmd) udpateTheCSVManifest(channel releaseChannel) (strin
 			// Update USE_CLUSTER_STORAGE env var to empty string
 			container.Env = utils.AddOrUpdateEnvVar(container.Env, envVarNameUseClusterStorage, "")
 			// Add ALERTING_EMAIL_ADDRESS env var
-			container.Env = utils.AddOrUpdateEnvVar(container.Env, envVarNameAlerEmailAddress, integreatlyAlertEmailAddress)
+			if c.version.IsPreRrelease() {
+				container.Env = utils.AddOrUpdateEnvVar(container.Env, envVarNameAlerEmailAddress, integreatlyAlertEmailAddress)
+			} else {
+				container.Env = utils.AddOrUpdateEnvVar(container.Env, envVarNameAlerEmailAddress, cssreAlertEmailAddress)
+			}
 		}
 		deployment.Spec.Template.Spec.Containers[i] = *container
 	}
