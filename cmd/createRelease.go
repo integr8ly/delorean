@@ -62,7 +62,7 @@ func init() {
 	}
 
 	releaseCmd.AddCommand(cmd)
-	cmd.Flags().StringVarP(&f.baseBranch, "baseBranch", "b", "master", "Base branch of the release PR")
+	cmd.Flags().StringVarP(&f.baseBranch, "branch", "b", "master", "Base branch of the release PR")
 	cmd.Flags().StringVar(&f.releaseScript, "releaseScript", "scripts/prepare-release.sh", "Relative path to the script to run before creating the PR")
 }
 
