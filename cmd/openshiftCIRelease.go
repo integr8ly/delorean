@@ -22,28 +22,28 @@ import (
 )
 
 const (
-	DefaultOpenshiftCIRepo    = "release"
-	DefaultOpenshiftCIOrg     = "openshift"
-	DefaultOpenshiftCIOrgFork = "integr8ly"
+	DefaultOpenshiftCIRepo        = "release"
+	DefaultOpenshiftCIOrgUpstream = "openshift"
+	DefaultOpenshiftCIOrgOrigin   = "integr8ly"
 )
 
 type openshiftCIReleaseCmdFlags struct {
-	tag                string
-	openshiftCIRepo    string
-	openshiftCIOrg     string
-	openshiftCIOrgFork string
+	openshiftCIRepo        string
+	openshiftCIOrgUpstream string
+	openshiftCIOrgOrigin   string
 }
 
 type openshiftCIReleaseCmd struct {
-	version             *utils.RHMIVersion
-	intlyRepoInfo       *githubRepoInfo
-	releaseRepoInfo     *githubRepoInfo
-	releaseRepoForkInfo *githubRepoInfo
-	githubPRService     services.PullRequestsService
-	gitUser             string
-	gitPass             string
-	gitCloneService     services.GitCloneService
-	gitPushService      services.GitPushService
+	version                 *utils.RHMIVersion
+	intlyRepoInfo           *githubRepoInfo
+	releaseRepoInfoOrigin   *githubRepoInfo
+	releaseRepoInfoUpstream *githubRepoInfo
+	githubPRService         services.PullRequestsService
+	gitUser                 string
+	gitPass                 string
+	gitCloneService         services.GitCloneService
+	gitPushService          services.GitPushService
+	gitRemoteService        services.GitRemoteService
 }
 
 /**
@@ -109,23 +109,23 @@ func (c *openshiftCIReleaseCmd) DoIntlyOperatorUpdate(ctx context.Context) (stri
 func (c *openshiftCIReleaseCmd) DoOpenShiftReleaseUpdate(ctx context.Context) (string, error) {
 	//Clone the release repo to a temp directory
 	baseBranch := plumbing.NewBranchReferenceName("master")
-	fmt.Println(fmt.Sprintf("Clone repo from %s/%s/%s.git (%s) to a temporary directory", githubURL, c.releaseRepoInfo.owner, c.releaseRepoInfo.repo, baseBranch))
-	repoDir, gitRepo, err := c.gitCloneService.CloneToTmpDir("release", fmt.Sprintf("%s/%s/%s.git", githubURL, c.releaseRepoInfo.owner, c.releaseRepoInfo.repo), baseBranch)
+	fmt.Println(fmt.Sprintf("Clone repo from %s/%s/%s.git (%s) to a temporary directory", githubURL, c.releaseRepoInfoOrigin.owner, c.releaseRepoInfoOrigin.repo, baseBranch))
+	repoDir, gitRepo, err := c.gitCloneService.CloneToTmpDir("release", fmt.Sprintf("%s/%s/%s.git", githubURL, c.releaseRepoInfoOrigin.owner, c.releaseRepoInfoOrigin.repo), baseBranch)
 	if err != nil {
 		return "", err
 	}
 	fmt.Println("Repo cloned to", repoDir)
 
-	//Add remote for release repo fork
-	fork := fmt.Sprintf("%s/%s/%s", githubURL, c.releaseRepoForkInfo.owner, c.releaseRepoForkInfo.repo)
-	_, err = gitRepo.CreateRemote(&config.RemoteConfig{
-		Name: "fork",
-		URLs: []string{fork},
+	//Add remote for release repo upstream
+	upstream := fmt.Sprintf("%s/%s/%s", githubURL, c.releaseRepoInfoUpstream.owner, c.releaseRepoInfoUpstream.repo)
+	_, err = c.gitRemoteService.CreateAndPull(gitRepo, &config.RemoteConfig{
+		Name: "upstream",
+		URLs: []string{upstream},
 	})
 	if err != nil {
 		return "", err
 	}
-	fmt.Println(fmt.Sprintf("Added fork remote (%s)", fork))
+	fmt.Println(fmt.Sprintf("Added upstream remote (%s)", upstream))
 
 	worktree, err := gitRepo.Worktree()
 	if err != nil {
@@ -145,7 +145,7 @@ func (c *openshiftCIReleaseCmd) DoOpenShiftReleaseUpdate(ctx context.Context) (s
 	}
 
 	//Update CI Operator Config
-	err = updateCIOperatorConfig(repoDir, *c.version)
+	err = updateCIOperatorConfig(repoDir, c.version)
 	if err != nil {
 		return "", err
 	}
@@ -158,7 +158,7 @@ func (c *openshiftCIReleaseCmd) DoOpenShiftReleaseUpdate(ctx context.Context) (s
 	}
 
 	//Update Image Mirror Mapping Config
-	err = updateImageMirroringConfig(repoDir, *c.version)
+	err = updateImageMirroringConfig(repoDir, c.version)
 	if err != nil {
 		return "", err
 	}
@@ -174,79 +174,78 @@ func (c *openshiftCIReleaseCmd) DoOpenShiftReleaseUpdate(ctx context.Context) (s
 	if err != nil {
 		return "", err
 	}
-	if len(status) > 0 {
-		// Commit
-		fmt.Println(commitMsg)
-		_, err = worktree.Commit(
-			commitMsg,
-			&git.CommitOptions{
-				All: true,
-				Author: &object.Signature{
-					Name:  commitAuthorName,
-					Email: commitAuthorEmail,
-					When:  time.Now(),
-				},
-			},
-		)
-		if err != nil {
-			return "", err
-		}
 
-		//Push changes to fork
-		pushOpts := &git.PushOptions{
-			RemoteName: "fork",
-			Auth:       &http.BasicAuth{Password: c.gitPass, Username: c.gitUser},
-			Progress:   os.Stdout,
-			RefSpecs: []config.RefSpec{
-				config.RefSpec(branch + ":" + branch),
-			},
-		}
-		if err := c.gitPushService.Push(gitRepo, pushOpts); err != nil {
-			return "", err
-		}
-		fmt.Println(fmt.Sprintf("Pushed branch %s to %s", branch, fork))
-
-		//Open Pull Request
-		h := fmt.Sprintf("%s:%s", c.releaseRepoForkInfo.owner, branch)
-		b := "master"
-		err = c.createPRIfNotExists(ctx, h, b, branch.Short())
-		if err != nil {
-			return "", err
-		}
-
-	} else {
+	if len(status) == 0 {
 		fmt.Println("No new changes found")
+		return repoDir, nil
+	}
+	// Commit
+	fmt.Println(commitMsg)
+	_, err = worktree.Commit(
+		commitMsg,
+		&git.CommitOptions{
+			All: true,
+			Author: &object.Signature{
+				Name:  commitAuthorName,
+				Email: commitAuthorEmail,
+				When:  time.Now(),
+			},
+		},
+	)
+	if err != nil {
+		return "", err
+	}
+
+	//Push changes
+	pushOpts := &git.PushOptions{
+		RemoteName: "origin",
+		Auth:       &http.BasicAuth{Password: c.gitPass, Username: c.gitUser},
+		Progress:   os.Stdout,
+		RefSpecs: []config.RefSpec{
+			config.RefSpec(branch + ":" + branch),
+		},
+	}
+	err = c.gitPushService.Push(gitRepo, pushOpts)
+	if err != nil {
+		return "", err
+	}
+	fmt.Println(fmt.Sprintf("Pushed branch %s", branch))
+
+	//Open Pull Request
+	title := fmt.Sprintf("Add CI config for RHMI operator branch %s", branch.Short())
+	head := fmt.Sprintf("%s:%s", c.releaseRepoInfoOrigin.owner, branch.Short())
+	base := "master"
+	newPR := &github.NewPullRequest{
+		Title: &title,
+		Head:  &head,
+		Base:  &base,
+	}
+	_, err = c.createPRIfNotExists(ctx, newPR)
+	if err != nil {
+		return "", err
 	}
 
 	return repoDir, nil
 }
 
-func (c *openshiftCIReleaseCmd) createPRIfNotExists(ctx context.Context, head, base, branch string) error {
-	prOpts := &github.PullRequestListOptions{Base: base, Head: head}
-	pr, err := findPRForRelease(ctx, c.githubPRService, c.releaseRepoInfo, prOpts)
+func (c *openshiftCIReleaseCmd) createPRIfNotExists(ctx context.Context, newPR *github.NewPullRequest) (*github.PullRequest, error) {
+	prListOpts := &github.PullRequestListOptions{Base: *newPR.Base, Head: *newPR.Head}
+	pr, err := findPRForRelease(ctx, c.githubPRService, c.releaseRepoInfoUpstream, prListOpts)
 	if err != nil && !isPRNotFoundError(err) {
-		return err
+		return nil, err
 	}
 	if pr == nil {
 		fmt.Println("Create PR for release")
-		title := fmt.Sprintf("Add CI config for RHMI operator branch %s", branch)
-		body := "/cc @mikenairn"
-		req := &github.NewPullRequest{
-			Title: &title,
-			Head:  &head,
-			Base:  &base,
-			Body:  &body,
-		}
-		pr, _, err = c.githubPRService.Create(ctx, c.releaseRepoInfo.owner, c.releaseRepoInfo.repo, req)
+		pr, _, err = c.githubPRService.Create(ctx, c.releaseRepoInfoUpstream.owner, c.releaseRepoInfoUpstream.repo, newPR)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 	fmt.Println(fmt.Sprintf("PR created: %s", pr.GetHTMLURL()))
-	return nil
+	return pr, nil
 }
 
-func updateCIOperatorConfig(repoDir string, version utils.RHMIVersion) error {
+func updateCIOperatorConfig(repoDir string, version *utils.RHMIVersion) error {
 	masterConfig := path.Join(repoDir, "ci-operator/config/integr8ly/integreatly-operator/integr8ly-integreatly-operator-master.yaml")
 	releaseConfig := path.Join(repoDir, fmt.Sprintf("ci-operator/config/integr8ly/integreatly-operator/integr8ly-integreatly-operator-%s.yaml", version.ReleaseBranchName()))
 
@@ -285,7 +284,7 @@ func updateCIOperatorConfig(repoDir string, version utils.RHMIVersion) error {
 	return nil
 }
 
-func updateImageMirroringConfig(repoDir string, version utils.RHMIVersion) error {
+func updateImageMirroringConfig(repoDir string, version *utils.RHMIVersion) error {
 	mappingFile := path.Join(repoDir, fmt.Sprintf("core-services/image-mirroring/integr8ly/mapping_integr8ly_operator_%s", strings.ReplaceAll(version.MajorMinor(), ".", "_")))
 
 	internalReg := "registry.svc.ci.openshift.org/integr8ly"
@@ -351,11 +350,9 @@ func init() {
 	}
 
 	releaseCmd.AddCommand(cmd)
-	cmd.Flags().StringVar(&f.tag, "tag", "", "The release tag")
-	cmd.Flags().StringVar(&f.openshiftCIOrgFork, "ci-org-fork", DefaultOpenshiftCIOrgFork, "OpenShift CI Release GitHub Fork")
-	cmd.Flags().StringVar(&f.openshiftCIOrg, "ci-org", DefaultOpenshiftCIOrg, "OpenShift CI Release GitHub org")
+	cmd.Flags().StringVar(&f.openshiftCIOrgUpstream, "ci-org-upstream", DefaultOpenshiftCIOrgUpstream, "OpenShift CI Release GitHub org (Upstream)")
+	cmd.Flags().StringVar(&f.openshiftCIOrgOrigin, "ci-org-origin", DefaultOpenshiftCIOrgOrigin, "OpenShift CI Release GitHub org (Origin)")
 	cmd.Flags().StringVar(&f.openshiftCIRepo, "ci-repo", DefaultOpenshiftCIRepo, "OpenShift CI Release GitHub repo")
-	cmd.MarkFlagRequired("tag")
 }
 
 func newOpenshiftCIReleaseCmd(f *openshiftCIReleaseCmdFlags) (*openshiftCIReleaseCmd, error) {
@@ -369,22 +366,20 @@ func newOpenshiftCIReleaseCmd(f *openshiftCIReleaseCmdFlags) (*openshiftCIReleas
 		return nil, err
 	}
 	client := newGithubClient(token)
-	intlyRepoInfo := &githubRepoInfo{owner: integreatlyGHOrg, repo: integreatlyOperatorRepo}
-	releaseRepoInfo := &githubRepoInfo{owner: f.openshiftCIOrg, repo: f.openshiftCIRepo}
-	releaseRepoForkInfo := &githubRepoInfo{owner: f.openshiftCIOrgFork, repo: f.openshiftCIRepo}
-	version, err := utils.NewRHMIVersion(f.tag)
+	version, err := utils.NewRHMIVersion(releaseVersion)
 	if err != nil {
 		return nil, err
 	}
 	return &openshiftCIReleaseCmd{
-		version:             version,
-		releaseRepoForkInfo: releaseRepoForkInfo,
-		releaseRepoInfo:     releaseRepoInfo,
-		intlyRepoInfo:       intlyRepoInfo,
-		githubPRService:     client.PullRequests,
-		gitUser:             user,
-		gitPass:             token,
-		gitCloneService:     &services.DefaultGitCloneService{},
-		gitPushService:      &services.DefaultGitPushService{},
+		version:                 version,
+		releaseRepoInfoUpstream: &githubRepoInfo{owner: f.openshiftCIOrgUpstream, repo: f.openshiftCIRepo},
+		releaseRepoInfoOrigin:   &githubRepoInfo{owner: f.openshiftCIOrgOrigin, repo: f.openshiftCIRepo},
+		intlyRepoInfo:           &githubRepoInfo{owner: integreatlyGHOrg, repo: integreatlyOperatorRepo},
+		githubPRService:         client.PullRequests,
+		gitUser:                 user,
+		gitPass:                 token,
+		gitCloneService:         &services.DefaultGitCloneService{},
+		gitPushService:          &services.DefaultGitPushService{},
+		gitRemoteService:        &services.DefaultGitRemoteService{},
 	}, nil
 }

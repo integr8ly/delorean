@@ -17,7 +17,7 @@ func TestReleaseVersion(t *testing.T) {
 		{
 			description: "Verify release version",
 			version:     "2.0.0",
-			branchName:  "release-2.0",
+			branchName:  "release-v2.0",
 			tagName:     "v2.0.0",
 			preRelease:  false,
 			expectError: false,
@@ -25,7 +25,7 @@ func TestReleaseVersion(t *testing.T) {
 		{
 			description: "Verify pre release version",
 			version:     "2.0.0-ER1",
-			branchName:  "release-2.0",
+			branchName:  "release-v2.0",
 			tagName:     "v2.0.0-ER1",
 			preRelease:  true,
 			expectError: false,
@@ -123,6 +123,62 @@ func TestRHMIVersion_InitialPointReleaseTag(t *testing.T) {
 			}
 			if got := v.InitialPointReleaseTag(); got != tt.want {
 				t.Errorf("RHMIVersion.InitialPointReleaseTag() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestRHMIVersion_MajorMinor(t *testing.T) {
+	type fields struct {
+		base  string
+		build string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{
+			name: "test same point value",
+			fields: fields{
+				base:  "2.1.0",
+				build: "",
+			},
+			want: "2.1",
+		},
+		{
+			name: "test same point value with build",
+			fields: fields{
+				base:  "2.1.0",
+				build: "er1",
+			},
+			want: "2.1",
+		},
+		{
+			name: "test point value with build",
+			fields: fields{
+				base:  "2.1.1",
+				build: "er1",
+			},
+			want: "2.1",
+		},
+		{
+			name: "test point value",
+			fields: fields{
+				base:  "2.1.1",
+				build: "",
+			},
+			want: "2.1",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v := &RHMIVersion{
+				base:  tt.fields.base,
+				build: tt.fields.build,
+			}
+			if got := v.MajorMinor(); got != tt.want {
+				t.Errorf("RHMIVersion.MajorMinor() = %v, want %v", got, tt.want)
 			}
 		})
 	}
