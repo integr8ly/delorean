@@ -147,7 +147,8 @@ func tryCreateQuayTag(ctx context.Context, quayClient *quay.Client, quayRepos st
 	ok := true
 	for _, r := range repos {
 		fmt.Println("Create image tag for", r)
-		err := createTagForImage(ctx, quayClient, r, existingTag, newTag, commitSHA)
+		repo, tag := getImageRepoAndTag(r, newTag)
+		err := createTagForImage(ctx, quayClient, *repo, existingTag, *tag, commitSHA)
 		if err != nil {
 			ok = false
 			fmt.Println("Failed to create the image tag for", r, "due to erro", err)
@@ -187,6 +188,14 @@ func createTagForImage(ctx context.Context, quayClient *quay.Client, quayRepo st
 		}
 		return nil
 	}
+}
+
+func getImageRepoAndTag(s string, defaultTag string) (*string, *string) {
+	p := strings.Split(s, ":")
+	if len(p) > 1 {
+		return &p[0], &p[1]
+	}
+	return &s, &defaultTag
 }
 
 func init() {
