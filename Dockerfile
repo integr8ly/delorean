@@ -1,4 +1,4 @@
-FROM registry.svc.ci.openshift.org/openshift/release:golang-1.13
+FROM centos:7
 LABEL maintainer="mnairn@redhat.com"
 
 ENV OPERATOR_SDK_VERSION=v0.15.1 \
