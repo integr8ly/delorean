@@ -9,15 +9,9 @@ ENV OPERATOR_SDK_VERSION=v0.15.1 \
 RUN curl -Ls https://mirror.openshift.com/pub/openshift-v4/clients/oc/$OC_VERSION/linux/oc.tar.gz | tar -zx && \
     mv oc /usr/local/bin
 
-# install operator-sdk (from git with no history and only the tag)
-RUN mkdir -p $GOPATH/src/github.com/operator-framework \
-    && cd $GOPATH/src/github.com/operator-framework \
-    && git clone --depth 1 -b $OPERATOR_SDK_VERSION https://github.com/operator-framework/operator-sdk \
-    && cd operator-sdk \
-    && go mod vendor \
-    && make tidy \
-    && make install \
-    && chmod -R 0777 $GOPATH \
-    && rm -rf $GOPATH/.cache
+# install operator-sdk
+RUN curl -LO https://github.com/operator-framework/operator-sdk/releases/download/${OPERATOR_SDK_VERSION}/operator-sdk-${OPERATOR_SDK_VERSION}-x86_64-linux-gnu && \
+    mv operator-sdk-${OPERATOR_SDK_VERSION}-x86_64-linux-gnu /usr/bin/operator-sdk && \
+    chmod +x /usr/bin/operator-sdk
 
 COPY delorean /usr/bin/delorean
