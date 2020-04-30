@@ -222,16 +222,9 @@ func TestTagsService_Change(t *testing.T) {
 		fmt.Fprint(w, `{"name":"master"}`)
 	})
 
-	tag, _, err := client.Tags.Change(context.Background(), "testorg/testrepo", "master", input)
+	_, err := client.Tags.Change(context.Background(), "testorg/testrepo", "master", input)
 	if err != nil {
 		t.Errorf("Tags.Change returned error: %v", err)
-	}
-
-	want := &Tag{
-		Name: String("master"),
-	}
-	if !reflect.DeepEqual(tag, want) {
-		t.Errorf("Tags.Change returned %+v, want %+v", tag, want)
 	}
 }
 

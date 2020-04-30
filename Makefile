@@ -14,7 +14,7 @@ test/lint:
 .PHONY: lint
 
 test/unit:
-	go test -v ./cmd
+	go test -v ./cmd ./pkg/*
 .PHONY: test
 
 format:
