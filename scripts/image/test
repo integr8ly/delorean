@@ -1,0 +1,26 @@
+#!/bin/sh
+
+set -ex
+
+#
+# Test the Dockerfile image.
+#
+# TEST_DELOREAN_IMAGE specifies the name of the candidate image used for testing.
+# The image has to be available before this script is executed.
+#
+
+if [[ ! -z "$TEST_CONTAINER_ENGINE" ]]; then
+    alias docker=${TEST_CONTAINER_ENGINE}
+fi
+
+alias delorean-docker-run="docker run -u ${UID} --rm -e KUBECONFIG=/kube.config -v \"${HOME}/.kube/config\":/kube.config:z ${TEST_DELOREAN_IMAGE}"
+alias delorean="delorean-docker-run delorean"
+
+delorean --help
+delorean ews --help
+delorean release --help
+
+delorean-docker-run operator-sdk version
+delorean-docker-run oc version
+
+echo "SUCCESS!"

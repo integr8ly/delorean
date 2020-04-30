@@ -16,6 +16,24 @@ A binary will be created in the root directory of the repo, which can be run:
 ./delorean
 ```
 
+To build a delorean container image:
+
+```
+make image/build
+``` 
+
+To run some basic tests against the image:
+
+```
+make image/test
+```
+
+To build and test using a container engine other than docker (podman):
+
+```
+make image/test CONTAINER_ENGINE=podman
+```
+
 ## Testing
 
 To run unit tests, run:
