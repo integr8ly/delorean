@@ -23,7 +23,7 @@ mirror_images() {
     files=$(find ${MANIFESTS_DIR} -name "image_mirror_mapping")
     for mapping in $files; do
         echo "Running: oc image mirror -f=$mapping --skip-multiple-scopes $ARGS"
-        if ! oc image mirror -f="$mapping" --skip-multiple-scopes $ARGS; then
+        if ! oc image mirror -f="$mapping" --skip-multiple-scopes --insecure $ARGS; then
             echo "ERROR: Failed to mirror images from $mapping"
             failures=$((failures+1))
         fi

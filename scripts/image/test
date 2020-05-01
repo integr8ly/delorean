@@ -16,11 +16,16 @@ fi
 alias delorean-docker-run="docker run -u ${UID} --rm -e KUBECONFIG=/kube.config -v \"${HOME}/.kube/config\":/kube.config:z ${TEST_DELOREAN_IMAGE}"
 alias delorean="delorean-docker-run delorean"
 
+#Dependencies
+delorean-docker-run operator-sdk version
+delorean-docker-run oc version || true
+delorean-docker-run yq --version
+
+#Delorean CLI
 delorean --help
 delorean ews --help
 delorean release --help
 
-delorean-docker-run operator-sdk version
-delorean-docker-run oc version
+delorean ews extract-manifests --src-image registry-proxy.engineering.redhat.com/rh-osbs/3scale-amp2-3scale-rhel7-operator-metadata:1.11.0-67
 
 echo "SUCCESS!"
