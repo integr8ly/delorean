@@ -31,7 +31,7 @@ func extractImageManifests(image string, destDir string) error {
 
 	cmdOCManifestExtract := &exec.Cmd{
 		Path:   ocExecutable,
-		Args:   []string{ocExecutable, "image", "extract", image, "--path", "/manifests/:" + destDir, "--confirm"},
+		Args:   []string{ocExecutable, "image", "extract", image, "--path", "/manifests/:" + destDir, "--confirm", "--insecure"},
 		Stdout: os.Stdout,
 		Stderr: os.Stdout,
 	}
