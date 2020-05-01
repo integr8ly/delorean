@@ -67,7 +67,7 @@ func TestDoTagRelease(t *testing.T) {
 	testTagName := "test"
 	testTagDigest := "testdigest"
 	labelKey := commitIDLabelFilter
-	quayRepos := fmt.Sprintf("%s,%s", DefaultIntegreatlyOperatorQuayRepo, DefaultIntegreatlyOperatorTestQuayRepo)
+	quayRepos := fmt.Sprintf("%s,%s,%s:latest", DefaultIntegreatlyOperatorQuayRepo, DefaultIntegreatlyOperatorTestQuayRepo, DefaultIntegreatlyOperatorTestQuayRepo)
 	cases := []struct {
 		desc              string
 		ghClient          services.GitService
