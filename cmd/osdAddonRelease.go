@@ -1,8 +1,10 @@
 package cmd
 
 import (
+	"crypto/tls"
 	"fmt"
 	corev1 "k8s.io/api/core/v1"
+	gohttp "net/http"
 	"path"
 	"time"
 
@@ -101,6 +103,7 @@ type osdAddonReleaseFlags struct {
 	mergeRequestDescription string
 	managedTenantsOrigin    string
 	managedTenantsFork      string
+	insecure                bool
 }
 
 type osdAddonReleaseCmd struct {
@@ -180,6 +183,12 @@ func init() {
 		"managed-tenants-fork",
 		"integreatly-qe/managed-tenants",
 		"managed-tenants fork repository where to push the release files")
+
+	cmd.Flags().BoolVar(
+		&f.insecure,
+		"insecure",
+		false,
+		"Skip certificate validation when connect to gitlab")
 }
 
 func newOSDAddonReleseCmd(flags *osdAddonReleaseFlags, gitlabToken string) (*osdAddonReleaseCmd, error) {
@@ -190,11 +199,26 @@ func newOSDAddonReleseCmd(flags *osdAddonReleaseFlags, gitlabToken string) (*osd
 	}
 	fmt.Printf("create osd addon release for RHMI v%s to the %s channel\n", version, flags.channel)
 
-	// Prepare the GitLab Client
-	gitlabClient, err := gitlab.NewClient(
-		gitlabToken,
-		gitlab.WithBaseURL(fmt.Sprintf("%s/%s", gitlabURL, gitlabAPIEndpoint)),
-	)
+	var gitlabClient *gitlab.Client
+
+	if flags.insecure {
+		customTransport := gohttp.DefaultTransport.(*gohttp.Transport).Clone()
+		customTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+		client := &gohttp.Client{Transport: customTransport}
+		// Prepare the GitLab Client
+		gitlabClient, err = gitlab.NewClient(
+			gitlabToken,
+			gitlab.WithHTTPClient(client),
+			gitlab.WithBaseURL(fmt.Sprintf("%s/%s", gitlabURL, gitlabAPIEndpoint)),
+		)
+	} else {
+		// Prepare the GitLab Client
+		gitlabClient, err = gitlab.NewClient(
+			gitlabToken,
+			gitlab.WithBaseURL(fmt.Sprintf("%s/%s", gitlabURL, gitlabAPIEndpoint)),
+		)
+	}
+
 	if err != nil {
 		return nil, err
 	}
