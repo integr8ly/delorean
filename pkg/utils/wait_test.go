@@ -8,9 +8,9 @@ import (
 
 func TestRetry_ok(t *testing.T) {
 	i := 0
-	err := Retry(1*time.Millisecond, 3*time.Millisecond, func() error {
+	err := Retry(1*time.Millisecond, 3*time.Millisecond, func() (bool, error) {
 		i = i + 1
-		return nil
+		return true, nil
 	})
 	if err != nil {
 		t.Errorf("error should be nil")
@@ -22,9 +22,9 @@ func TestRetry_ok(t *testing.T) {
 
 func TestRetry_timeout(t *testing.T) {
 	i := 0
-	err := Retry(1*time.Millisecond, 3*time.Millisecond, func() error {
+	err := Retry(1*time.Millisecond, 3*time.Millisecond, func() (bool, error) {
 		i = i + 1
-		return errors.New("error")
+		return false, errors.New("error")
 	})
 	if err == nil {
 		t.Errorf("error should not be nil")
