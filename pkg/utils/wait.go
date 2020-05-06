@@ -6,13 +6,15 @@ import (
 )
 
 // Retry can be used to execute the given function f with the given interval, until the given timeout value is exceeded.
-func Retry(interval time.Duration, timeout time.Duration, f func() error) error {
+func Retry(interval time.Duration, timeout time.Duration, f func() (bool, error)) error {
 	done := make(chan bool)
+	var err error
 	go func() {
 		for {
 			time.Sleep(interval)
-			err := f()
-			if err == nil {
+			ok, er := f()
+			if ok {
+				err = er
 				done <- true
 			}
 		}
@@ -20,7 +22,7 @@ func Retry(interval time.Duration, timeout time.Duration, f func() error) error 
 	for {
 		select {
 		case <-done:
-			return nil
+			return err
 		case <-time.After(timeout):
 			return errors.New("timeout")
 		}
