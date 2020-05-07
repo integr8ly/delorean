@@ -42,7 +42,7 @@ func DoMergeRelease(ctx context.Context, client services.PullRequestsService, re
 		return err
 	}
 	opts := &github.PullRequestListOptions{
-		Head: fmt.Sprintf("%s:%s", repoInfo.owner, rv.ReleaseBranchName()),
+		Head: fmt.Sprintf("%s:%s", repoInfo.owner, rv.PrepareReleaseBranchName()),
 		Base: cmdOpts.baseBranch,
 	}
 	fmt.Println("Try to find the release PR from", opts.Head, "against base branch", opts.Base)
@@ -101,5 +101,5 @@ func mergePR(ctx context.Context, client services.PullRequestsService, repoIno *
 
 func init() {
 	releaseCmd.AddCommand(mergeReleaseCmd)
-	mergeReleaseCmd.Flags().StringVarP(&mergeReleaseCmdOpts.baseBranch, "baseBranch", "b", "master", "Base branch for the PR to merge")
+	mergeReleaseCmd.Flags().StringVarP(&mergeReleaseCmdOpts.baseBranch, "branch", "b", "master", "Base branch for the PR to merge")
 }
