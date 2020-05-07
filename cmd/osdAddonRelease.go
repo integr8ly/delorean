@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	corev1 "k8s.io/api/core/v1"
 	"path"
 	"time"
 
@@ -440,9 +439,9 @@ func (c *osdAddonReleaseCmd) udpateTheCSVManifest(channel releaseChannel) (strin
 		return "", err
 	}
 
-	_, deployment := findDeploymentByName(csv.Spec.InstallStrategy.StrategySpec.DeploymentSpecs, rhmiOperatorDeploymentName)
+	_, deployment := utils.FindDeploymentByName(csv.Spec.InstallStrategy.StrategySpec.DeploymentSpecs, rhmiOperatorDeploymentName)
 	if deployment != nil {
-		i, container := findContainerByName(deployment.Spec.Template.Spec.Containers, rhmiOperatorContainerName)
+		i, container := utils.FindContainerByName(deployment.Spec.Template.Spec.Containers, rhmiOperatorContainerName)
 		if container != nil {
 			// Update USE_CLUSTER_STORAGE env var to empty string
 			container.Env = utils.AddOrUpdateEnvVar(container.Env, envVarNameUseClusterStorage, "")
@@ -457,7 +456,7 @@ func (c *osdAddonReleaseCmd) udpateTheCSVManifest(channel releaseChannel) (strin
 	}
 
 	//Set SingleNamespace install mode to true
-	mi, m := findInstallMode(csv.Spec.InstallModes, olmapiv1alpha1.InstallModeTypeSingleNamespace)
+	mi, m := utils.FindInstallMode(csv.Spec.InstallModes, olmapiv1alpha1.InstallModeTypeSingleNamespace)
 	if m != nil {
 		m.Supported = true
 	}
@@ -468,31 +467,4 @@ func (c *osdAddonReleaseCmd) udpateTheCSVManifest(channel releaseChannel) (strin
 		return "", err
 	}
 	return relative, nil
-}
-
-func findDeploymentByName(deployments []olmapiv1alpha1.StrategyDeploymentSpec, name string) (int, *olmapiv1alpha1.StrategyDeploymentSpec) {
-	for i, d := range deployments {
-		if d.Name == name {
-			return i, &d
-		}
-	}
-	return -1, nil
-}
-
-func findContainerByName(containers []corev1.Container, containerName string) (int, *corev1.Container) {
-	for i, c := range containers {
-		if c.Name == containerName {
-			return i, &c
-		}
-	}
-	return -1, nil
-}
-
-func findInstallMode(installModes []olmapiv1alpha1.InstallMode, typeName olmapiv1alpha1.InstallModeType) (int, *olmapiv1alpha1.InstallMode) {
-	for i, m := range installModes {
-		if m.Type == typeName {
-			return i, &m
-		}
-	}
-	return -1, nil
 }
