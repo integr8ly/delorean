@@ -2,10 +2,11 @@ package cmd
 
 import (
 	"context"
-	"github.com/integr8ly/delorean/pkg/utils"
 	"io/ioutil"
 	"os"
 	"testing"
+
+	"github.com/integr8ly/delorean/pkg/utils"
 )
 
 func mockExtractImageManifests(image string, destDir string) error {
@@ -78,8 +79,8 @@ func TestDoExtractManifests(t *testing.T) {
 		{
 			name: "source image",
 			args: args{context.TODO(), mockExtractImageManifests, &extractManifestsCmdOptions{
-				srcImage: "testimage",
-				tmpDir:   tmpDir,
+				srcImage:   "testimage",
+				extractDir: tmpDir,
 			}},
 			wantErr: false,
 		},
