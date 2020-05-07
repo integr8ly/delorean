@@ -101,5 +101,5 @@ func mergePR(ctx context.Context, client services.PullRequestsService, repoIno *
 
 func init() {
 	releaseCmd.AddCommand(mergeReleaseCmd)
-	mergeReleaseCmd.Flags().StringVarP(&mergeReleaseCmdOpts.baseBranch, "baseBranch", "b", "master", "Base branch for the PR to merge")
+	mergeReleaseCmd.Flags().StringVarP(&mergeReleaseCmdOpts.baseBranch, "branch", "b", "master", "Base branch for the PR to merge")
 }
