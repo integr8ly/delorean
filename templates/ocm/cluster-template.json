@@ -3,6 +3,12 @@
     "managed": true,
     "multi_az": false,
     "name": "my_cluster_name",
+    "network": {
+      "machine_cidr": "10.11.128.0/23",
+      "service_cidr": "10.11.0.0/18",
+      "pod_cidr": "10.11.64.0/18",
+      "host_prefix": 23
+    },
     "nodes" : {
       "compute" : 4,
       "compute_machine_type" : {"id" : "m5.xlarge" }
