@@ -421,7 +421,7 @@ func (c *osdAddonReleaseCmd) udpateThePackageManifest(channel releaseChannel) (s
 	// Set channels[0].currentCSV value
 	p.Channels[0].CurrentCSVName = fmt.Sprintf("integreatly-operator.v%s", c.version.Base())
 
-	err = utils.WriteObjectToYAML(p, manifest)
+	err = utils.WriteK8sObjectToYAML(p, manifest)
 	if err != nil {
 		return "", err
 	}
@@ -463,7 +463,7 @@ func (c *osdAddonReleaseCmd) udpateTheCSVManifest(channel releaseChannel) (strin
 	}
 	csv.Spec.InstallModes[mi] = *m
 
-	err = utils.WriteObjectToYAML(csv, csvFile)
+	err = utils.WriteK8sObjectToYAML(csv, csvFile)
 	if err != nil {
 		return "", err
 	}

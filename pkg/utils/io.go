@@ -3,6 +3,7 @@ package utils
 import (
 	"encoding/json"
 	"io/ioutil"
+	"k8s.io/apimachinery/pkg/runtime"
 	"os"
 
 	"github.com/ghodss/yaml"
@@ -35,7 +36,27 @@ func WriteObjectToYAML(obj interface{}, yamlFile string) error {
 	if err != nil {
 		return err
 	}
+	return writeToYAML(bytes, yamlFile)
+}
 
+func WriteK8sObjectToYAML(obj interface{}, yamlFile string) error {
+	u, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
+	if err != nil {
+		return err
+	}
+	deleteKeys := []string{"status", "creationTimestamp"}
+	for _, dk := range deleteKeys {
+		deleteKeyFromUnstructured(u, dk)
+	}
+
+	bytes, err := yaml.Marshal(u)
+	if err != nil {
+		return err
+	}
+	return writeToYAML(bytes, yamlFile)
+}
+
+func writeToYAML(bytes []byte, yamlFile string) error {
 	// truncate the existing file
 	write, err := os.Create(yamlFile)
 	if err != nil {
@@ -78,4 +99,25 @@ func WriteObjectToJSON(obj interface{}, jsonFile string) error {
 	}
 
 	return nil
+}
+  
+//https://github.com/operator-framework/operator-sdk/blob/master/internal/util/k8sutil/object.go
+func deleteKeyFromUnstructured(u map[string]interface{}, key string) {
+	if _, ok := u[key]; ok {
+		delete(u, key)
+		return
+	}
+
+	for _, v := range u {
+		switch t := v.(type) {
+		case map[string]interface{}:
+			deleteKeyFromUnstructured(t, key)
+		case []interface{}:
+			for _, ti := range t {
+				if m, ok := ti.(map[string]interface{}); ok {
+					deleteKeyFromUnstructured(m, key)
+				}
+			}
+		}
+	}
 }

@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
@@ -19,6 +20,12 @@ type sampleJSON struct {
 	Value  int            `json:"value,omitempty"`
 	Array  []int          `json:"array,omitempty"`
 	Object map[string]int `json:"object,omitempty"`
+}
+
+type sampleK8sYAML struct {
+	Name              string `yaml:"name,omitempty"`
+	Status            string `yaml:"status"`
+	CreationTimestamp string `yaml:"creationTimestamp"`
 }
 
 func TestPopulateObjectFromYAML(t *testing.T) {
@@ -97,6 +104,33 @@ func TestWriteObjectToJSON(t *testing.T) {
 	}
 	content := readFile(t, dest)
 	expected := `{"name":"test","value":1,"array":[1,2],"object":{"key":1}}`
+	if content != expected {
+		t.Errorf("expected output is not valid. Expected:\n%s\n Actual:\n%s\n", expected, content)
+	}
+}
+
+func TestWriteK8sObjectToYAML(t *testing.T) {
+	tmp, err := ioutil.TempDir(os.TempDir(), "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmp)
+	obj := &sampleK8sYAML{
+		Name:              "test",
+		Status:            "test",
+		CreationTimestamp: "test",
+	}
+	dest := path.Join(tmp, "out.yaml")
+	err = WriteK8sObjectToYAML(obj, dest)
+	if err != nil {
+		t.Errorf("failed to write yaml file: %v", err)
+	}
+	content := readFile(t, dest)
+	expected := "name: test\n"
+
+	fmt.Println(content)
+	fmt.Println(expected)
+
 	if content != expected {
 		t.Errorf("expected output is not valid. Expected:\n%s\n Actual:\n%s\n", expected, content)
 	}

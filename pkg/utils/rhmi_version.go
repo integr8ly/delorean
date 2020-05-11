@@ -5,6 +5,8 @@ import (
 	"strings"
 )
 
+const releaseBranchNameTemplate = "prepare-for-release-%s"
+
 // RHMIVersion rappresents an integreatly version composed by a base part (2.0.0, 2.0.1, ...)
 // and a build part (ER1, RC2, ..) if it's a prerelase version
 type RHMIVersion struct {
@@ -70,4 +72,8 @@ func (v *RHMIVersion) InitialPointReleaseTag() string {
 func (v *RHMIVersion) MajorMinor() string {
 	parts := strings.Split(v.base, ".")
 	return fmt.Sprintf("%s.%s", parts[0], parts[1])
+}
+
+func (v *RHMIVersion) PrepareReleaseBranchName() string {
+	return fmt.Sprintf(releaseBranchNameTemplate, v.TagName())
 }
