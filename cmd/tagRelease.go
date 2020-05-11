@@ -73,14 +73,15 @@ func DoTagRelease(ctx context.Context, ghClient services.GitService, gitRepoInfo
 		return err
 	}
 	fmt.Println("Git tag", rv.TagName(), "created:", tagRef.GetURL())
+	branchImageTag := rv.ReleaseBranchImageTag()
 	if len(cmdOpts.quayRepos) > 0 {
 		fmt.Println("Try to create image tags on quay.io:")
-		ok := tryCreateQuayTag(ctx, quayClient, cmdOpts.quayRepos, cmdOpts.branch, rv.TagName(), headRef.GetObject().GetSHA())
+		ok := tryCreateQuayTag(ctx, quayClient, cmdOpts.quayRepos, branchImageTag, rv.TagName(), headRef.GetObject().GetSHA())
 		if !ok {
 			if cmdOpts.wait {
 				fmt.Println("Wait for the latest image to be available on quay.io. Will check every", cmdOpts.waitInterval, "minutes for", cmdOpts.waitMax, "minutes")
 				err = utils.Retry(time.Duration(cmdOpts.waitInterval)*time.Minute, time.Duration(cmdOpts.waitMax)*time.Minute, func() (bool, error) {
-					ok = tryCreateQuayTag(ctx, quayClient, cmdOpts.quayRepos, cmdOpts.branch, rv.TagName(), headRef.GetObject().GetSHA())
+					ok = tryCreateQuayTag(ctx, quayClient, cmdOpts.quayRepos, branchImageTag, rv.TagName(), headRef.GetObject().GetSHA())
 					if !ok {
 						fmt.Println("Failed. Will try again later.")
 					}
@@ -151,7 +152,7 @@ func tryCreateQuayTag(ctx context.Context, quayClient *quay.Client, quayRepos st
 		err := createTagForImage(ctx, quayClient, *repo, existingTag, *tag, commitSHA)
 		if err != nil {
 			ok = false
-			fmt.Println("Failed to create the image tag for", r, "due to erro", err)
+			fmt.Println("Failed to create the image tag for", r, "due to error:", err)
 		} else {
 			fmt.Println("Image tag", newTag, "created for", r)
 		}
