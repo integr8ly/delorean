@@ -290,7 +290,7 @@ func TestOSDAddonRelease(t *testing.T) {
 						if env.Name == envVarNameUseClusterStorage && env.Value == "" {
 							storageEnvVarChecked = true
 						}
-						if version.IsPreRelease() {
+						if cmd.channel == stageChannel {
 							if env.Name == envVarNameAlerEmailAddress && env.Value == integreatlyAlertEmailAddress {
 								alertEnvVarChecked = true
 							}
