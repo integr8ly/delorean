@@ -3,8 +3,9 @@ package utils
 import (
 	"encoding/json"
 	"io/ioutil"
-	"k8s.io/apimachinery/pkg/runtime"
 	"os"
+
+	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/ghodss/yaml"
 )
@@ -100,7 +101,7 @@ func WriteObjectToJSON(obj interface{}, jsonFile string) error {
 
 	return nil
 }
-  
+
 //https://github.com/operator-framework/operator-sdk/blob/master/internal/util/k8sutil/object.go
 func deleteKeyFromUnstructured(u map[string]interface{}, key string) {
 	if _, ok := u[key]; ok {
