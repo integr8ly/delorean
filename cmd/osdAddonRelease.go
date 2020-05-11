@@ -447,7 +447,7 @@ func (c *osdAddonReleaseCmd) udpateTheCSVManifest(channel releaseChannel) (strin
 			// Update USE_CLUSTER_STORAGE env var to empty string
 			container.Env = utils.AddOrUpdateEnvVar(container.Env, envVarNameUseClusterStorage, "")
 			// Add ALERTING_EMAIL_ADDRESS env var
-			if c.version.IsPreRelease() {
+			if channel == stageChannel {
 				container.Env = utils.AddOrUpdateEnvVar(container.Env, envVarNameAlerEmailAddress, integreatlyAlertEmailAddress)
 			} else {
 				container.Env = utils.AddOrUpdateEnvVar(container.Env, envVarNameAlerEmailAddress, cssreAlertEmailAddress)
