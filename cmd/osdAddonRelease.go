@@ -255,7 +255,7 @@ func (c *osdAddonReleaseCmd) run() error {
 	case stageChannel:
 		// noting
 	case stableChannel, edgeChannel:
-		if c.version.IsPreRrelease() {
+		if c.version.IsPreRelease() {
 			return fmt.Errorf("the prerelease version %s can't be pushed to the %s channel", c.version, c.channel)
 		}
 	default:
@@ -447,7 +447,7 @@ func (c *osdAddonReleaseCmd) udpateTheCSVManifest(channel releaseChannel) (strin
 			// Update USE_CLUSTER_STORAGE env var to empty string
 			container.Env = utils.AddOrUpdateEnvVar(container.Env, envVarNameUseClusterStorage, "")
 			// Add ALERTING_EMAIL_ADDRESS env var
-			if c.version.IsPreRrelease() {
+			if c.version.IsPreRelease() {
 				container.Env = utils.AddOrUpdateEnvVar(container.Env, envVarNameAlerEmailAddress, integreatlyAlertEmailAddress)
 			} else {
 				container.Env = utils.AddOrUpdateEnvVar(container.Env, envVarNameAlerEmailAddress, cssreAlertEmailAddress)

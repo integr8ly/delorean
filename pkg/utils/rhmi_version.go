@@ -12,6 +12,9 @@ const releaseBranchNameTemplate = "prepare-for-release-%s"
 type RHMIVersion struct {
 	base  string
 	build string
+	major string
+	minor string
+	patch string
 }
 
 // NewRHMIVersion parse the integreatly version as a string and returns a Version object
@@ -24,13 +27,14 @@ func NewRHMIVersion(version string) (*RHMIVersion, error) {
 	p := strings.Split(version, "-")
 	switch len(p) {
 	case 1:
-		return &RHMIVersion{base: p[0], build: ""}, nil
+		parts := strings.Split(p[0], ".")
+		return &RHMIVersion{base: p[0], build: "", major: parts[0], minor: parts[1], patch: parts[2]}, nil
 	case 2:
 		if p[1] == "" {
 			return nil, fmt.Errorf("the build part of the version %s is empty", version)
 		}
-
-		return &RHMIVersion{base: p[0], build: p[1]}, nil
+		parts := strings.Split(p[0], ".")
+		return &RHMIVersion{base: p[0], build: p[1], major: parts[0], minor: parts[1], patch: parts[2]}, nil
 	default:
 		return nil, fmt.Errorf("the version %s is invalid", version)
 	}
@@ -44,8 +48,8 @@ func (v *RHMIVersion) String() string {
 	return strings.Join(p, "-")
 }
 
-// IsPreRrelease returns true if the version end with -ER1, -RC1, ...
-func (v *RHMIVersion) IsPreRrelease() bool {
+// IsPreRelease returns true if the version end with -ER1, -RC1, ...
+func (v *RHMIVersion) IsPreRelease() bool {
 	return v.build != ""
 }
 
@@ -70,10 +74,23 @@ func (v *RHMIVersion) InitialPointReleaseTag() string {
 }
 
 func (v *RHMIVersion) MajorMinor() string {
-	parts := strings.Split(v.base, ".")
-	return fmt.Sprintf("%s.%s", parts[0], parts[1])
+	return fmt.Sprintf("%s.%s", v.major, v.minor)
 }
 
 func (v *RHMIVersion) PrepareReleaseBranchName() string {
 	return fmt.Sprintf(releaseBranchNameTemplate, v.TagName())
+}
+
+func (v *RHMIVersion) IsPatchRelease() bool {
+	return v.patch != "0"
+}
+
+// Get the image tags that are created by OpenShift CI for the release branch.
+// It's "master" for master branch (for all minor release), and "Major.Minor" for all release branches (for patch releases)
+func (v *RHMIVersion) ReleaseBranchImageTag() string {
+	if v.IsPatchRelease() {
+		return v.MajorMinor()
+	} else {
+		return "master"
+	}
 }

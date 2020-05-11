@@ -76,7 +76,7 @@ func TestDoTagRelease(t *testing.T) {
 		expectError       bool
 	}{
 		{
-			desc: "success",
+			desc: "success for minor release",
 			ghClient: &mockGitService{
 				getRefFunc: func(ctx context.Context, owner string, repo string, ref string) (reference []*github.Reference, response *github.Response, err error) {
 					masterRef := "refs/heads/master"
@@ -103,14 +103,21 @@ func TestDoTagRelease(t *testing.T) {
 				BaseURL: baseUrl,
 				Tags: &mockTagsService{
 					listFunc: func(ctx context.Context, repository string, options *quay.ListTagsOptions) (list *quay.TagList, response *http.Response, err error) {
-						return &quay.TagList{
-							Tags: []quay.Tag{
-								quay.Tag{
-									Name:           &testTagName,
-									ManifestDigest: &testTagDigest,
+						requestTag := options.SpecificTag
+						if requestTag == "master" {
+							return &quay.TagList{
+								Tags: []quay.Tag{
+									quay.Tag{
+										Name:           &requestTag,
+										ManifestDigest: &testTagDigest,
+									},
 								},
-							},
-						}, nil, nil
+							}, nil, nil
+						} else {
+							return &quay.TagList{
+								Tags: []quay.Tag{},
+							}, nil, nil
+						}
 					},
 					changeFunc: func(ctx context.Context, repository string, tag string, input *quay.ChangTag) (response *http.Response, err error) {
 						return nil, nil
@@ -124,6 +131,64 @@ func TestDoTagRelease(t *testing.T) {
 				}},
 			},
 			tagReleaseOptions: &tagReleaseOptions{releaseVersion: "2.0.0-rc1", branch: "master", wait: false, quayRepos: quayRepos},
+			expectError:       false,
+		},
+		{
+			desc: "success for patch release",
+			ghClient: &mockGitService{
+				getRefFunc: func(ctx context.Context, owner string, repo string, ref string) (reference []*github.Reference, response *github.Response, err error) {
+					releaseRef := "refs/heads/release-v2.0"
+					if strings.Index(ref, "refs/heads/") > -1 {
+						return []*github.Reference{{
+							Ref: &releaseRef,
+							Object: &github.GitObject{
+								SHA: &sha,
+							},
+						}}, nil, nil
+					} else {
+						return nil, nil, nil
+					}
+				},
+				createRefFunc: func(ctx context.Context, owner string, repo string, ref *github.Reference) (reference *github.Reference, response *github.Response, err error) {
+					return &github.Reference{
+						Object: &github.GitObject{
+							SHA: &sha,
+						},
+					}, nil, nil
+				},
+			},
+			quayClient: &quay.Client{
+				BaseURL: baseUrl,
+				Tags: &mockTagsService{
+					listFunc: func(ctx context.Context, repository string, options *quay.ListTagsOptions) (list *quay.TagList, response *http.Response, err error) {
+						requestTag := options.SpecificTag
+						if requestTag == "2.0" {
+							return &quay.TagList{
+								Tags: []quay.Tag{
+									quay.Tag{
+										Name:           &requestTag,
+										ManifestDigest: &testTagDigest,
+									},
+								},
+							}, nil, nil
+						} else {
+							return &quay.TagList{
+								Tags: []quay.Tag{},
+							}, nil, nil
+						}
+					},
+					changeFunc: func(ctx context.Context, repository string, tag string, input *quay.ChangTag) (response *http.Response, err error) {
+						return nil, nil
+					},
+				},
+				Manifests: &mockManifestService{listLabelsFunc: func(ctx context.Context, repository string, manifestRef string, options *quay.ListManifestLabelsOptions) (list *quay.ManifestLabelsList, response *http.Response, err error) {
+					return &quay.ManifestLabelsList{Labels: []quay.ManifestLabel{quay.ManifestLabel{
+						Key:   &labelKey,
+						Value: &sha,
+					}}}, nil, nil
+				}},
+			},
+			tagReleaseOptions: &tagReleaseOptions{releaseVersion: "2.0.1-rc1", branch: "release-v2.0", wait: false, quayRepos: quayRepos},
 			expectError:       false,
 		},
 		{
