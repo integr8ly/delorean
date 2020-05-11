@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"encoding/json"
 	"io/ioutil"
 	"os"
 
@@ -50,5 +51,31 @@ func WriteObjectToYAML(obj interface{}, yamlFile string) error {
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+// WriteObjectToJSON will marshal the given object and write to the given json file
+func WriteObjectToJSON(obj interface{}, jsonFile string) error {
+	bytes, err := json.Marshal(obj)
+	if err != nil {
+		return err
+	}
+
+	// truncate the existing file
+	write, err := os.Create(jsonFile)
+	if err != nil {
+		return err
+	}
+
+	_, err = write.Write(bytes)
+	if err != nil {
+		return err
+	}
+
+	err = write.Close()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
