@@ -290,9 +290,20 @@ func updateImageMirroringConfig(repoDir string, version *utils.RHMIVersion) erro
 	internalReg := "registry.svc.ci.openshift.org/integr8ly"
 	publicReg := "quay.io/integreatly"
 
-	imageTemplates := map[string]string{
-		"%s/%s:integreatly-operator":              "%s/integreatly-operator:%s",
-		"%s/%s:integreatly-operator-test-harness": "%s/integreatly-operator-test-harness:%s",
+	type imageTemplate struct {
+		internalRegTemplate string
+		externalRegTemplate string
+	}
+
+	imageTemplates := []imageTemplate{
+		{
+			internalRegTemplate: "%s/%s:integreatly-operator",
+			externalRegTemplate: "%s/integreatly-operator:%s",
+		},
+		{
+			internalRegTemplate: "%s/%s:integreatly-operator-test-harness",
+			externalRegTemplate: "%s/integreatly-operator-test-harness:%s",
+		},
 	}
 
 	file, err := os.Create(mappingFile)
@@ -303,9 +314,9 @@ func updateImageMirroringConfig(repoDir string, version *utils.RHMIVersion) erro
 
 	w := bufio.NewWriter(file)
 
-	for it, pt := range imageTemplates {
-		internalImage := fmt.Sprintf(it, internalReg, version.MajorMinor())
-		publicImage := fmt.Sprintf(pt, publicReg, version.MajorMinor())
+	for _, t := range imageTemplates {
+		internalImage := fmt.Sprintf(t.internalRegTemplate, internalReg, version.MajorMinor())
+		publicImage := fmt.Sprintf(t.externalRegTemplate, publicReg, version.MajorMinor())
 		mapping := fmt.Sprintf("%s %s\n", internalImage, publicImage)
 		w.WriteString(mapping)
 	}
