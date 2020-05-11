@@ -74,16 +74,22 @@ get_latest_generated_access_key_id() {
 
 create_cluster_configuration_file() {
     local timestamp
+    local listening="external"
 
     : "${OCM_CLUSTER_LIFESPAN:=4}"
     : "${OCM_CLUSTER_NAME:=rhmi-$(date +"%y%m%d-%H%M")}"
     : "${OCM_CLUSTER_REGION:=eu-west-1}"
     : "${BYOC:=false}"
     : "${OPENSHIFT_VERSION:=}"
+    : "${PRIVATE:=false}"
 
     timestamp=$(get_expiration_timestamp "${OCM_CLUSTER_LIFESPAN}")
 
-    jq ".expiration_timestamp = \"${timestamp}\" | .name = \"${OCM_CLUSTER_NAME}\" | .region.id = \"${OCM_CLUSTER_REGION}\"" \
+    if [ "${PRIVATE}" = true ]; then
+        listening="internal"
+    fi
+
+    jq ".expiration_timestamp = \"${timestamp}\" | .name = \"${OCM_CLUSTER_NAME}\" | .region.id = \"${OCM_CLUSTER_REGION}\" | .api.listening = \"${listening}\"" \
         < "${CLUSTER_TEMPLATE_FILE}" \
         > "${CLUSTER_CONFIGURATION_FILE}"
 	
@@ -314,6 +320,7 @@ Optional exported variables:
 - OCM_CLUSTER_REGION                e.g. eu-west-1
 - BYOC                              true/false (default: false)
 - OPENSHIFT_VERSION                 to get OpenShift versions, run: ocm cluster versions
+- PRIVATE                           Cluster's API and router will be private
 ==========================================================================================
 create_cluster                    - spin up OSD cluster
 ==========================================================================================
