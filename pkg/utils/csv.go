@@ -40,7 +40,7 @@ func ReadCSVFromBundleDirectory(bundleDir string) (*olmapiv1alpha1.ClusterServic
 	}
 
 	for _, file := range files {
-		if strings.Contains(file, ".clusterserviceversion.yaml") {
+		if strings.Contains(file, ".clusterserviceversion.yaml") || strings.Contains(file, ".csv.yaml") {
 			bundleFilepath := path.Join(bundleDir, file)
 			var csv *olmapiv1alpha1.ClusterServiceVersion
 			err := PopulateObjectFromYAML(bundleFilepath, &csv)
