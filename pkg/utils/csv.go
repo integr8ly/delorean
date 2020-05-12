@@ -163,3 +163,25 @@ func UpdatePackageManifest(packageDir, currentCSVName string) (*registry.Package
 
 	return pkgManifest, nil
 }
+
+func ProcessCurrentCSV(packageDir string, processFunc process) error {
+	csv, csvfile, err := GetCurrentCSV(packageDir)
+	if err != nil {
+		return err
+	}
+
+	if processFunc != nil {
+		err = processFunc(csv)
+		if err != nil {
+			return err
+		}
+	}
+
+	err = WriteK8sObjectToYAML(csv, csvfile)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+type process func(*olmapiv1alpha1.ClusterServiceVersion) error

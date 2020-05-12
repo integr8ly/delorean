@@ -60,6 +60,11 @@ func copyLatestManifest(srcPkgDir, destPkgDir string) (string, string, error) {
 		return "", "", err
 	}
 
+	err = utils.ProcessCurrentCSV(destPkgDir, nil)
+	if err != nil {
+		return "", "", err
+	}
+
 	return srcBundleDir, destBundleDir, nil
 }
 
