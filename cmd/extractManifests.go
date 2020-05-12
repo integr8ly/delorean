@@ -48,7 +48,7 @@ func copyLatestManifest(srcPkgDir, destPkgDir string) (string, string, error) {
 	}
 
 	srcBundleDir := filepath.Dir(csvFile)
-	destBundleDir := filepath.Join(destPkgDir, filepath.Base(srcBundleDir))
+	destBundleDir := filepath.Join(destPkgDir, csv.Spec.Version.String())
 
 	err = utils.CopyDirectory(srcBundleDir, destBundleDir)
 	if err != nil {
@@ -56,6 +56,11 @@ func copyLatestManifest(srcPkgDir, destPkgDir string) (string, string, error) {
 	}
 
 	_, err = utils.UpdatePackageManifest(destPkgDir, csv.Name)
+	if err != nil {
+		return "", "", err
+	}
+
+	err = utils.ProcessCurrentCSV(destPkgDir, nil)
 	if err != nil {
 		return "", "", err
 	}

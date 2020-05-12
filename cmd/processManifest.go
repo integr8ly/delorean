@@ -4,7 +4,6 @@ import (
 	"github.com/integr8ly/delorean/pkg/utils"
 	olmapiv1alpha1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
 	"github.com/spf13/cobra"
-	v1 "k8s.io/api/core/v1"
 )
 
 var manifestDir string
@@ -25,31 +24,7 @@ var processManifestCmd = &cobra.Command{
 		if err != nil {
 			handleError(err)
 		}
-		//get current csv object and filepath
-		csv, filepath, err := utils.GetCurrentCSV(manifestDir)
-		if err != nil {
-			handleError(err)
-		}
-
-		//Get the correct replaces value and update it.
-		sortedCSVs, err := utils.GetSortedCSVNames(manifestDir)
-		if err != nil {
-			handleError(err)
-		}
-
-		if sortedCSVs.Len() > 1 {
-			csv.Spec.Replaces = sortedCSVs[(sortedCSVs.Len() - 2)].Name
-		}
-
-		//update "WATCH_NAMESPACE" and "NAMESPACE" env vars if present
-		envKeyValMap := map[string]string{
-			envVarWatchNamespace: "metadata.annotations['olm.targetNamespaces']",
-			envVarNamespace:      "metadata.annotations['olm.targetNamespaces']",
-		}
-		utils.UpdateEnvVarList(csv, envKeyValMap)
-
-		//parse object to yaml and write to back to file
-		err = utils.WriteObjectToYAML(csv, filepath)
+		err = utils.ProcessCurrentCSV(manifestDir, processManifest)
 		if err != nil {
 			handleError(err)
 		}
@@ -62,33 +37,23 @@ func init() {
 	processManifestCmd.Flags().StringVarP(&manifestDir, "manifest-dir", "m", "", "Manifest Directory Location.")
 }
 
-func updateEnvs(deployments []olmapiv1alpha1.StrategyDeploymentSpec) {
-	spec := deployments[0].Spec
-	envs := spec.Template.Spec.Containers[0].Env
-	watchNamespaceEnv := v1.EnvVar{
-		Name: envVarWatchNamespace,
-		ValueFrom: &v1.EnvVarSource{
-			FieldRef: &v1.ObjectFieldSelector{
-				FieldPath: "metadata.annotations['olm.targetNamespaces']",
-			},
-		},
+func processManifest(csv *olmapiv1alpha1.ClusterServiceVersion) error {
+	//Get the correct replaces value and update it.
+	sortedCSVs, err := utils.GetSortedCSVNames(manifestDir)
+	if err != nil {
+		handleError(err)
 	}
-	namespaceEnv := v1.EnvVar{
-		Name: envVarNamespace,
-		ValueFrom: &v1.EnvVarSource{
-			FieldRef: &v1.ObjectFieldSelector{
-				FieldPath: "metadata.annotations['olm.targetNamespaces']",
-			},
-		},
+
+	if sortedCSVs.Len() > 1 {
+		csv.Spec.Replaces = sortedCSVs[(sortedCSVs.Len() - 2)].Name
 	}
 
 	//update "WATCH_NAMESPACE" and "NAMESPACE" env vars if present
-	for i, env := range envs {
-		if env.Name == envVarWatchNamespace {
-			envs[i] = watchNamespaceEnv
-		}
-		if env.Name == envVarNamespace {
-			envs[i] = namespaceEnv
-		}
+	envKeyValMap := map[string]string{
+		envVarWatchNamespace: "metadata.annotations['olm.targetNamespaces']",
+		envVarNamespace:      "metadata.annotations['olm.targetNamespaces']",
 	}
+	utils.UpdateEnvVarList(csv, envKeyValMap)
+
+	return nil
 }
