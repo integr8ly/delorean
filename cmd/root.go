@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/google/go-github/v30/github"
@@ -11,14 +12,16 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/oauth2"
 
-	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/viper"
+	"k8s.io/client-go/util/homedir"
 )
 
 var cfgFile string
 var integreatlyGHOrg string
 var integreatlyOperatorRepo string
 var releaseVersion string
+
+var kubeconfigFile string
 
 const (
 	GithubTokenKey                         = "github_token"
@@ -28,6 +31,7 @@ const (
 	QuayTokenKey                           = "quay_token"
 	DefaultIntegreatlyOperatorQuayRepo     = "integreatly/integreatly-operator"
 	DefaultIntegreatlyOperatorTestQuayRepo = "integreatly/integreatly-operator-test-harness"
+	KubeConfigKey                          = "kubeconfig"
 )
 
 type githubRepoInfo struct {
@@ -59,6 +63,12 @@ var ewsCmd = &cobra.Command{
 	Long:  `RHMI Early Warning System Commands`,
 }
 
+var testsCmd = &cobra.Command{
+	Use:   "tests",
+	Short: "RHMI tests commands",
+	Long:  `Command to run test containers`,
+}
+
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
@@ -84,8 +94,16 @@ func init() {
 	releaseCmd.PersistentFlags().String("quayToken", "", fmt.Sprintf("Access token for quay. Can be set via the %s env var", strings.ToUpper(QuayTokenKey)))
 	viper.BindPFlag(QuayTokenKey, releaseCmd.PersistentFlags().Lookup("quayToken"))
 
+	defaultKubeconfigFilePath := ""
+	if home := homedir.HomeDir(); home != "" {
+		defaultKubeconfigFilePath = filepath.Join(home, ".kube", "config")
+	}
+	testsCmd.PersistentFlags().StringVar(&kubeconfigFile, "kubeconfig", defaultKubeconfigFilePath, fmt.Sprintf("Path to the kubeconfig file. Can be set via the %s env var", strings.ToUpper(KubeConfigKey)))
+	viper.BindPFlag(KubeConfigKey, testsCmd.PersistentFlags().Lookup("kubeconfig"))
+
 	rootCmd.AddCommand(releaseCmd)
 	rootCmd.AddCommand(ewsCmd)
+	rootCmd.AddCommand(testsCmd)
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -95,9 +113,9 @@ func initConfig() {
 		viper.SetConfigFile(cfgFile)
 	} else {
 		// Find home directory.
-		home, err := homedir.Dir()
-		if err != nil {
-			fmt.Println(err)
+		home := homedir.HomeDir()
+		if home == "" {
+			fmt.Println("no home directory found")
 			os.Exit(1)
 		}
 
