@@ -131,21 +131,26 @@ install_rhmi() {
     : "${USE_CLUSTER_STORAGE:=true}"
     cluster_id=$(get_cluster_id)
 
+    # Install RHMI Addon
     echo '{"addon":{"id":"rhmi"}}' | ocm post "/api/clusters_mgmt/v1/clusters/${cluster_id}/addons"
 
+    # Approve RHMI InstallPlan
     wait_for "oc --kubeconfig ${CLUSTER_KUBECONFIG_FILE} get installplans -n ${RHMI_OPERATOR_NAMESPACE} -o name | grep -q installplan" "RHMI installplan to be created" "10m" "30"
     installplan_name=$(oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get installplans -n ${RHMI_OPERATOR_NAMESPACE} -o name)
     oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" patch "${installplan_name}" -n ${RHMI_OPERATOR_NAMESPACE} --type='json' -p '[{"op": "replace", "path": "/spec/approved", "value": true}]'
 
+    # Wait for RHMI CR to be created
     wait_for "oc --kubeconfig ${CLUSTER_KUBECONFIG_FILE} get rhmi -n ${RHMI_OPERATOR_NAMESPACE} | grep -q NAME" "RHMI installation CR to be created" "15m" "30"
 
     rhmi_name=$(get_rhmi_name)
 
+    # Create cluster storage and load balancer quotas, create AWS maintenance windows configmap
     if [[ "${USE_CLUSTER_STORAGE}" == false ]]; then
         oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" create -f \
         "${CR_AWS_STRATEGIES_CONFIGMAP_FILE},${LB_CLUSTER_QUOTA_FILE},${CLUSTER_STORAGE_QUOTA_FILE}"
     fi
 
+    # (Don't) use cluster storage and self-signed certs
     oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" patch rhmi "${rhmi_name}" -n ${RHMI_OPERATOR_NAMESPACE} \
         --type=merge -p "{\"spec\":{\"useClusterStorage\": \"${USE_CLUSTER_STORAGE}\", \"selfSignedCerts\": ${SELF_SIGNED_CERTS:-true} }}"
 
@@ -172,6 +177,7 @@ install_rhmi() {
     oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" create secret generic redhat-rhmi-deadmanssnitch -n ${RHMI_OPERATOR_NAMESPACE} \
         --from-literal=url=https://dms.example.com
 
+    # Wait for RHMI installation to finish
     wait_for "oc --kubeconfig ${CLUSTER_KUBECONFIG_FILE} get rhmi ${rhmi_name} -n ${RHMI_OPERATOR_NAMESPACE} -o json | jq -r .status.stages.\\\"solution-explorer\\\".phase | grep -q completed" "rhmi installation" "90m" "300"
     oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get rhmi "${rhmi_name}" -n ${RHMI_OPERATOR_NAMESPACE} -o json | jq -r '.status.stages'
 }
