@@ -126,13 +126,18 @@ install_rhmi() {
     local rhmi_name
     local infra_id
     local csv_name
+    local installplan_name
 
     : "${USE_CLUSTER_STORAGE:=true}"
     cluster_id=$(get_cluster_id)
 
     echo '{"addon":{"id":"rhmi"}}' | ocm post "/api/clusters_mgmt/v1/clusters/${cluster_id}/addons"
 
-    wait_for "oc --kubeconfig ${CLUSTER_KUBECONFIG_FILE} get rhmi -n ${RHMI_OPERATOR_NAMESPACE} | grep -q NAME" "rhmi installation CR to be created" "15m" "30"
+    wait_for "oc --kubeconfig ${CLUSTER_KUBECONFIG_FILE} get installplans -n ${RHMI_OPERATOR_NAMESPACE} -o name | grep -q installplan" "RHMI installplan to be created" "10m" "30"
+    installplan_name=$(oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get installplans -n ${RHMI_OPERATOR_NAMESPACE} -o name)
+    oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" patch "${installplan_name}" -n ${RHMI_OPERATOR_NAMESPACE} --type='json' -p '[{"op": "replace", "path": "/spec/approved", "value": true}]'
+
+    wait_for "oc --kubeconfig ${CLUSTER_KUBECONFIG_FILE} get rhmi -n ${RHMI_OPERATOR_NAMESPACE} | grep -q NAME" "RHMI installation CR to be created" "15m" "30"
 
     rhmi_name=$(get_rhmi_name)
 
