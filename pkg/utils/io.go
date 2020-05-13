@@ -2,12 +2,16 @@ package utils
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
+	"k8s.io/apimachinery/pkg/runtime"
 	"os"
 
-	"k8s.io/apimachinery/pkg/runtime"
-
 	"github.com/ghodss/yaml"
+)
+
+const (
+	MappingFile = "image_mirror_mapping"
 )
 
 // PopulateObjectFromYAML will read the content from the given yaml file and use it to unmarshal the given object
@@ -121,4 +125,32 @@ func deleteKeyFromUnstructured(u map[string]interface{}, key string) {
 			}
 		}
 	}
+}
+
+func FileExists(filename string) bool {
+	info, err := os.Stat(filename)
+	if os.IsNotExist(err) {
+		return false
+	}
+	return !info.IsDir()
+}
+
+func WriteToFile(writePath string, content []string) error {
+	f, err := os.Create(writePath)
+	if err != nil {
+		return err
+	}
+
+	for _, i := range content {
+		_, err = fmt.Fprintln(f, i)
+		if err != nil {
+			return err
+		}
+	}
+	err = f.Close()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

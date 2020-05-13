@@ -3,15 +3,27 @@ package utils
 import (
 	"fmt"
 	"io/ioutil"
+	corev1 "k8s.io/api/core/v1"
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
 	"github.com/blang/semver"
 	olmapiv1alpha1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
 	"github.com/operator-framework/operator-registry/pkg/registry"
+)
+
+var ReProd = regexp.MustCompile(`registry.redhat.io/.*`)
+var ReStage = regexp.MustCompile(`registry.stage.redhat.io/.*`)
+var ReProxy = regexp.MustCompile(`registry-proxy.engineering.redhat.com/rh-osbs/.*`)
+var ReDelorean = regexp.MustCompile(`quay.io/integreatly/delorean.*`)
+var imageWhitelist = [1]string{"registry.redhat.io/openshift4/ose-oauth-proxy:4.2"}
+
+const (
+	imagePullSecret = "integreatly-delorean-pull-secret"
 )
 
 type csvName struct {
@@ -185,3 +197,144 @@ func ProcessCurrentCSV(packageDir string, processFunc process) error {
 }
 
 type process func(*olmapiv1alpha1.ClusterServiceVersion) error
+
+func GetAndUpdateOperandImagesToDeloreanImages(manifestDir string, extraImages []string) ([]string, error) {
+	csv, fp, err := GetCurrentCSV(manifestDir)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(extraImages) > 0 {
+		csv, err = includeImages(extraImages, csv)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	var images []string
+	deployment := csv.Spec.InstallStrategy.StrategySpec.DeploymentSpecs[0]
+	for _, container := range deployment.Spec.Template.Spec.Containers {
+		for _, env := range container.Env {
+			var deloreanImage string
+			var matched string
+			prodMatched := ReProd.FindString(env.Value)
+			//found a registry.redhat.io image
+			if prodMatched != "" {
+				matched = prodMatched
+			}
+
+			stageMatched := ReStage.FindString(env.Value)
+			//found a registry.stage.redhat.io image
+			if stageMatched != "" {
+				matched = stageMatched
+			}
+
+			deloreanMatched := ReDelorean.FindString(env.Value)
+			//found a quay.io/integreatly/delorean image so ignore
+			if deloreanMatched != "" {
+				continue
+			}
+			if matched != "" {
+				deloreanImage = BuildDeloreanImage(matched)
+				deloreanImage = StripSHAOrTag(deloreanImage)
+				mirrorString := BuildOSBSImage(matched) + " " + deloreanImage
+				images = append(images, mirrorString)
+				container.Env = AddOrUpdateEnvVar(container.Env, env.Name, deloreanImage)
+			}
+		}
+	}
+
+	err = WriteObjectToYAML(csv, fp)
+	if err != nil {
+		return images, err
+	}
+	return images, nil
+}
+
+func includeImages(extraImages []string, csv *olmapiv1alpha1.ClusterServiceVersion) (*olmapiv1alpha1.ClusterServiceVersion, error) {
+	deployment := csv.Spec.InstallStrategy.StrategySpec.DeploymentSpecs[0]
+	for n, container := range deployment.Spec.Template.Spec.Containers {
+		for _, i := range extraImages {
+			currImage := strings.Split(i, "=")
+			container.Env = AddOrUpdateEnvVar(container.Env, currImage[0], currImage[1])
+		}
+		deployment.Spec.Template.Spec.Containers[n] = container
+	}
+
+	return csv, nil
+}
+
+func UpdateOperatorImagesToDeloreanImages(manifestDir string, images []string) ([]string, error) {
+	csv, fp, err := GetCurrentCSV(manifestDir)
+	if err != nil {
+		return nil, err
+	}
+
+	deployment := csv.Spec.InstallStrategy.StrategySpec.DeploymentSpecs[0]
+	matched := ReDelorean.FindString(deployment.Spec.Template.Spec.Containers[0].Image)
+	operatorImage := BuildDeloreanImage(deployment.Spec.Template.Spec.Containers[0].Image)
+	if matched == "" {
+		operatorImage = StripSHAOrTag(operatorImage)
+		mirrorString := BuildOSBSImage(deployment.Spec.Template.Spec.Containers[0].Image) + " " + operatorImage
+		images = append(images, mirrorString)
+		deployment.Spec.Template.Spec.Containers[0].Image = operatorImage
+	}
+
+	annotationMatched := ReDelorean.FindString(csv.Annotations["containerImage"])
+	if annotationMatched == "" {
+		csv.Annotations["containerImage"] = operatorImage
+	}
+
+	err = WriteObjectToYAML(csv, fp)
+	return images, nil
+}
+
+func GetOperandImages(manifestDir string) ([]string, error) {
+	csv, _, err := GetCurrentCSV(manifestDir)
+	if err != nil {
+		return nil, err
+	}
+
+	var images []string
+	deployment := csv.Spec.InstallStrategy.StrategySpec.DeploymentSpecs[0]
+	for _, container := range deployment.Spec.Template.Spec.Containers {
+		for _, env := range container.Env {
+			matched := ReProd.FindString(env.Value)
+			if matched == "" {
+				matched = ReStage.FindString(env.Value)
+			}
+			if matched != "" {
+				images = append(images, env.Value)
+			}
+		}
+	}
+
+	return images, nil
+}
+
+func FindDeploymentByName(deployments []olmapiv1alpha1.StrategyDeploymentSpec, name string) (int, *olmapiv1alpha1.StrategyDeploymentSpec) {
+	for i, d := range deployments {
+		if d.Name == name {
+			return i, &d
+		}
+	}
+	return -1, nil
+}
+
+func FindContainerByName(containers []corev1.Container, containerName string) (int, *corev1.Container) {
+	for i, c := range containers {
+		if c.Name == containerName {
+			return i, &c
+		}
+	}
+	return -1, nil
+}
+
+func FindInstallMode(installModes []olmapiv1alpha1.InstallMode, typeName olmapiv1alpha1.InstallModeType) (int, *olmapiv1alpha1.InstallMode) {
+	for i, m := range installModes {
+		if m.Type == typeName {
+			return i, &m
+		}
+	}
+	return -1, nil
+}

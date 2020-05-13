@@ -277,11 +277,11 @@ func TestOSDAddonRelease(t *testing.T) {
 					if err != nil {
 						t.Fatalf("invalid CSV file content:\n%s", content)
 					}
-					_, deployment := findDeploymentByName(csv.Spec.InstallStrategy.StrategySpec.DeploymentSpecs, "rhmi-operator")
+					_, deployment := utils.FindDeploymentByName(csv.Spec.InstallStrategy.StrategySpec.DeploymentSpecs, "rhmi-operator")
 					if deployment == nil {
 						t.Fatalf("can not find rhmi-operator deployment spec in csv file:\n%s", content)
 					}
-					_, container := findContainerByName(deployment.Spec.Template.Spec.Containers, "rhmi-operator")
+					_, container := utils.FindContainerByName(deployment.Spec.Template.Spec.Containers, "rhmi-operator")
 					if container == nil {
 						t.Fatalf("can not find rhmi-operator container spec in csv file:\n%s", content)
 					}
@@ -306,7 +306,7 @@ func TestOSDAddonRelease(t *testing.T) {
 					if !alertEnvVarChecked {
 						t.Fatalf("%s env var should be set to %s in csv file:\n%s", envVarNameAlerEmailAddress, "integreatly-notifications@redhat.com", content)
 					}
-					_, installMode := findInstallMode(csv.Spec.InstallModes, olmapiv1alpha1.InstallModeTypeSingleNamespace)
+					_, installMode := utils.FindInstallMode(csv.Spec.InstallModes, olmapiv1alpha1.InstallModeTypeSingleNamespace)
 					if !installMode.Supported {
 						t.Fatalf("%s value should be true in csv file:\n%s", olmapiv1alpha1.InstallModeTypeSingleNamespace, content)
 					}
