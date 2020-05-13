@@ -4,10 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"os"
-	"path"
-
 	"k8s.io/apimachinery/pkg/runtime"
+	"os"
 
 	"github.com/ghodss/yaml"
 )
@@ -137,15 +135,13 @@ func FileExists(filename string) bool {
 	return !info.IsDir()
 }
 
-func CreateImageMirrorMappingFile(manifestDir string, images []string) error {
-
-	mirrorFilePath := path.Join(manifestDir, MappingFile)
-	f, err := os.Create(mirrorFilePath)
+func WriteToFile(writePath string, content []string) error {
+	f, err := os.Create(writePath)
 	if err != nil {
 		return err
 	}
 
-	for _, i := range images {
+	for _, i := range content {
 		_, err = fmt.Fprintln(f, i)
 		if err != nil {
 			return err

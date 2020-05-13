@@ -52,7 +52,7 @@ func DoProcessCSV(ctx context.Context, cmdOpts *processCSVImagesCmdOptions) erro
 			handleError(err)
 		}
 		if len(images) > 0 {
-			err = utils.CreateImageMirrorMappingFile(cmdOpts.manifestDir, images)
+			err = utils.WriteToFile(path.Join(cmdOpts.manifestDir, utils.MappingFile), images)
 			if err != nil {
 				handleError(err)
 			}
