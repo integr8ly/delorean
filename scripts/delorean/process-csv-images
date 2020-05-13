@@ -69,6 +69,7 @@ process_csv_images() {
         else
             image_path="$(echo $image | grep / | cut -d/ -f2-)"
             osbs_image_path="$(echo $image_path | sed 's/\//-/')"
+            osbs_image_path="$(echo $osbs_image_path | sed 's/crw-2-rhel8-operator/operator/')"
         fi
         delorean_image_tag="$(echo $osbs_image_path | sed 's/:/_/' | sed 's/@sha256.*$/_latest/')"
 
