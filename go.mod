@@ -10,7 +10,6 @@ require (
 	github.com/google/go-github/v30 v30.1.0
 	github.com/google/go-querystring v1.0.0
 	github.com/gorilla/handlers v1.4.2 // indirect
-	github.com/mitchellh/go-homedir v1.1.0
 	github.com/operator-framework/operator-lifecycle-manager v0.0.0-20200213132121-99643127d862
 	github.com/operator-framework/operator-registry v1.9.0
 	github.com/spf13/cobra v0.0.6
@@ -21,6 +20,8 @@ require (
 	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45
 	k8s.io/api v0.18.0
 	k8s.io/apimachinery v0.18.0
+	k8s.io/client-go v8.0.0+incompatible
+	k8s.io/utils v0.0.0-20190801114015-581e00157fb1
 	rsc.io/letsencrypt v0.0.3 // indirect
 )
 

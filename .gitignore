@@ -22,3 +22,5 @@ scripts/ocm/downtime.json
 #ide
 .vscode/
 .idea/
+
+.kube

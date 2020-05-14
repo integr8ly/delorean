@@ -8,6 +8,7 @@ import (
 	"github.com/integr8ly/delorean/pkg/services"
 	"github.com/integr8ly/delorean/pkg/utils"
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"net/http"
 	"strings"
 	"time"
@@ -80,7 +81,7 @@ func DoTagRelease(ctx context.Context, ghClient services.GitService, gitRepoInfo
 		if !ok {
 			if cmdOpts.wait {
 				fmt.Println("Wait for the latest image to be available on quay.io. Will check every", cmdOpts.waitInterval, "minutes for", cmdOpts.waitMax, "minutes")
-				err = utils.Retry(time.Duration(cmdOpts.waitInterval)*time.Minute, time.Duration(cmdOpts.waitMax)*time.Minute, func() (bool, error) {
+				err = wait.Poll(time.Duration(cmdOpts.waitInterval)*time.Minute, time.Duration(cmdOpts.waitMax)*time.Minute, func() (bool, error) {
 					ok = tryCreateQuayTag(ctx, quayClient, cmdOpts.quayRepos, branchImageTag, rv.TagName(), headRef.GetObject().GetSHA())
 					if !ok {
 						fmt.Println("Failed. Will try again later.")
