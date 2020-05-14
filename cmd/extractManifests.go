@@ -55,6 +55,15 @@ func copyLatestManifest(srcPkgDir, destPkgDir string) (string, string, error) {
 		return "", "", err
 	}
 
+	csvFileName := filepath.Base(csvFile)
+	expectedCSVFileName := utils.GetCSVFileName(csv)
+	if expectedCSVFileName != csvFileName {
+		err := os.Rename(filepath.Join(destBundleDir, csvFileName), filepath.Join(destBundleDir, expectedCSVFileName))
+		if err != nil {
+			return "", "", err
+		}
+	}
+
 	_, err = utils.UpdatePackageManifest(destPkgDir, csv.Name)
 	if err != nil {
 		return "", "", err
