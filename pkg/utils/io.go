@@ -6,8 +6,7 @@ import (
 	"io/ioutil"
 	"k8s.io/apimachinery/pkg/runtime"
 	"os"
-
-	"github.com/ghodss/yaml"
+	"sigs.k8s.io/yaml"
 )
 
 const (
