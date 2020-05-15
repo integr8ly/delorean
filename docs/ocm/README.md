@@ -19,7 +19,7 @@ make ocm/login
 ```
 
 **BYOC**
-Make sure you have credentials for **your own IAM user** with admin access to AWS and **other IAM user called "osdCcsAdmin"** created in AWS, also with admin access.
+Credentials for **your own IAM user** with admin access to AWS are required. These are used to create a new access key for the "osdCcsAdmin" user that provisions the cluster.  
 Export the credentials for **your own IAM user**, set BYOC variable to `true` and create a new access key for "osdCcsAdmin" user:
 ```
 export AWS_ACCOUNT_ID=<REPLACE_ME>
@@ -29,12 +29,12 @@ export BYOC=true
 make ocm/aws/create_access_key
 ```
 
-4. Create cluster template: `make ocm/cluster.json`.
+4. Create cluster template: `make ocm/cluster.json`
 
 This command will generate `ocm/cluster.json` file with generated cluster name. This file will be used as a template to create your cluster via OCM CLI.
 By default, it will set the expiration timestamp for a cluster for 4 hours, meaning your cluster will be automatically deleted after 4 hours after you generated this template. If you want to change the default timestamp, you can update it in `ocm/cluster.json` or delete the whole line from the file if you don't want your cluster to be deleted automatically at all. 
 
-5. Create the cluster: `make ocm/cluster/create`.
+5. Create the cluster: `make ocm/cluster/create`
 
 This command will send a request to [Red Hat OpenShift Cluster Manager](https://cloud.redhat.com/) to spin up your cluster and waits until it's ready. You can see the details of your cluster in `ocm/cluster-details.json` file
 
