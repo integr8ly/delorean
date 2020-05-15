@@ -36,6 +36,10 @@ func (c csvNames) Len() int           { return len(c) }
 func (c csvNames) Less(i, j int) bool { return c[i].Version.LT(c[j].Version) }
 func (c csvNames) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
 
+func GetCSVFileName(csv *olmapiv1alpha1.ClusterServiceVersion) string {
+	return fmt.Sprintf("%s.clusterserviceversion.yaml", csv.GetName())
+}
+
 // ReadCSVFromBundleDirectory tries to parse every YAML file in the directory and see if they are CSV.
 // According to the strict one CSV rule for every bundle, we return the first file that is considered a CSV type.
 func ReadCSVFromBundleDirectory(bundleDir string) (*olmapiv1alpha1.ClusterServiceVersion, string, error) {
