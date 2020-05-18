@@ -30,13 +30,7 @@ Number of access keys for user osdCcsAdmin has reached its limit (2).
 Do you want to delete latest generated key and create a new one? (y/n): "
 
 create_access_key() {
-    if [[ -z "${AWS_ACCOUNT_ID:-}" || -z "${AWS_SECRET_ACCESS_KEY:-}" || -z "${AWS_ACCESS_KEY_ID:-}" ]]; then
-        printf "%s\n" "${ERROR_MISSING_AWS_ENV_VARS}"
-        printf "AWS_ACCOUNT_ID='%s'\n" "${AWS_ACCOUNT_ID:-}"
-        printf "AWS_ACCESS_KEY_ID='%s'\n" "${AWS_ACCESS_KEY_ID:-}"
-        printf "AWS_SECRET_ACCESS_KEY='%s'\n" "${AWS_SECRET_ACCESS_KEY:-}"
-        exit 1
-    fi
+    check_aws_credentials_exported
 
     local available_access_keys
     local number_of_access_keys_present
@@ -58,6 +52,16 @@ create_access_key() {
     fi
     printf "Generating new access key:\n"
     aws iam create-access-key --user-name osdCcsAdmin | jq -r .AccessKey | tee "${AWS_CREDENTIALS_FILE}"
+}
+
+check_aws_credentials_exported() {
+    if [[ -z "${AWS_ACCOUNT_ID:-}" || -z "${AWS_SECRET_ACCESS_KEY:-}" || -z "${AWS_ACCESS_KEY_ID:-}" ]]; then
+        printf "%s\n" "${ERROR_MISSING_AWS_ENV_VARS}"
+        printf "AWS_ACCOUNT_ID='%s'\n" "${AWS_ACCOUNT_ID:-}"
+        printf "AWS_ACCESS_KEY_ID='%s'\n" "${AWS_ACCESS_KEY_ID:-}"
+        printf "AWS_SECRET_ACCESS_KEY='%s'\n" "${AWS_SECRET_ACCESS_KEY:-}"
+        exit 1
+    fi
 }
 
 get_latest_generated_access_key_id() {
@@ -111,14 +115,20 @@ create_cluster() {
         exit 1
     fi
 
+    echo "Sending a request to OCM to create an OSD cluster"
     send_cluster_create_request
     cluster_id=$(get_cluster_id)
+
+    echo "Cluster ID: ${cluster_id}"
 
     wait_for "ocm get /api/clusters_mgmt/v1/clusters/${cluster_id}/status | jq -r .state | grep -q ready" "cluster creation" "120m" "300"
     wait_for "ocm get /api/clusters_mgmt/v1/clusters/${cluster_id}/credentials | jq -r .admin | grep -q admin" "fetching cluster credentials" "10m" "30"
 
     save_cluster_credentials "${cluster_id}"
+
+
     printf "Console URL: %s\nLogin credentials: \n%s\n" "$(jq -r .console.url < "${CLUSTER_DETAILS_FILE}")" "$(jq -r < "${CLUSTER_CREDENTIALS_FILE}")"
+    printf "Log in to the OSD cluster using oc:\noc login --server=%s --username=kubeadmin --password=%s\n" "$(jq -r .api.url < "${CLUSTER_DETAILS_FILE}")" "$(jq -r .password < "${CLUSTER_CREDENTIALS_FILE}")"
 }
 
 install_rhmi() {
@@ -130,6 +140,7 @@ install_rhmi() {
     : "${USE_CLUSTER_STORAGE:=true}"
     cluster_id=$(get_cluster_id)
 
+    echo "Applying RHMI Addon on a cluster with ID: ${cluster_id}"
     echo '{"addon":{"id":"rhmi"}}' | ocm post "/api/clusters_mgmt/v1/clusters/${cluster_id}/addons"
 
     wait_for "oc --kubeconfig ${CLUSTER_KUBECONFIG_FILE} get rhmi -n ${RHMI_OPERATOR_NAMESPACE} | grep -q NAME" "rhmi installation CR to be created" "15m" "30"
@@ -137,15 +148,18 @@ install_rhmi() {
     rhmi_name=$(get_rhmi_name)
 
     if [[ "${USE_CLUSTER_STORAGE}" == false ]]; then
+        echo "Creating cluster resource quotas and AWS backup strategies"
         oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" create -f \
         "${CR_AWS_STRATEGIES_CONFIGMAP_FILE},${LB_CLUSTER_QUOTA_FILE},${CLUSTER_STORAGE_QUOTA_FILE}"
     fi
 
+    echo "Patching RHMI CR"
     oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" patch rhmi "${rhmi_name}" -n ${RHMI_OPERATOR_NAMESPACE} \
         --type=merge -p "{\"spec\":{\"useClusterStorage\": \"${USE_CLUSTER_STORAGE}\", \"selfSignedCerts\": ${SELF_SIGNED_CERTS:-true} }}"
 
     # Change alerting email address is ALERTING_EMAIL_ADDRESS variable is set
     if [[ -n "${ALERTING_EMAIL_ADDRESS:-}" ]]; then
+        echo "Changing alerting email address to: ${ALERTING_EMAIL_ADDRESS}"
         csv_name=$(oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get csv -n ${RHMI_OPERATOR_NAMESPACE} | grep integreatly-operator | awk '{print $1}')
         oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" patch csv "${csv_name}" -n ${RHMI_OPERATOR_NAMESPACE} \
             --type=json -p "[{\"op\": \"replace\", \"path\": \"/spec/install/spec/deployments/0/spec/template/spec/containers/0/env/4/value\", \"value\": \"${ALERTING_EMAIL_ADDRESS}\" }]"
@@ -153,6 +167,7 @@ install_rhmi() {
     # Create a valid SMTP secret if SENDGRID_API_KEY variable is exported
     if [[ -n "${SENDGRID_API_KEY:-}" ]]; then
         infra_id=$(get_infra_id)
+        echo "Creating SMTP secret with Sendgrid API key with ID: ${infra_id}"
         smtp-service create "${infra_id}" | oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" create -n "${RHMI_OPERATOR_NAMESPACE}" -f -
     else
         oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" create secret generic redhat-rhmi-smtp -n "${RHMI_OPERATOR_NAMESPACE}" \
@@ -172,25 +187,32 @@ install_rhmi() {
 }
 
 delete_cluster() {
-    local rhmi_name
     local cluster_id
     local infra_id
+    local cluster_region
 
-    rhmi_name=$(get_rhmi_name || true)
+    cluster_id=$(get_cluster_id)
 
     # Delete SMTP API key if SENDGRID_API_KEY variable is exported
     if [[ -n "${SENDGRID_API_KEY:-}" ]]; then
         infra_id=$(get_infra_id)
         # Check if infra_id is not empty (would happen when the cluster-details.json file is not updated after creating a cluster)
         if [[ $infra_id ]]; then
+            echo "Deleting Sendgrid sub user and API key with ID: ${infra_id}"
             smtp-service delete "${infra_id}"
         fi
     fi
-    
-    oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" delete rhmi "${rhmi_name}" -n "${RHMI_OPERATOR_NAMESPACE}" || true
 
-    cluster_id=$(get_cluster_id)
+    echo "Deleting the cluster with ID: ${cluster_id}"
     ocm delete "/api/clusters_mgmt/v1/clusters/${cluster_id}"
+
+    if [[ $(is_byoc_cluster) == true ]]; then
+        check_aws_credentials_exported
+
+        cluster_region=$(get_cluster_region)
+        echo "Cleaning up RHMI AWS resources for the cluster with infra ID: ${infra_id}, region: ${cluster_region}, AWS Account ID: ${AWS_ACCOUNT_ID}"
+        cluster-service cleanup "${infra_id}" --region="${cluster_region}" --dry-run=false
+    fi
 }
 
 upgrade_cluster() {
@@ -214,6 +236,14 @@ get_cluster_logs() {
 
 get_cluster_id() {
     jq -r .id < "${CLUSTER_DETAILS_FILE}"
+}
+
+get_cluster_region() {
+    jq -r .region.id < "${CLUSTER_DETAILS_FILE}"
+}
+
+is_byoc_cluster() {
+    jq -r .byoc < "${CLUSTER_DETAILS_FILE}"
 }
 
 get_rhmi_name() {
@@ -337,6 +367,9 @@ upgrade_cluster                   - upgrade OSD cluster to latest version (if av
 delete_cluster                    - delete RHMI product & OSD cluster
 Optional exported variables:
 - SENDGRID_API_KEY                  a token for creating SMTP secret
+- AWS_ACCOUNT_ID
+- AWS_ACCESS_KEY_ID
+- AWS_SECRET_ACCESS_KEY
 ==========================================================================================
 get_cluster_logs                  - get logs from hive and save them to ${CLUSTER_LOGS_FILE}
 ==========================================================================================
