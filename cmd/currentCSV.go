@@ -26,7 +26,7 @@ func init() {
 			}
 
 			fmt.Printf("Write current CSV %s to %s\n", file, flags.output)
-			utils.WriteObjectToJSON(csv, flags.output)
+			err = csv.WriteJSON(flags.output)
 		},
 	}
 
