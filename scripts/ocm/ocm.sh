@@ -30,13 +30,7 @@ Number of access keys for user osdCcsAdmin has reached its limit (2).
 Do you want to delete latest generated key and create a new one? (y/n): "
 
 create_access_key() {
-    if [[ -z "${AWS_ACCOUNT_ID:-}" || -z "${AWS_SECRET_ACCESS_KEY:-}" || -z "${AWS_ACCESS_KEY_ID:-}" ]]; then
-        printf "%s\n" "${ERROR_MISSING_AWS_ENV_VARS}"
-        printf "AWS_ACCOUNT_ID='%s'\n" "${AWS_ACCOUNT_ID:-}"
-        printf "AWS_ACCESS_KEY_ID='%s'\n" "${AWS_ACCESS_KEY_ID:-}"
-        printf "AWS_SECRET_ACCESS_KEY='%s'\n" "${AWS_SECRET_ACCESS_KEY:-}"
-        exit 1
-    fi
+    check_aws_credentials_exported
 
     local available_access_keys
     local number_of_access_keys_present
@@ -58,6 +52,16 @@ create_access_key() {
     fi
     printf "Generating new access key:\n"
     aws iam create-access-key --user-name osdCcsAdmin | jq -r .AccessKey | tee "${AWS_CREDENTIALS_FILE}"
+}
+
+check_aws_credentials_exported() {
+    if [[ -z "${AWS_ACCOUNT_ID:-}" || -z "${AWS_SECRET_ACCESS_KEY:-}" || -z "${AWS_ACCESS_KEY_ID:-}" ]]; then
+        printf "%s\n" "${ERROR_MISSING_AWS_ENV_VARS}"
+        printf "AWS_ACCOUNT_ID='%s'\n" "${AWS_ACCOUNT_ID:-}"
+        printf "AWS_ACCESS_KEY_ID='%s'\n" "${AWS_ACCESS_KEY_ID:-}"
+        printf "AWS_SECRET_ACCESS_KEY='%s'\n" "${AWS_SECRET_ACCESS_KEY:-}"
+        exit 1
+    fi
 }
 
 get_latest_generated_access_key_id() {
@@ -172,11 +176,11 @@ install_rhmi() {
 }
 
 delete_cluster() {
-    local rhmi_name
     local cluster_id
     local infra_id
+    local cluster_region
 
-    rhmi_name=$(get_rhmi_name || true)
+    cluster_id=$(get_cluster_id)
 
     # Delete SMTP API key if SENDGRID_API_KEY variable is exported
     if [[ -n "${SENDGRID_API_KEY:-}" ]]; then
@@ -186,11 +190,15 @@ delete_cluster() {
             smtp-service delete "${infra_id}"
         fi
     fi
-    
-    oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" delete rhmi "${rhmi_name}" -n "${RHMI_OPERATOR_NAMESPACE}" || true
 
-    cluster_id=$(get_cluster_id)
     ocm delete "/api/clusters_mgmt/v1/clusters/${cluster_id}"
+
+    if [[ $(is_byoc_cluster) == true ]]; then
+        check_aws_credentials_exported
+
+        cluster_region=$(get_cluster_region)
+        cluster-service cleanup "${infra_id}" --region="${cluster_region}" --dry-run=false
+    fi
 }
 
 upgrade_cluster() {
@@ -214,6 +222,14 @@ get_cluster_logs() {
 
 get_cluster_id() {
     jq -r .id < "${CLUSTER_DETAILS_FILE}"
+}
+
+get_cluster_region() {
+    jq -r .region.id < "${CLUSTER_DETAILS_FILE}"
+}
+
+is_byoc_cluster() {
+    jq -r .byoc < "${CLUSTER_DETAILS_FILE}"
 }
 
 get_rhmi_name() {
