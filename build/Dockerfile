@@ -18,6 +18,7 @@ RUN curl -LO https://github.com/operator-framework/operator-sdk/releases/downloa
     mv operator-sdk-${OPERATOR_SDK_VERSION}-x86_64-linux-gnu /usr/bin/operator-sdk && \
     chmod +x /usr/bin/operator-sdk
 
+COPY scripts/prow /usr/local/bin
 COPY scripts/delorean /usr/local/bin
 COPY scripts/ocm /usr/local/bin
 COPY build/delorean /usr/local/bin/delorean
