@@ -1,15 +1,19 @@
 package utils
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
-	corev1 "k8s.io/api/core/v1"
 	"os"
 	"path"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
+
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/blang/semver"
 	olmapiv1alpha1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
@@ -36,13 +40,131 @@ func (c csvNames) Len() int           { return len(c) }
 func (c csvNames) Less(i, j int) bool { return c[i].Version.LT(c[j].Version) }
 func (c csvNames) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
 
-func GetCSVFileName(csv *olmapiv1alpha1.ClusterServiceVersion) string {
+type CSV struct {
+	obj *unstructured.Unstructured
+}
+
+func NewCSV(csvFile string) (*CSV, error) {
+	source := &unstructured.Unstructured{}
+	if err := PopulateObjectFromYAML(csvFile, source); err != nil {
+		return nil, err
+	}
+	return &CSV{obj: source}, nil
+}
+
+func (csv *CSV) GetName() string {
+	return csv.obj.GetName()
+}
+
+func (csv *CSV) GetVersion() (semver.Version, error) {
+	version, ok, err := unstructured.NestedString(csv.obj.Object, "spec", "version")
+	if !ok || err != nil {
+		version = ""
+	}
+	return semver.Parse(version)
+}
+
+func (csv *CSV) GetAnnotations() map[string]string {
+	return csv.obj.GetAnnotations()
+}
+
+func (csv *CSV) SetAnnotations(annotations map[string]string) {
+	csv.obj.SetAnnotations(annotations)
+}
+
+func (csv *CSV) GetDeploymentSpecs() ([]olmapiv1alpha1.StrategyDeploymentSpec, error) {
+	deployments, _, err := unstructured.NestedSlice(csv.obj.Object, "spec", "install", "spec", "deployments")
+	if err != nil {
+		return nil, err
+	}
+	ds := make([]olmapiv1alpha1.StrategyDeploymentSpec, len(deployments))
+	for k, v := range deployments {
+		d := &olmapiv1alpha1.StrategyDeploymentSpec{}
+		err = runtime.DefaultUnstructuredConverter.FromUnstructured(v.(map[string]interface{}), d)
+		if err != nil {
+			return nil, err
+		}
+		ds[k] = *d
+	}
+	return ds, nil
+}
+
+func (csv *CSV) SetDeploymentSpecs(deploymentSpecs []olmapiv1alpha1.StrategyDeploymentSpec) error {
+	ds := make([]interface{}, len(deploymentSpecs))
+	for k, v := range deploymentSpecs {
+		s, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&v)
+		if err != nil {
+			return err
+		}
+		ds[k] = s
+	}
+	return unstructured.SetNestedSlice(csv.obj.Object, ds, "spec", "install", "spec", "deployments")
+}
+
+func (csv *CSV) GetOperatorDeploymentSpec() (*olmapiv1alpha1.StrategyDeploymentSpec, error) {
+	deployments, _, err := unstructured.NestedSlice(csv.obj.Object, "spec", "install", "spec", "deployments")
+	if err != nil {
+		return nil, err
+	}
+	d, _ := deployments[0].(map[string]interface{})
+	o := &olmapiv1alpha1.StrategyDeploymentSpec{}
+	err = runtime.DefaultUnstructuredConverter.FromUnstructured(d, o)
+	if err != nil {
+		return nil, errors.New("unable to convert object to StrategyDeploymentSpec")
+	}
+	return o, nil
+}
+
+func (csv *CSV) SetOperatorDeploymentSpec(deploymentSpec *olmapiv1alpha1.StrategyDeploymentSpec) error {
+	deployments, _, err := unstructured.NestedSlice(csv.obj.Object, "spec", "install", "spec", "deployments")
+	if err != nil {
+		return err
+	}
+	deployments[0], err = runtime.DefaultUnstructuredConverter.ToUnstructured(&deploymentSpec)
+	if err != nil {
+		return err
+	}
+	return unstructured.SetNestedSlice(csv.obj.Object, deployments, "spec", "install", "spec", "deployments")
+}
+
+func (csv *CSV) SetReplaces(replaces string) error {
+	return unstructured.SetNestedField(csv.obj.Object, replaces, "spec", "replaces")
+}
+
+func (csv *CSV) UpdateEnvVarList(envKeyValMap map[string]string) error {
+	deploymentSpecs, err := csv.GetDeploymentSpecs()
+	if err != nil {
+		return err
+	}
+	for _, d := range deploymentSpecs {
+		for _, c := range d.Spec.Template.Spec.Containers {
+			for _, e := range c.Env {
+				for k, v := range envKeyValMap {
+					if e.Name == k {
+						e.ValueFrom.FieldRef.FieldPath = v
+					}
+				}
+			}
+		}
+	}
+	return csv.SetDeploymentSpecs(deploymentSpecs)
+}
+
+func (csv *CSV) WriteYAML(yamlFile string) error {
+	return WriteK8sObjectToYAML(csv.obj, yamlFile)
+}
+
+func (csv *CSV) WriteJSON(jsonFile string) error {
+	return WriteObjectToJSON(csv.obj, jsonFile)
+}
+
+func GetCSVFileName(csv *CSV) string {
 	return fmt.Sprintf("%s.clusterserviceversion.yaml", csv.GetName())
 }
 
 // ReadCSVFromBundleDirectory tries to parse every YAML file in the directory and see if they are CSV.
 // According to the strict one CSV rule for every bundle, we return the first file that is considered a CSV type.
-func ReadCSVFromBundleDirectory(bundleDir string) (*olmapiv1alpha1.ClusterServiceVersion, string, error) {
+func ReadCSVFromBundleDirectory(bundleDir string) (*CSV, string, error) {
 	dirContent, err := ioutil.ReadDir(bundleDir)
 	if err != nil {
 		return nil, "", fmt.Errorf("error reading bundle directory %s, %v", bundleDir, err)
@@ -58,8 +180,7 @@ func ReadCSVFromBundleDirectory(bundleDir string) (*olmapiv1alpha1.ClusterServic
 	for _, file := range files {
 		if strings.Contains(file, ".clusterserviceversion.yaml") || strings.Contains(file, ".csv.yaml") {
 			bundleFilepath := path.Join(bundleDir, file)
-			var csv *olmapiv1alpha1.ClusterServiceVersion
-			err := PopulateObjectFromYAML(bundleFilepath, &csv)
+			csv, err := NewCSV(bundleFilepath)
 			if err != nil {
 				return nil, "", err
 			}
@@ -120,14 +241,18 @@ func GetSortedCSVNames(packageDir string) (csvNames, error) {
 			if err != nil {
 				return nil, err
 			}
-			sortedCSVNames = append(sortedCSVNames, csvName{Name: csv.Name, Version: csv.Spec.Version.Version})
+			v, err := csv.GetVersion()
+			if err != nil {
+				return nil, err
+			}
+			sortedCSVNames = append(sortedCSVNames, csvName{Name: csv.GetName(), Version: v})
 		}
 	}
 	sort.Sort(sortedCSVNames)
 	return sortedCSVNames, nil
 }
 
-func GetCurrentCSV(packageDir string) (*olmapiv1alpha1.ClusterServiceVersion, string, error) {
+func GetCurrentCSV(packageDir string) (*CSV, string, error) {
 
 	pkgManifest, _, err := GetPackageManifest(packageDir)
 	if err != nil {
@@ -153,7 +278,7 @@ func GetCurrentCSV(packageDir string) (*olmapiv1alpha1.ClusterServiceVersion, st
 			if err != nil {
 				return nil, "", err
 			}
-			if csv.Name == currentCSVName {
+			if csv.GetName() == currentCSVName {
 				return csv, csvFile, nil
 			}
 		}
@@ -193,14 +318,14 @@ func ProcessCurrentCSV(packageDir string, processFunc process) error {
 		}
 	}
 
-	err = WriteK8sObjectToYAML(csv, csvfile)
+	err = csv.WriteYAML(csvfile)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-type process func(*olmapiv1alpha1.ClusterServiceVersion) error
+type process func(*CSV) error
 
 func GetAndUpdateOperandImagesToDeloreanImages(manifestDir string, extraImages []string) ([]string, error) {
 	csv, fp, err := GetCurrentCSV(manifestDir)
@@ -209,14 +334,16 @@ func GetAndUpdateOperandImagesToDeloreanImages(manifestDir string, extraImages [
 	}
 
 	if len(extraImages) > 0 {
-		csv, err = includeImages(extraImages, csv)
-		if err != nil {
+		if err := includeImages(extraImages, csv); err != nil {
 			return nil, err
 		}
 	}
 
 	var images []string
-	deployment := csv.Spec.InstallStrategy.StrategySpec.DeploymentSpecs[0]
+	deployment, err := csv.GetOperatorDeploymentSpec()
+	if err != nil {
+		return nil, err
+	}
 	for _, container := range deployment.Spec.Template.Spec.Containers {
 		for _, env := range container.Env {
 			var deloreanImage string
@@ -247,16 +374,20 @@ func GetAndUpdateOperandImagesToDeloreanImages(manifestDir string, extraImages [
 			}
 		}
 	}
+	csv.SetOperatorDeploymentSpec(deployment)
 
-	err = WriteObjectToYAML(csv, fp)
+	err = csv.WriteYAML(fp)
 	if err != nil {
 		return images, err
 	}
 	return images, nil
 }
 
-func includeImages(extraImages []string, csv *olmapiv1alpha1.ClusterServiceVersion) (*olmapiv1alpha1.ClusterServiceVersion, error) {
-	deployment := csv.Spec.InstallStrategy.StrategySpec.DeploymentSpecs[0]
+func includeImages(extraImages []string, csv *CSV) error {
+	deployment, err := csv.GetOperatorDeploymentSpec()
+	if err != nil {
+		return err
+	}
 	for n, container := range deployment.Spec.Template.Spec.Containers {
 		for _, i := range extraImages {
 			currImage := strings.Split(i, "=")
@@ -264,8 +395,8 @@ func includeImages(extraImages []string, csv *olmapiv1alpha1.ClusterServiceVersi
 		}
 		deployment.Spec.Template.Spec.Containers[n] = container
 	}
-
-	return csv, nil
+	csv.SetOperatorDeploymentSpec(deployment)
+	return nil
 }
 
 func UpdateOperatorImagesToDeloreanImages(manifestDir string, images []string) ([]string, error) {
@@ -274,7 +405,10 @@ func UpdateOperatorImagesToDeloreanImages(manifestDir string, images []string) (
 		return nil, err
 	}
 
-	deployment := csv.Spec.InstallStrategy.StrategySpec.DeploymentSpecs[0]
+	deployment, err := csv.GetOperatorDeploymentSpec()
+	if err != nil {
+		return nil, err
+	}
 	matched := ReDelorean.FindString(deployment.Spec.Template.Spec.Containers[0].Image)
 	operatorImage := BuildDeloreanImage(deployment.Spec.Template.Spec.Containers[0].Image)
 	if matched == "" {
@@ -283,36 +417,16 @@ func UpdateOperatorImagesToDeloreanImages(manifestDir string, images []string) (
 		images = append(images, mirrorString)
 		deployment.Spec.Template.Spec.Containers[0].Image = operatorImage
 	}
+	csv.SetOperatorDeploymentSpec(deployment)
 
-	annotationMatched := ReDelorean.FindString(csv.Annotations["containerImage"])
+	annotations := csv.GetAnnotations()
+	annotationMatched := ReDelorean.FindString(annotations["containerImage"])
 	if annotationMatched == "" {
-		csv.Annotations["containerImage"] = operatorImage
+		annotations["containerImage"] = operatorImage
+		csv.SetAnnotations(annotations)
 	}
 
-	err = WriteObjectToYAML(csv, fp)
-	return images, nil
-}
-
-func GetOperandImages(manifestDir string) ([]string, error) {
-	csv, _, err := GetCurrentCSV(manifestDir)
-	if err != nil {
-		return nil, err
-	}
-
-	var images []string
-	deployment := csv.Spec.InstallStrategy.StrategySpec.DeploymentSpecs[0]
-	for _, container := range deployment.Spec.Template.Spec.Containers {
-		for _, env := range container.Env {
-			matched := ReProd.FindString(env.Value)
-			if matched == "" {
-				matched = ReStage.FindString(env.Value)
-			}
-			if matched != "" {
-				images = append(images, env.Value)
-			}
-		}
-	}
-
+	err = csv.WriteYAML(fp)
 	return images, nil
 }
 

@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"github.com/integr8ly/delorean/pkg/utils"
-	olmapiv1alpha1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
 	"github.com/spf13/cobra"
 )
 
@@ -37,7 +36,7 @@ func init() {
 	processManifestCmd.Flags().StringVarP(&manifestDir, "manifest-dir", "m", "", "Manifest Directory Location.")
 }
 
-func processManifest(csv *olmapiv1alpha1.ClusterServiceVersion) error {
+func processManifest(csv *utils.CSV) error {
 	//Get the correct replaces value and update it.
 	sortedCSVs, err := utils.GetSortedCSVNames(manifestDir)
 	if err != nil {
@@ -45,7 +44,7 @@ func processManifest(csv *olmapiv1alpha1.ClusterServiceVersion) error {
 	}
 
 	if sortedCSVs.Len() > 1 {
-		csv.Spec.Replaces = sortedCSVs[(sortedCSVs.Len() - 2)].Name
+		csv.SetReplaces(sortedCSVs[(sortedCSVs.Len() - 2)].Name)
 	}
 
 	//update "WATCH_NAMESPACE" and "NAMESPACE" env vars if present
@@ -53,7 +52,7 @@ func processManifest(csv *olmapiv1alpha1.ClusterServiceVersion) error {
 		envVarWatchNamespace: "metadata.annotations['olm.targetNamespaces']",
 		envVarNamespace:      "metadata.annotations['olm.targetNamespaces']",
 	}
-	utils.UpdateEnvVarList(csv, envKeyValMap)
+	csv.UpdateEnvVarList(envKeyValMap)
 
 	return nil
 }

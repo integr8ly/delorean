@@ -7,6 +7,7 @@ require (
 	github.com/bugsnag/bugsnag-go v1.5.3 // indirect
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-git/go-git/v5 v5.0.0
+	github.com/google/go-cmp v0.4.0
 	github.com/google/go-github/v30 v30.1.0
 	github.com/google/go-querystring v1.0.0
 	github.com/gorilla/handlers v1.4.2 // indirect
@@ -23,6 +24,7 @@ require (
 	k8s.io/client-go v8.0.0+incompatible
 	k8s.io/utils v0.0.0-20190801114015-581e00157fb1
 	rsc.io/letsencrypt v0.0.3 // indirect
+	sigs.k8s.io/yaml v1.1.0
 )
 
 replace (
