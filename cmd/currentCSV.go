@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/integr8ly/delorean/pkg/utils"
@@ -20,13 +21,10 @@ func init() {
 		Use:   "current-csv",
 		Short: "Retrieve the current CSV from the manifests directory and write it in JSON format to the output file",
 		Run: func(cmd *cobra.Command, args []string) {
-			csv, file, err := utils.GetCurrentCSV(flags.directory)
+			err := DoCurrentCSV(cmd.Context(), flags)
 			if err != nil {
 				handleError(err)
 			}
-
-			fmt.Printf("Write current CSV %s to %s\n", file, flags.output)
-			err = csv.WriteJSON(flags.output)
 		},
 	}
 
@@ -37,4 +35,14 @@ func init() {
 
 	cmd.Flags().StringVarP(&flags.output, "output", "o", "", "File path in which to write the current CSV in JSON")
 	cmd.MarkFlagRequired("output")
+}
+
+func DoCurrentCSV(ctx context.Context, cmdOpts *currentCSVFlags) error {
+	csv, file, err := utils.GetCurrentCSV(cmdOpts.directory)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Write current CSV %s to %s\n", file, cmdOpts.output)
+	return csv.WriteJSON(cmdOpts.output)
 }
