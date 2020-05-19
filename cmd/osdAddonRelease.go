@@ -2,7 +2,10 @@ package cmd
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
 	"path"
+	"regexp"
 	"time"
 
 	"github.com/go-git/go-git/v5"
@@ -13,7 +16,6 @@ import (
 	"github.com/integr8ly/delorean/pkg/services"
 	"github.com/integr8ly/delorean/pkg/utils"
 	olmapiv1alpha1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
-	"github.com/operator-framework/operator-registry/pkg/registry"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/xanzy/go-gitlab"
@@ -37,17 +39,16 @@ const (
 	managedTenantsMasterBranch = "master"
 
 	// Info for the commit and merge request
-	branchNameTemplate           = "integreatly-operator-%s-v%s"
-	commitMessageTemplate        = "update integreatly-operator %s to %s"
-	commitAuthorName             = "Delorean"
-	commitAuthorEmail            = "cloud-services-delorean@redhat.com"
-	mergeRequestTitleTemplate    = "Update integreatly-operator %s to %s" // channel, version
-	rhmiOperatorDeploymentName   = "rhmi-operator"
-	rhmiOperatorContainerName    = "rhmi-operator"
-	envVarNameUseClusterStorage  = "USE_CLUSTER_STORAGE"
-	envVarNameAlerEmailAddress   = "ALERTING_EMAIL_ADDRESS"
-	integreatlyAlertEmailAddress = "integreatly-notifications@redhat.com"
-	cssreAlertEmailAddress       = "cssre-alerts@redhat.com"
+	branchNameTemplate              = "integreatly-operator-%s-v%s"
+	commitMessageTemplate           = "update integreatly-operator %s to %s"
+	commitAuthorName                = "Delorean"
+	commitAuthorEmail               = "cloud-services-delorean@redhat.com"
+	mergeRequestTitleTemplate       = "Update integreatly-operator %s to %s" // channel, version
+	rhmiOperatorDeploymentName      = "rhmi-operator"
+	rhmiOperatorContainerName       = "rhmi-operator"
+	envVarNameUseClusterStorage     = "USE_CLUSTER_STORAGE"
+	envVarNameAlerEmailAddress      = "ALERTING_EMAIL_ADDRESS"
+	envVarNameAlerEmailAddressValue = "{{ alertingEmailAddress }}"
 )
 
 // releaseChannel rappresents one of the three places (stage, edge, stable)
@@ -62,28 +63,28 @@ const (
 
 // directory returns the relative path of the managed-teneants repo to the
 // integreatly-operator for the given channel
-func (c releaseChannel) directory() string {
+func (c releaseChannel) bundlesDirectory() string {
+	return fmt.Sprintf("addons/%s/bundles", c.operatorName())
+}
 
+func (c releaseChannel) addonFile() string {
 	name := c.operatorName()
-
 	var template string
 	switch c {
 	case stageChannel:
-		template = "addons-stage/%s"
+		template = "addons/%s/metadata/stage/addon.yaml"
 	case edgeChannel:
-		template = "addons-production/%s"
+		template = "addons/%s/metadata/production/addon.yaml"
 	case stableChannel:
-		template = "addons-production/%s"
+		template = "addons/%s/metadata/production/addon.yaml"
 	default:
 		panic(fmt.Sprintf("unsopported channel %s", c))
 	}
-
 	return fmt.Sprintf(template, name)
 }
 
 // OperatorName returns the name of the integreatly-operator depending on the channel
 func (c releaseChannel) operatorName() string {
-
 	switch c {
 	case stageChannel, stableChannel:
 		return "integreatly-operator"
@@ -113,6 +114,24 @@ type osdAddonReleaseCmd struct {
 	managedTenantsDir      string
 	managedTenantsRepo     *git.Repository
 	gitPushService         services.GitPushService
+}
+
+type addon struct {
+	content string
+}
+
+func (a *addon) SetCurrentCSV(currentCSV string) {
+	r := regexp.MustCompile(`currentCSV: integreatly-operator\..*`)
+	s := r.ReplaceAllString(a.content, fmt.Sprintf("currentCSV: %s", currentCSV))
+	a.content = s
+}
+
+func newAddon(addonPath string) (*addon, error) {
+	c, err := ioutil.ReadFile(addonPath)
+	if err != nil {
+		return nil, err
+	}
+	return &addon{content: string(c)}, nil
 }
 
 func init() {
@@ -300,14 +319,14 @@ func (c *osdAddonReleaseCmd) run() error {
 		return err
 	}
 
-	// Update the integreatly-operator.package.yaml
-	packageManfiest, err := c.udpateThePackageManifest(c.channel)
+	// Update the addon.yaml file
+	addonFile, err := c.updateTheAddonFile(c.channel)
 	if err != nil {
 		return err
 	}
 
-	// Add the integreatly-operator.package.yaml
-	_, err = managedTenantsTree.Add(packageManfiest)
+	// Add the addon.yaml file
+	_, err = managedTenantsTree.Add(addonFile)
 	if err != nil {
 		return err
 	}
@@ -393,7 +412,7 @@ func (c *osdAddonReleaseCmd) copyTheOLMManifests(channel releaseChannel) (string
 
 	source := path.Join(c.integreatlyOperatorDir, fmt.Sprintf(sourceOLMManifestsDirectory, c.version.Base()))
 
-	relativeDestination := fmt.Sprintf("%s/%s", channel.directory(), c.version.Base())
+	relativeDestination := fmt.Sprintf("%s/%s", channel.bundlesDirectory(), c.version.Base())
 	destination := path.Join(c.managedTenantsDir, relativeDestination)
 
 	fmt.Printf("copy files from %s to %s\n", source, destination)
@@ -405,22 +424,19 @@ func (c *osdAddonReleaseCmd) copyTheOLMManifests(channel releaseChannel) (string
 	return relativeDestination, nil
 }
 
-func (c *osdAddonReleaseCmd) udpateThePackageManifest(channel releaseChannel) (string, error) {
+func (c *osdAddonReleaseCmd) updateTheAddonFile(channel releaseChannel) (string, error) {
+	relative := channel.addonFile()
+	addonFilePath := path.Join(c.managedTenantsDir, relative)
 
-	relative := fmt.Sprintf("%s/%s.package.yaml", channel.directory(), channel.operatorName())
-	manifest := path.Join(c.managedTenantsDir, relative)
-
-	fmt.Printf("update the version of the manifest files %s to %s\n", relative, c.version)
-	p := &registry.PackageManifest{}
-	err := utils.PopulateObjectFromYAML(manifest, p)
+	fmt.Printf("update the currentCSV value in addon file %s to %s\n", relative, c.version)
+	addon, err := newAddon(addonFilePath)
 	if err != nil {
 		return "", err
 	}
+	// Set currentCSV value
+	addon.SetCurrentCSV(fmt.Sprintf("integreatly-operator.v%s", c.version.Base()))
 
-	// Set channels[0].currentCSV value
-	p.Channels[0].CurrentCSVName = fmt.Sprintf("integreatly-operator.v%s", c.version.Base())
-
-	err = utils.WriteK8sObjectToYAML(p, manifest)
+	err = ioutil.WriteFile(addonFilePath, []byte(addon.content), os.ModePerm)
 	if err != nil {
 		return "", err
 	}
@@ -429,7 +445,7 @@ func (c *osdAddonReleaseCmd) udpateThePackageManifest(channel releaseChannel) (s
 }
 
 func (c *osdAddonReleaseCmd) udpateTheCSVManifest(channel releaseChannel) (string, error) {
-	relative := fmt.Sprintf("%s/%s/%s.v%s.clusterserviceversion.yaml", channel.directory(), c.version.Base(), "integreatly-operator", c.version.Base())
+	relative := fmt.Sprintf("%s/%s/%s.v%s.clusterserviceversion.yaml", channel.bundlesDirectory(), c.version.Base(), "integreatly-operator", c.version.Base())
 	csvFile := path.Join(c.managedTenantsDir, relative)
 
 	fmt.Printf("update csv manifest file %s\n", relative)
@@ -446,11 +462,7 @@ func (c *osdAddonReleaseCmd) udpateTheCSVManifest(channel releaseChannel) (strin
 			// Update USE_CLUSTER_STORAGE env var to empty string
 			container.Env = utils.AddOrUpdateEnvVar(container.Env, envVarNameUseClusterStorage, "")
 			// Add ALERTING_EMAIL_ADDRESS env var
-			if channel == stageChannel {
-				container.Env = utils.AddOrUpdateEnvVar(container.Env, envVarNameAlerEmailAddress, integreatlyAlertEmailAddress)
-			} else {
-				container.Env = utils.AddOrUpdateEnvVar(container.Env, envVarNameAlerEmailAddress, cssreAlertEmailAddress)
-			}
+			container.Env = utils.AddOrUpdateEnvVar(container.Env, envVarNameAlerEmailAddress, envVarNameAlerEmailAddressValue)
 		}
 		deployment.Spec.Template.Spec.Containers[i] = *container
 	}

@@ -19,6 +19,23 @@ import (
 	"github.com/xanzy/go-gitlab"
 )
 
+func TestAddon(t *testing.T) {
+	basedir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	addonFilePath := path.Join(basedir, "testdata", "osdAddonReleaseManagedTenants", "addons", "integreatly-operator", "metadata", "stage", "addon.yaml")
+	addonFile, err := newAddon(addonFilePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	newCSV := "test.v1.0.0"
+	addonFile.SetCurrentCSV(newCSV)
+	if strings.Index(addonFile.content, fmt.Sprintf("currentCSV: %s", newCSV)) <= 0 {
+		t.Fatalf("can not find %s in %s", newCSV, addonFile.content)
+	}
+}
+
 type gitlabMergeRequestMock struct {
 	createMergeRequest func(pid interface{}, opt *gitlab.CreateMergeRequestOptions, options ...gitlab.RequestOptionFunc) (*gitlab.MergeRequest, *gitlab.Response, error)
 }
@@ -238,16 +255,16 @@ func TestOSDAddonRelease(t *testing.T) {
 				t.Fatalf("expected 3 but found %d changed/added files", found)
 			}
 
-			packageManifest := fmt.Sprintf("%s/%s.package.yaml", c.channel.directory(), c.channel.operatorName())
-			clusterServiceVersion := fmt.Sprintf("%s/%s/integreatly-operator.v%s.clusterserviceversion.yaml", c.channel.directory(), version.Base(), version.Base())
-			customResourceDefinition := fmt.Sprintf("%s/%s/integreatly.org_rhmis_crd.yaml", c.channel.directory(), version.Base())
+			addonFile := c.channel.addonFile()
+			clusterServiceVersion := fmt.Sprintf("%s/%s/integreatly-operator.v%s.clusterserviceversion.yaml", c.channel.bundlesDirectory(), version.Base(), version.Base())
+			customResourceDefinition := fmt.Sprintf("%s/%s/integreatly.org_rhmis_crd.yaml", c.channel.bundlesDirectory(), version.Base())
 
 			for _, p := range patches {
 				_, file := p.Files()
 				switch file.Path() {
-				case packageManifest:
+				case addonFile:
 					if found := len(p.Chunks()); found != 4 {
-						t.Fatalf("expected 4 but found %d chunk changes for %s", found, packageManifest)
+						t.Fatalf("expected 4 but found %d chunk changes for %s", found, addonFile)
 					}
 					expected := fmt.Sprintf("currentCSV: integreatly-operator.v%s\n", version.Base())
 					chunks := p.Chunks()
@@ -290,14 +307,8 @@ func TestOSDAddonRelease(t *testing.T) {
 						if env.Name == envVarNameUseClusterStorage && env.Value == "" {
 							storageEnvVarChecked = true
 						}
-						if cmd.channel == stageChannel {
-							if env.Name == envVarNameAlerEmailAddress && env.Value == integreatlyAlertEmailAddress {
-								alertEnvVarChecked = true
-							}
-						} else {
-							if env.Name == envVarNameAlerEmailAddress && env.Value == cssreAlertEmailAddress {
-								alertEnvVarChecked = true
-							}
+						if env.Name == envVarNameAlerEmailAddress && env.Value == envVarNameAlerEmailAddressValue {
+							alertEnvVarChecked = true
 						}
 					}
 					if !storageEnvVarChecked {
