@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/integr8ly/delorean/pkg/utils"
 	"github.com/spf13/cobra"
 	"os"
@@ -45,23 +46,27 @@ func DoProcessCSV(ctx context.Context, cmdOpts *processCSVImagesCmdOptions) erro
 		handleError(err)
 	}
 
-	if !cmdOpts.isGa {
+	if cmdOpts.isGa {
+		if utils.FileExists(path.Join(cmdOpts.manifestDir, utils.MappingFile)) {
+			err := os.Remove(path.Join(cmdOpts.manifestDir, utils.MappingFile))
+			if err != nil {
+				handleError(err)
+			}
+		}
+	} else {
 		images, err := utils.GetAndUpdateOperandImagesToDeloreanImages(cmdOpts.manifestDir, cmdOpts.extraImages)
 		images, err = utils.UpdateOperatorImagesToDeloreanImages(cmdOpts.manifestDir, images)
 		if err != nil {
 			handleError(err)
 		}
 		if len(images) > 0 {
-			err = utils.WriteToFile(path.Join(cmdOpts.manifestDir, utils.MappingFile), images)
-			if err != nil {
-				handleError(err)
-			}
-		}
-	}
 
-	if cmdOpts.isGa {
-		if utils.FileExists(path.Join(cmdOpts.manifestDir, utils.MappingFile)) {
-			err := os.Remove(path.Join(cmdOpts.manifestDir, utils.MappingFile))
+			mappingLines := []string{}
+			for src, dest := range images {
+				mappingLines = append(mappingLines, fmt.Sprintf("%s %s", src, dest))
+			}
+
+			err = utils.WriteToFile(path.Join(cmdOpts.manifestDir, utils.MappingFile), mappingLines)
 			if err != nil {
 				handleError(err)
 			}
