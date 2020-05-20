@@ -101,16 +101,14 @@ func TestProcessCSVImages(t *testing.T) {
 				}
 				defer file.Close()
 
-				uniqueLines := map[string]string{}
 				var lines []string
 				scanner := bufio.NewScanner(file)
 				for scanner.Scan() {
 					lines = append(lines, scanner.Text())
-					uniqueLines[scanner.Text()] = scanner.Text()
 				}
 
 				numMappings := len(lines)
-				numExpectedMappings := len(uniqueLines)
+				numExpectedMappings := 9 // 3scale2 manifest contains 9 unique images, but 11 references overall
 				if numMappings != numExpectedMappings {
 					t.Errorf("expected %v image miror mappings, found %v", numExpectedMappings, numMappings)
 				}

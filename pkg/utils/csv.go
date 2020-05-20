@@ -327,7 +327,7 @@ func ProcessCurrentCSV(packageDir string, processFunc process) error {
 
 type process func(*CSV) error
 
-func GetAndUpdateOperandImagesToDeloreanImages(manifestDir string, extraImages []string) ([]string, error) {
+func GetAndUpdateOperandImagesToDeloreanImages(manifestDir string, extraImages []string) (map[string]string, error) {
 	csv, fp, err := GetCurrentCSV(manifestDir)
 	if err != nil {
 		return nil, err
@@ -339,7 +339,7 @@ func GetAndUpdateOperandImagesToDeloreanImages(manifestDir string, extraImages [
 		}
 	}
 
-	var images []string
+	var images = map[string]string{}
 	deployment, err := csv.GetOperatorDeploymentSpec()
 	if err != nil {
 		return nil, err
@@ -369,7 +369,8 @@ func GetAndUpdateOperandImagesToDeloreanImages(manifestDir string, extraImages [
 				deloreanImage = BuildDeloreanImage(matched)
 				deloreanImage = StripSHAOrTag(deloreanImage)
 				mirrorString := BuildOSBSImage(matched) + " " + deloreanImage
-				images = append(images, mirrorString)
+				mapping := strings.Split(mirrorString, " ")
+				images[mapping[0]] = mapping[1]
 				container.Env = AddOrUpdateEnvVar(container.Env, env.Name, deloreanImage)
 			}
 		}
@@ -399,7 +400,7 @@ func includeImages(extraImages []string, csv *CSV) error {
 	return nil
 }
 
-func UpdateOperatorImagesToDeloreanImages(manifestDir string, images []string) ([]string, error) {
+func UpdateOperatorImagesToDeloreanImages(manifestDir string, images map[string]string) (map[string]string, error) {
 	csv, fp, err := GetCurrentCSV(manifestDir)
 	if err != nil {
 		return nil, err
@@ -414,7 +415,8 @@ func UpdateOperatorImagesToDeloreanImages(manifestDir string, images []string) (
 	if matched == "" {
 		operatorImage = StripSHAOrTag(operatorImage)
 		mirrorString := BuildOSBSImage(deployment.Spec.Template.Spec.Containers[0].Image) + " " + operatorImage
-		images = append(images, mirrorString)
+		mapping := strings.Split(mirrorString, " ")
+		images[mapping[0]] = mapping[1]
 		deployment.Spec.Template.Spec.Containers[0].Image = operatorImage
 	}
 	csv.SetOperatorDeploymentSpec(deployment)

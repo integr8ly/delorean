@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/integr8ly/delorean/pkg/utils"
 	"github.com/spf13/cobra"
 	"os"
@@ -59,7 +60,13 @@ func DoProcessCSV(ctx context.Context, cmdOpts *processCSVImagesCmdOptions) erro
 			handleError(err)
 		}
 		if len(images) > 0 {
-			err = utils.WriteToFile(path.Join(cmdOpts.manifestDir, utils.MappingFile), images)
+
+			mappingLines := []string{}
+			for src, dest := range images {
+				mappingLines = append(mappingLines, fmt.Sprintf("%s %s", src, dest))
+			}
+
+			err = utils.WriteToFile(path.Join(cmdOpts.manifestDir, utils.MappingFile), mappingLines)
 			if err != nil {
 				handleError(err)
 			}
