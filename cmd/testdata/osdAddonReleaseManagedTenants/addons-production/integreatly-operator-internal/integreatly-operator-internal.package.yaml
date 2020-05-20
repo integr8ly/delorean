@@ -1,5 +1,0 @@
-channels:
-  - currentCSV: integreatly-operator.v2.0.0
-    name: edge
-defaultChannel: edge
-packageName: rhmi-internal
