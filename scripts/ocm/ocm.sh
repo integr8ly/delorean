@@ -192,21 +192,20 @@ delete_cluster() {
     local cluster_region
 
     cluster_id=$(get_cluster_id)
+    infra_id=$(get_infra_id)
 
-    # Delete SMTP API key if SENDGRID_API_KEY variable is exported
-    if [[ -n "${SENDGRID_API_KEY:-}" ]]; then
-        infra_id=$(get_infra_id)
-        # Check if infra_id is not empty (would happen when the cluster-details.json file is not updated after creating a cluster)
-        if [[ $infra_id ]]; then
-            echo "Deleting Sendgrid sub user and API key with ID: ${infra_id}"
-            smtp-service delete "${infra_id}"
-        fi
+    # Delete SMTP API key if SENDGRID_API_KEY is defined and infra_id is not empty
+    # infra_id would be empty if the cluster was not fully provisioned
+    if [[ -n "${SENDGRID_API_KEY:-}" ]] && [[ -n "${infra_id:-}" ]]; then
+        echo "Deleting Sendgrid sub user and API key with ID: ${infra_id}"
+        smtp-service delete "${infra_id}"
     fi
 
     echo "Deleting the cluster with ID: ${cluster_id}"
     ocm delete "/api/clusters_mgmt/v1/clusters/${cluster_id}"
 
-    if [[ $(is_byoc_cluster) == true ]]; then
+    # Use cluster-service to cleanup AWS resources
+    if [[ $(is_byoc_cluster) == true ]] && [[ -n "${infra_id:-}" ]]; then
         check_aws_credentials_exported
 
         cluster_region=$(get_cluster_region)
