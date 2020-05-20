@@ -45,7 +45,14 @@ func DoProcessCSV(ctx context.Context, cmdOpts *processCSVImagesCmdOptions) erro
 		handleError(err)
 	}
 
-	if !cmdOpts.isGa {
+	if cmdOpts.isGa {
+		if utils.FileExists(path.Join(cmdOpts.manifestDir, utils.MappingFile)) {
+			err := os.Remove(path.Join(cmdOpts.manifestDir, utils.MappingFile))
+			if err != nil {
+				handleError(err)
+			}
+		}
+	} else {
 		images, err := utils.GetAndUpdateOperandImagesToDeloreanImages(cmdOpts.manifestDir, cmdOpts.extraImages)
 		images, err = utils.UpdateOperatorImagesToDeloreanImages(cmdOpts.manifestDir, images)
 		if err != nil {
@@ -53,15 +60,6 @@ func DoProcessCSV(ctx context.Context, cmdOpts *processCSVImagesCmdOptions) erro
 		}
 		if len(images) > 0 {
 			err = utils.WriteToFile(path.Join(cmdOpts.manifestDir, utils.MappingFile), images)
-			if err != nil {
-				handleError(err)
-			}
-		}
-	}
-
-	if cmdOpts.isGa {
-		if utils.FileExists(path.Join(cmdOpts.manifestDir, utils.MappingFile)) {
-			err := os.Remove(path.Join(cmdOpts.manifestDir, utils.MappingFile))
 			if err != nil {
 				handleError(err)
 			}
