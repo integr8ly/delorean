@@ -120,7 +120,7 @@ type addon struct {
 	content string
 }
 
-func (a *addon) SetCurrentCSV(currentCSV string) {
+func (a *addon) setCurrentCSV(currentCSV string) {
 	r := regexp.MustCompile(`currentCSV: integreatly-operator\..*`)
 	s := r.ReplaceAllString(a.content, fmt.Sprintf("currentCSV: %s", currentCSV))
 	a.content = s
@@ -434,7 +434,7 @@ func (c *osdAddonReleaseCmd) updateTheAddonFile(channel releaseChannel) (string,
 		return "", err
 	}
 	// Set currentCSV value
-	addon.SetCurrentCSV(fmt.Sprintf("integreatly-operator.v%s", c.version.Base()))
+	addon.setCurrentCSV(fmt.Sprintf("integreatly-operator.v%s", c.version.Base()))
 
 	err = ioutil.WriteFile(addonFilePath, []byte(addon.content), os.ModePerm)
 	if err != nil {

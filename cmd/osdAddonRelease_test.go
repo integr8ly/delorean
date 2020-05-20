@@ -30,7 +30,7 @@ func TestAddon(t *testing.T) {
 		t.Fatal(err)
 	}
 	newCSV := "test.v1.0.0"
-	addonFile.SetCurrentCSV(newCSV)
+	addonFile.setCurrentCSV(newCSV)
 	if strings.Index(addonFile.content, fmt.Sprintf("currentCSV: %s", newCSV)) <= 0 {
 		t.Fatalf("can not find %s in %s", newCSV, addonFile.content)
 	}
