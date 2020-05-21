@@ -297,10 +297,11 @@ func (c *osdAddonReleaseCmd) run() error {
 
 	// Create a new branch on the managed-tenants repo
 	managedTenantsBranch := fmt.Sprintf(branchNameTemplate, c.channel, c.version)
+	branchRef := plumbing.NewBranchReferenceName(managedTenantsBranch)
 
 	fmt.Printf("create the branch %s in the managed-tenants repo\n", managedTenantsBranch)
 	err = managedTenantsTree.Checkout(&git.CheckoutOptions{
-		Branch: plumbing.NewBranchReferenceName(managedTenantsBranch),
+		Branch: branchRef,
 		Create: true,
 	})
 	if err != nil {
@@ -332,11 +333,17 @@ func (c *osdAddonReleaseCmd) run() error {
 	}
 
 	//Update the integreatly-operator.vx.x.x.clusterserviceversion.yaml
-	csvManifest, err := c.udpateTheCSVManifest(c.channel)
+	_, err = c.udpateTheCSVManifest(c.channel)
 	if err != nil {
 		return err
 	}
-	_, err = managedTenantsTree.Add(csvManifest)
+
+	csvTemplate, err := c.renameCSVFile(c.channel)
+	if err != nil {
+		return err
+	}
+
+	_, err = managedTenantsTree.Add(csvTemplate)
 	if err != nil {
 		return err
 	}
@@ -373,6 +380,9 @@ func (c *osdAddonReleaseCmd) run() error {
 	err = c.gitPushService.Push(c.managedTenantsRepo, &git.PushOptions{
 		RemoteName: "fork",
 		Auth:       &http.BasicAuth{Password: c.gitlabToken},
+		RefSpecs: []config.RefSpec{
+			config.RefSpec(branchRef + ":" + branchRef),
+		},
 	})
 	if err != nil {
 		return err
@@ -479,4 +489,13 @@ func (c *osdAddonReleaseCmd) udpateTheCSVManifest(channel releaseChannel) (strin
 		return "", err
 	}
 	return relative, nil
+}
+
+func (c *osdAddonReleaseCmd) renameCSVFile(channel releaseChannel) (string, error) {
+	o := fmt.Sprintf("%s/%s/%s.v%s.clusterserviceversion.yaml", channel.bundlesDirectory(), c.version.Base(), "integreatly-operator", c.version.Base())
+	n := fmt.Sprintf("%s/%s/%s.v%s.clusterserviceversion.yaml.j2", channel.bundlesDirectory(), c.version.Base(), "integreatly-operator", c.version.Base())
+	fmt.Println(fmt.Sprintf("Rename file from %s to %s", o, n))
+	oldPath := path.Join(c.managedTenantsDir, o)
+	newPath := path.Join(c.managedTenantsDir, n)
+	return n, os.Rename(oldPath, newPath)
 }

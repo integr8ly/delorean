@@ -256,7 +256,7 @@ func TestOSDAddonRelease(t *testing.T) {
 			}
 
 			addonFile := c.channel.addonFile()
-			clusterServiceVersion := fmt.Sprintf("%s/%s/integreatly-operator.v%s.clusterserviceversion.yaml", c.channel.bundlesDirectory(), version.Base(), version.Base())
+			clusterServiceVersion := fmt.Sprintf("%s/%s/integreatly-operator.v%s.clusterserviceversion.yaml.j2", c.channel.bundlesDirectory(), version.Base(), version.Base())
 			customResourceDefinition := fmt.Sprintf("%s/%s/integreatly.org_rhmis_crd.yaml", c.channel.bundlesDirectory(), version.Base())
 
 			for _, p := range patches {
