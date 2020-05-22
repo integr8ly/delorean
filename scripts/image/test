@@ -20,6 +20,7 @@ alias delorean="delorean-docker-run delorean"
 delorean-docker-run operator-sdk version
 delorean-docker-run oc version || true
 delorean-docker-run yq --version
+delorean-docker-run make --version
 
 #Delorean CLI
 delorean --help
