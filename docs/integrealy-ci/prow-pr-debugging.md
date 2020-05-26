@@ -22,5 +22,5 @@ If the problem is caused by the tests, the following steps will help debug faili
 Here are some links that could be useful to find out tests failures:
 
 * [Prow Status page](https://deck-ci.apps.ci.l2s4.p1.openshiftapps.com/)
-* [OpenShift CI Search page](https://search.apps.build01.ci.devcluster.openshift.com/)
+* [OpenShift CI Search page](https://search.svc.ci.openshift.org/)
 
