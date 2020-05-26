@@ -396,11 +396,12 @@ func (c *osdAddonReleaseCmd) run() error {
 
 	fmt.Print("create the MR to the managed-tenants origin\n")
 	mr, _, err := c.gitlabMergeRequests.CreateMergeRequest(c.flags.managedTenantsFork, &gitlab.CreateMergeRequestOptions{
-		Title:           gitlab.String(fmt.Sprintf(mergeRequestTitleTemplate, c.channel, c.version)),
-		Description:     gitlab.String(c.flags.mergeRequestDescription),
-		SourceBranch:    gitlab.String(managedTenantsBranch),
-		TargetBranch:    gitlab.String(managedTenantsMasterBranch),
-		TargetProjectID: gitlab.Int(targetProject.ID),
+		Title:              gitlab.String(fmt.Sprintf(mergeRequestTitleTemplate, c.channel, c.version)),
+		Description:        gitlab.String(c.flags.mergeRequestDescription),
+		SourceBranch:       gitlab.String(managedTenantsBranch),
+		TargetBranch:       gitlab.String(managedTenantsMasterBranch),
+		TargetProjectID:    gitlab.Int(targetProject.ID),
+		RemoveSourceBranch: gitlab.Bool(true),
 	})
 	if err != nil {
 		return err
