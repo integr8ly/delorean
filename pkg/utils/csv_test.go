@@ -215,6 +215,13 @@ func TestGetCurrentCSV(t *testing.T) {
 			args:    args{"./testdata"},
 			wantErr: true,
 		},
+		{
+			name:    "valid v2 bundle dir",
+			args:    args{"./testdata/validManifests/v2/amq-online"},
+			wantErr: false,
+			want:    "amq-online.1.4.1",
+			want1:   "testdata/validManifests/v2/amq-online/amq-online.1.4.1.clusterserviceversion.yaml",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

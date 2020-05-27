@@ -197,14 +197,11 @@ func VerifyManifestDirs(dirs ...string) error {
 			return err
 		}
 
-		matches, err := filepath.Glob(dir + "/*.package.yaml")
+		_, _, err := GetCurrentCSV(dir)
 		if err != nil {
 			return err
 		}
 
-		if len(matches) == 0 {
-			return fmt.Errorf("No package.yaml file found in %s", dir)
-		}
 	}
 	return nil
 }
@@ -253,6 +250,11 @@ func GetSortedCSVNames(packageDir string) (csvNames, error) {
 }
 
 func GetCurrentCSV(packageDir string) (*CSV, string, error) {
+
+	csv, csvFile, err := ReadCSVFromBundleDirectory(packageDir)
+	if err == nil {
+		return csv, csvFile, nil
+	}
 
 	pkgManifest, _, err := GetPackageManifest(packageDir)
 	if err != nil {

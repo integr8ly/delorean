@@ -4,13 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/integr8ly/delorean/pkg/utils"
+	"github.com/spf13/cobra"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
-
-	"github.com/integr8ly/delorean/pkg/utils"
-	"github.com/spf13/cobra"
 )
 
 type extractManifestsCmdOptions struct {
@@ -69,7 +68,6 @@ func copyLatestManifest(srcPkgDir, destPkgDir string) (string, string, error) {
 	}
 
 	_, err = utils.UpdatePackageManifest(destPkgDir, csv.GetName())
-
 	if err != nil {
 		return "", "", err
 	}

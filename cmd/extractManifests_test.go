@@ -55,6 +55,13 @@ func TestDoExtractManifests(t *testing.T) {
 			wantErr:          false,
 		},
 		{
+			name:             "valid bundle source and package destination dir",
+			args:             args{context.TODO(), mockExtractImageManifests, &extractManifestsCmdOptions{}},
+			tstCreateSrcDir:  "../pkg/utils/testdata/validManifests/3scale2/0.5.0",
+			tstCreateDestDir: "../pkg/utils/testdata/validManifests/3scale",
+			wantErr:          false,
+		},
+		{
 			name: "invalid source dir",
 			args: args{context.TODO(), mockExtractImageManifests, &extractManifestsCmdOptions{
 				srcDir: "/notreal",
