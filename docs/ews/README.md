@@ -2,7 +2,7 @@
 
 Multiple products are installed as part of the Integreatly(RHMI) environment. 
 It is important to move quickly to new releases of these products to enable proof of concepts and ensure any new managed environment is always using the latest versions. 
-The Delorean Early Warning System(EWS) consists of tooing and pipelines which together provide an automated way of discovering, updating and testing new versions of these products.
+The Delorean Early Warning System(EWS) consists of tooling and pipelines which together provide an automated way of discovering, updating and testing new versions of these products.
 
 ### Repos and Pipelines
 
@@ -77,7 +77,7 @@ The triggered CI is already setup to allow the testing of pre release versions o
 
 As with all prow enabled repos, labels are used extensively to control what happens, and give the status of the state of these PRs.
 
-Along with the usual prow workflow labels there also these labels managed by delorean:
+Along with the usual prow workflow labels there are also these labels managed by delorean:
 
 * do-not-merge/product-pre-release - Used as a tide merge blocker, applied to all EWS PRs that include products that are not yet GA, removed automatically when a product is GA.
 * is-ga - Information only, applied to all EWS PRs that include products that are GA, added automatically when a product is GA.
