@@ -8,7 +8,6 @@ readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly REPO_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 readonly OCM_DIR="${REPO_DIR}/ocm"
 
-readonly AWS_CREDENTIALS_FILE="${OCM_DIR}/aws.json"
 readonly TEMPLATES_DIR="${REPO_DIR}/templates/ocm"
 readonly CLUSTER_TEMPLATE_FILE="${TEMPLATES_DIR}/cluster-template.json"
 readonly CR_AWS_STRATEGIES_CONFIGMAP_FILE="${TEMPLATES_DIR}/cr-aws-strategies.yml"
@@ -23,36 +22,7 @@ readonly CLUSTER_LOGS_FILE="${OCM_DIR}/cluster.log"
 readonly RHMI_OPERATOR_NAMESPACE="redhat-rhmi-operator"
 
 readonly ERROR_MISSING_AWS_ENV_VARS="ERROR: Not all required AWS environment are set. Please make sure you've exported all following env vars:"
-readonly ERROR_MISSING_AWS_JSON="ERROR: ${AWS_CREDENTIALS_FILE} file does not exist. Please run 'make ocm/aws/create_access_key' first"
 readonly ERROR_MISSING_CLUSTER_JSON="ERROR: ${CLUSTER_CONFIGURATION_FILE} file does not exist. Please run 'make ocm/cluster.json' first"
-readonly PROMPT_ACCESS_KEY_LIMIT="WARNING
-Number of access keys for user osdCcsAdmin has reached its limit (2).
-Do you want to delete latest generated key and create a new one? (y/n): "
-
-create_access_key() {
-    check_aws_credentials_exported
-
-    local available_access_keys
-    local number_of_access_keys_present
-    local latest_generated_access_key_id
-
-    available_access_keys=$(aws iam list-access-keys --user-name osdCcsAdmin | jq -r '.AccessKeyMetadata')
-    number_of_access_keys_present=$(jq length <<< "${available_access_keys}")
-
-    if [[ "${number_of_access_keys_present}" = 2 ]]; then
-        read -rp "${PROMPT_ACCESS_KEY_LIMIT}" user_input
-        if [[ "${user_input}" = "y" ]]; then
-            latest_generated_access_key_id=$(get_latest_generated_access_key_id "${available_access_keys}")
-            printf "Deleting following access key id: %s\n" "${latest_generated_access_key_id}"
-            aws iam delete-access-key --user-name osdCcsAdmin --access-key-id "${latest_generated_access_key_id}"
-        else
-            printf 'Access key was not generated.\n'
-            exit 1
-        fi
-    fi
-    printf "Generating new access key:\n"
-    aws iam create-access-key --user-name osdCcsAdmin | jq -r .AccessKey | tee "${AWS_CREDENTIALS_FILE}"
-}
 
 check_aws_credentials_exported() {
     if [[ -z "${AWS_ACCOUNT_ID:-}" || -z "${AWS_SECRET_ACCESS_KEY:-}" || -z "${AWS_ACCESS_KEY_ID:-}" ]]; then
@@ -98,6 +68,7 @@ create_cluster_configuration_file() {
         > "${CLUSTER_CONFIGURATION_FILE}"
 	
     if [ "${BYOC}" = true ]; then
+        check_aws_credentials_exported
         update_configuration_with_aws_credentials
     fi
 
@@ -301,23 +272,9 @@ get_expiration_timestamp() {
 }
 
 update_configuration_with_aws_credentials() {
-    local access_key
-    local secret_key
     local updated_configuration
 
-    if [[ -z "${AWS_ACCOUNT_ID:-}" ]]; then
-            printf "%s" "${ERROR_MISSING_AWS_ENV_VARS}"
-            printf "AWS_ACCOUNT_ID='%s'\n" "${AWS_ACCOUNT_ID:-}"
-            exit 1
-    fi
-    if ! [[ -e "${AWS_CREDENTIALS_FILE}" ]]; then
-        printf "%s\n" "${ERROR_MISSING_AWS_JSON}"
-        exit 1
-    fi
-
-    access_key=$(jq -r .AccessKeyId < "${AWS_CREDENTIALS_FILE}")
-    secret_key=$(jq -r .SecretAccessKey < "${AWS_CREDENTIALS_FILE}")
-    updated_configuration=$(jq ".byoc = true | .aws.access_key_id = \"${access_key}\" | .aws.secret_access_key = \"${secret_key}\" | .aws.account_id = \"${AWS_ACCOUNT_ID}\"" < "${CLUSTER_CONFIGURATION_FILE}")
+    updated_configuration=$(jq ".byoc = true | .aws.access_key_id = \"${AWS_ACCESS_KEY_ID}\" | .aws.secret_access_key = \"${AWS_SECRET_ACCESS_KEY}\" | .aws.account_id = \"${AWS_ACCOUNT_ID}\"" < "${CLUSTER_CONFIGURATION_FILE}")
     printf "%s" "${updated_configuration}" > "${CLUSTER_CONFIGURATION_FILE}"
 }
 
@@ -333,13 +290,6 @@ display_help() {
 "Usage: %s <command>
 
 Commands:
-==========================================================================================
-create_access_key                 - create aws access key (required for BYOC-type cluster)
-------------------------------------------------------------------------------------------
-Required exported variables:
-- AWS_ACCOUNT_ID
-- AWS_ACCESS_KEY_ID
-- AWS_SECRET_ACCESS_KEY
 ==========================================================================================
 create_cluster_configuration_file - create cluster.json
 ------------------------------------------------------------------------------------------

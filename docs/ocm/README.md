@@ -2,16 +2,15 @@
 
 If you want to test your changes on a cluster, the easiest solution would be to spin up OSD 4 cluster using `ocm`. If you want to spin up a cluster using BYOC (your own AWS credentials), follow the additional steps marked as **BYOC**.
 
-#### Prerequisites
+### Prerequisites
 * [OCM CLI](https://github.com/openshift-online/ocm-cli/releases)
-* [AWS CLI v1.18](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html)
 * [jq](https://stedolan.github.io/jq/)
 * [cluster-service](https://github.com/integr8ly/cluster-service/releases)
 * [smtp-service](https://github.com/integr8ly/smtp-service/releases)
 * :apple: (Mac users) - install `gtimeout` util and create a symbolic link (so it can be referenced as `timeout`): 
   * `brew install coreutils && sudo ln -s /usr/local/bin/gtimeout /usr/local/bin/timeout`
 
-#### Steps
+### Steps
 
 1. Download the OCM CLI tool and add it to your PATH
 2. Export [OCM_TOKEN](https://github.com/openshift-online/ocm-cli#log-in): `export OCM_TOKEN="<TOKEN_VALUE>"`
@@ -21,20 +20,26 @@ make ocm/login
 ```
 
 **BYOC**
-Credentials for **your own IAM user** with admin access to AWS are required. These are used to create a new access key for the "osdCcsAdmin" user that provisions the cluster.  
-Export the credentials for **your own IAM user**, set BYOC variable to `true` and create a new access key for "osdCcsAdmin" user:
+If you want to setup a BYOC cluster, you will need an AWS root account with no OSD cluster running in it. The AWS account needs an IAM user named `osdCcsAdmin` and this user needs the AdministratorAccess permission.
+
+Once this user is in place and no other OSD cluster is running in the account, you will need the AWS credentials (`AWS_ACCOUNT_ID`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`) for the `osdCcsAdmin` user to use in your cluster request.
+
+Export the AWS credentials for `osdCcsAdmin` user and set BYOC variable to `true`:
 ```
 export AWS_ACCOUNT_ID=<REPLACE_ME>
 export AWS_ACCESS_KEY_ID=<REPLACE_ME>
 export AWS_SECRET_ACCESS_KEY=<REPLACE_ME>
 export BYOC=true
-make ocm/aws/create_access_key
 ```
 
 4. Create cluster template: `make ocm/cluster.json`
 
 This command will generate `ocm/cluster.json` file with generated cluster name. This file will be used as a template to create your cluster via OCM CLI.
-By default, it will set the expiration timestamp for a cluster for 4 hours, meaning your cluster will be automatically deleted after 4 hours after you generated this template. If you want to change the default timestamp, you can update it in `ocm/cluster.json` or delete the whole line from the file if you don't want your cluster to be deleted automatically at all. 
+By default, it will set the expiration timestamp for a cluster for 4 hours, meaning your cluster will be automatically deleted after 4 hours after you generated this template. If you want to change the default timestamp, you can update it in `ocm/cluster.json` or delete the whole line from the file if you don't want your cluster to be deleted automatically at all.
+
+**BYOC**
+If you exported AWS credentials (like described in the previous step), your cluster configuration will also include the AWS credentials and `byoc` field
+set to `true`.
 
 5. Create the cluster: `make ocm/cluster/create`
 
@@ -50,3 +55,7 @@ oc --config ocm/cluster.kubeconfig projects
 Run `make ocm/install/rhmi-addon` to trigger the installation. Once the installation is completed, the installation CR with RHMI components info will be printed to the console.
 
 8. If you want to delete your cluster, run `make ocm/cluster/delete`
+
+### Help
+
+To get more information about the OCM tooling, run `make ocm/help`
