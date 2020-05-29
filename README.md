@@ -2,6 +2,12 @@
 
 Delorean CLI
 
+### Docs
+
+- [Early Warning System (EWS)](./docs/ews/README.md)
+- [Integreatly CI](./docs/integreatly-ci/README.md)
+- [Provision RHMI Cluster using OCM](./docs/ocm/README.md)
+
 ### Building
 
 To build the CLI, run from the root of this repo:
@@ -20,7 +26,7 @@ To build a delorean container image:
 
 ```
 make image/build
-``` 
+```
 
 To run some basic tests against the image:
 
