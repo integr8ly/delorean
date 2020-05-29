@@ -34,7 +34,7 @@ echo "Retrieving test cluster kubeconfig and console details from container 'tes
 wait_for "oc get project/${namespace}" "find namespace" "10m" "100"
 wait_for "oc get pod/e2e -n ${namespace}" "find e2e pod" "20m" "100"
 
-#ToDo Wait for setup container to complete here
+oc -n ${namespace} logs -f e2e -c setup --tail=15
 
 output="/tmp/kubeconfig.${namespace}"
 mkdir -p ${output}
