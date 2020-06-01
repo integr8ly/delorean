@@ -90,5 +90,5 @@ func (y *UnstructYaml) Write(file string) error {
 		return err
 	}
 
-	return WriteFile(bytes, file)
+	return ioutil.WriteFile(file, bytes, 0644)
 }
