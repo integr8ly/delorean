@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"io/ioutil"
 	"strconv"
 	"strings"
 
@@ -14,7 +15,7 @@ type UnstructYaml struct {
 
 func LoadUnstructYaml(file string) (*UnstructYaml, error) {
 
-	bytes, err := ReadFile(file)
+	bytes, err := ioutil.ReadFile(file)
 	if err != nil {
 		return nil, err
 	}

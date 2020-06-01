@@ -154,22 +154,3 @@ func WriteToFile(writePath string, content []string) error {
 
 	return nil
 }
-
-func ReadFile(file string) ([]byte, error) {
-	read, err := os.Open(file)
-	if err != nil {
-		return nil, err
-	}
-
-	bytes, err := ioutil.ReadAll(read)
-	if err != nil {
-		return nil, err
-	}
-
-	err = read.Close()
-	if err != nil {
-		return nil, err
-	}
-
-	return bytes, nil
-}

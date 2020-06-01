@@ -221,7 +221,7 @@ bigger:
 				t.Fatalf("failed to write UnstructYaml with error: %s", err)
 			}
 
-			got, err := ReadFile(outFile)
+			got, err := ioutil.ReadFile(outFile)
 			if err != nil {
 				t.Fatalf("failed to ReadFile with error: %s", err)
 			}
