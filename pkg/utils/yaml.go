@@ -9,10 +9,14 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+// UnstructYaml see LoadUnstructYaml
 type UnstructYaml struct {
 	slice *yaml.MapSlice
 }
 
+// LoadUnstructYaml parse the passed yaml file and create an UnstructYaml object
+// that can be used to change one or more value of the yaml file without changing
+// the order of the fields or removing unknow fileds
 func LoadUnstructYaml(file string) (*UnstructYaml, error) {
 
 	bytes, err := ioutil.ReadFile(file)
@@ -27,6 +31,30 @@ func LoadUnstructYaml(file string) (*UnstructYaml, error) {
 	}
 
 	return &UnstructYaml{slice}, nil
+}
+
+// Set will modify a single filed of the UnstructYaml (see LoadUnstructYaml)
+func (y *UnstructYaml) Set(path string, value interface{}) error {
+
+	switch value.(type) {
+	case int, bool, string:
+		return unstructYamlSet(*y.slice, strings.Split(path, "."), value)
+
+	default:
+		return fmt.Errorf("unsupported value of type %T", value)
+
+	}
+}
+
+// Write the UnstructYaml to the passed file (see LoadUnstructYaml)
+func (y *UnstructYaml) Write(file string) error {
+
+	bytes, err := yaml.Marshal(y.slice)
+	if err != nil {
+		return err
+	}
+
+	return ioutil.WriteFile(file, bytes, 0644)
 }
 
 func unstructYamlSet(obj interface{}, path []string, value interface{}) error {
@@ -69,26 +97,4 @@ func unstructYamlSet(obj interface{}, path []string, value interface{}) error {
 	default:
 		return fmt.Errorf("unknow type %T in object %+v", typ, typ)
 	}
-}
-
-func (y *UnstructYaml) Set(path string, value interface{}) error {
-
-	switch value.(type) {
-	case int, bool, string:
-		return unstructYamlSet(*y.slice, strings.Split(path, "."), value)
-
-	default:
-		return fmt.Errorf("unsupported value of type %T", value)
-
-	}
-}
-
-func (y *UnstructYaml) Write(file string) error {
-
-	bytes, err := yaml.Marshal(y.slice)
-	if err != nil {
-		return err
-	}
-
-	return ioutil.WriteFile(file, bytes, 0644)
 }
