@@ -135,3 +135,17 @@ func TestWriteK8sObjectToYAML(t *testing.T) {
 		t.Errorf("expected output is not valid. Expected:\n%s\n Actual:\n%s\n", expected, content)
 	}
 }
+
+func TestReadFile(t *testing.T) {
+
+	bytes, err := ReadFile("testdata/io/sample.txt")
+	if err != nil {
+		t.Fatalf("failed to ReadFile with error: %s", err)
+	}
+
+	expect := `some
+test data`
+	if string(bytes) != expect {
+		t.Fatalf("given file content is not equal to the expected\ngot: %s\nexpect: %s", string(bytes), expect)
+	}
+}

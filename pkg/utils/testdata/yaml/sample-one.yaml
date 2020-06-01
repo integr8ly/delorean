@@ -1,0 +1,11 @@
+test: data
+array:
+- data
+- two
+first:
+  second: stuff
+bigger:
+  - name: step
+  -
+    name: stuff
+    other: 23

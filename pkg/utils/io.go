@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"k8s.io/apimachinery/pkg/runtime"
 	"os"
+
+	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/yaml"
 )
 
@@ -40,7 +41,7 @@ func WriteObjectToYAML(obj interface{}, yamlFile string) error {
 	if err != nil {
 		return err
 	}
-	return writeToYAML(bytes, yamlFile)
+	return WriteFile(bytes, yamlFile)
 }
 
 func WriteK8sObjectToYAML(obj interface{}, yamlFile string) error {
@@ -57,12 +58,12 @@ func WriteK8sObjectToYAML(obj interface{}, yamlFile string) error {
 	if err != nil {
 		return err
 	}
-	return writeToYAML(bytes, yamlFile)
+	return WriteFile(bytes, yamlFile)
 }
 
-func writeToYAML(bytes []byte, yamlFile string) error {
+func WriteFile(bytes []byte, file string) error {
 	// truncate the existing file
-	write, err := os.Create(yamlFile)
+	write, err := os.Create(file)
 	if err != nil {
 		return err
 	}
@@ -152,4 +153,23 @@ func WriteToFile(writePath string, content []string) error {
 	}
 
 	return nil
+}
+
+func ReadFile(file string) ([]byte, error) {
+	read, err := os.Open(file)
+	if err != nil {
+		return nil, err
+	}
+
+	bytes, err := ioutil.ReadAll(read)
+	if err != nil {
+		return nil, err
+	}
+
+	err = read.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	return bytes, nil
 }
