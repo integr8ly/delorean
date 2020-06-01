@@ -4,6 +4,13 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"path"
+	"strings"
+	"time"
+
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -13,12 +20,6 @@ import (
 	"github.com/integr8ly/delorean/pkg/services"
 	"github.com/integr8ly/delorean/pkg/utils"
 	"github.com/spf13/cobra"
-	"io/ioutil"
-	"os"
-	"os/exec"
-	"path"
-	"strings"
-	"time"
 )
 
 const (
@@ -257,6 +258,10 @@ func updateCIOperatorConfig(repoDir string, version *utils.RHMIVersion) error {
 	masterPromotion := "promotion:\n  name: integreatly-operator"
 	releasePromotion := fmt.Sprintf("promotion:\n  name: \"%s\"", version.MajorMinor())
 	releaseConfigContents := strings.Replace(string(read), masterPromotion, releasePromotion, -1)
+
+	masterReference := "zz_generated_metadata:\n  branch: master"
+	releaseReference := fmt.Sprintf("zz_generated_metadata:\n  branch: %s", version.ReleaseBranchName())
+	releaseConfigContents = strings.Replace(releaseConfigContents, masterReference, releaseReference, -1)
 
 	err = ioutil.WriteFile(releaseConfig, []byte(releaseConfigContents), 0644)
 	if err != nil {
