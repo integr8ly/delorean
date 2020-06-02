@@ -8,7 +8,7 @@ ENV OPERATOR_SDK_VERSION=v0.15.1 \
 COPY resources/rhit-root-ca.crt /etc/pki/ca-trust/source/anchors/
 
 RUN set -o pipefail && \
-    INSTALL_PKGS="make" && \
+    INSTALL_PKGS="make rsync" && \
     yum install -y --setopt=tsflags=nodocs $INSTALL_PKGS && \
     update-ca-trust extract && \
     curl -Ls https://mirror.openshift.com/pub/openshift-v4/clients/oc/$OC_VERSION/linux/oc.tar.gz | tar -zx && \
