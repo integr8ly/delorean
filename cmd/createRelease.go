@@ -19,20 +19,22 @@ import (
 )
 
 type createReleaseCmdFlags struct {
-	baseBranch    string
-	releaseScript string
+	baseBranch       string
+	releaseScript    string
+	serviceAffecting bool
 }
 
 type createReleaseCmd struct {
-	version         *utils.RHMIVersion
-	repoInfo        *githubRepoInfo
-	baseBranch      plumbing.ReferenceName
-	githubPRService services.PullRequestsService
-	releaseScript   string
-	gitUser         string
-	gitPass         string
-	gitCloneService services.GitCloneService
-	gitPushService  services.GitPushService
+	version          *utils.RHMIVersion
+	repoInfo         *githubRepoInfo
+	baseBranch       plumbing.ReferenceName
+	githubPRService  services.PullRequestsService
+	releaseScript    string
+	gitUser          string
+	gitPass          string
+	gitCloneService  services.GitCloneService
+	gitPushService   services.GitPushService
+	serviceAffecting bool
 }
 
 func init() {
@@ -62,6 +64,8 @@ func init() {
 	releaseCmd.AddCommand(cmd)
 	cmd.Flags().StringVarP(&f.baseBranch, "branch", "b", "master", "Base branch of the release PR")
 	cmd.Flags().StringVar(&f.releaseScript, "releaseScript", "scripts/prepare-release.sh", "Relative path to the script to run before creating the PR")
+	cmd.Flags().BoolVar(&f.serviceAffecting, "serviceAffecting", true, "If the release is service affecting")
+
 }
 
 func newCreateReleaseCmd(f *createReleaseCmdFlags) (*createReleaseCmd, error) {
@@ -82,15 +86,16 @@ func newCreateReleaseCmd(f *createReleaseCmdFlags) (*createReleaseCmd, error) {
 		return nil, err
 	}
 	return &createReleaseCmd{
-		version:         version,
-		repoInfo:        repoInfo,
-		baseBranch:      baseBranch,
-		releaseScript:   f.releaseScript,
-		githubPRService: client.PullRequests,
-		gitUser:         user,
-		gitPass:         token,
-		gitCloneService: &services.DefaultGitCloneService{},
-		gitPushService:  &services.DefaultGitPushService{},
+		version:          version,
+		repoInfo:         repoInfo,
+		baseBranch:       baseBranch,
+		releaseScript:    f.releaseScript,
+		githubPRService:  client.PullRequests,
+		gitUser:          user,
+		gitPass:          token,
+		gitCloneService:  &services.DefaultGitCloneService{},
+		gitPushService:   &services.DefaultGitPushService{},
+		serviceAffecting: f.serviceAffecting,
 	}, nil
 }
 
@@ -142,6 +147,9 @@ func (c *createReleaseCmd) runReleaseScript(repoDir string) error {
 		return err
 	}
 	envs := []string{fmt.Sprintf("SEMVER=%s", c.version.String())}
+	if !c.serviceAffecting {
+		envs = append(envs, "NONE_SERVICE_AFFECTING=true")
+	}
 	releaseScript := &exec.Cmd{Dir: repoDir, Env: envs, Path: c.releaseScript, Stdout: os.Stdout, Stderr: os.Stderr}
 	return releaseScript.Run()
 }
