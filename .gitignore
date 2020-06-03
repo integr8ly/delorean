@@ -18,6 +18,7 @@
 # Temporary files under ocm directory
 /ocm
 scripts/ocm/downtime.json
+scripts/jenkins-reports/report.txt
 
 #ide
 .vscode/
