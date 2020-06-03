@@ -15,8 +15,8 @@ If the problem is caused by the tests, the following steps will help debug faili
 * Here you will have access to Namespace used to for running the checks on your Pull Request.
 * In this Namespace you will see an `e2e` pod
 * There are numerous containers running in this pod. The first one of interest is the `setup` container. Here we can see in the log the cluster being provisioned to execute the e2e tests against. Once this cluster has provisioned, a `url` to the cluster will be output.
-* You will also see output in the logs the location to the cluster credentials.
-* To retrieve the cluster credentials, you can simply `cat` the location in the `test` container.
+* You will also see output in the logs the location to the cluster credentials such as `/tmp/artifacts/installer/auth/kubeconfig`.
+* To retrieve the cluster credentials go to the terminal tab and open the test pod, `cat` the following path `/tmp/artifacts/installer/auth/kubeadmin-password`. Ensure that the password is 4 parts, 5 digit per part and comma separated, (ensure that no extra characters are present at the end, the password prints without a new line at the end and gets merged with `sh-4.2$`)
 * Logging into the cluster with these credentials you will have `admin` access allowing you to debug the issue while the tests are being executed.
 
 Here are some links that could be useful to find out tests failures:
