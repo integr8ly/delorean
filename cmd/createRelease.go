@@ -148,7 +148,7 @@ func (c *createReleaseCmd) runReleaseScript(repoDir string) error {
 	}
 	envs := []string{fmt.Sprintf("SEMVER=%s", c.version.String())}
 	if !c.serviceAffecting {
-		envs = append(envs, "NONE_SERVICE_AFFECTING=true")
+		envs = append(envs, "NON_SERVICE_AFFECTING=true")
 	}
 	releaseScript := &exec.Cmd{Dir: repoDir, Env: envs, Path: c.releaseScript, Stdout: os.Stdout, Stderr: os.Stderr}
 	return releaseScript.Run()
