@@ -352,7 +352,7 @@ func GetAndUpdateOperandImages(manifestDir string, extraImages []string, isGa bo
 			if isGa {
 				stageMatched := ReStage.FindString(env.Value)
 				if stageMatched != "" {
-					prodImage := processStagetoProdImage(env.Value)
+					prodImage := processStageToProdImage(env.Value)
 					container.Env = AddOrUpdateEnvVar(container.Env, env.Name, prodImage)
 				}
 				//it it's pre ga check for delorean image and move on
@@ -417,12 +417,12 @@ func GetAndUpdateOperatorImage(manifestDir string, images map[string]string, isG
 		//check for stage image and replace it if necessary
 		stageMatched := ReStage.FindString(deployment.Spec.Template.Spec.Containers[0].Image)
 		if stageMatched != "" {
-			prodImage := processStagetoProdImage(deployment.Spec.Template.Spec.Containers[0].Image)
+			prodImage := processStageToProdImage(deployment.Spec.Template.Spec.Containers[0].Image)
 			deployment.Spec.Template.Spec.Containers[0].Image = prodImage
 		}
 		stageMatched = ReStage.FindString(annotations["containerImage"])
 		if stageMatched != "" {
-			prodImage := processStagetoProdImage(annotations["containerImage"])
+			prodImage := processStageToProdImage(annotations["containerImage"])
 			annotations["containerImage"] = prodImage
 		}
 	} else {
@@ -453,7 +453,7 @@ func processToDeloreanImage(image string) string {
 	return StripSHAOrTag(BuildDeloreanImage(image))
 }
 
-func processStagetoProdImage(stageImage string) string {
+func processStageToProdImage(stageImage string) string {
 	return strings.Replace(stageImage, ".stage", "", 1)
 }
 

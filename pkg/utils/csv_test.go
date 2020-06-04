@@ -506,7 +506,7 @@ func TestProcessToDeloreanImage(t *testing.T) {
 	}
 }
 
-func TestProcessStagetoProdImage(t *testing.T) {
+func TestProcessStageToProdImage(t *testing.T) {
 	tests := []struct {
 		name string
 		arg  string
@@ -520,52 +520,11 @@ func TestProcessStagetoProdImage(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := processStagetoProdImage(tt.arg)
+			got := processStageToProdImage(tt.arg)
 			if got != tt.want {
-				t.Errorf("processStagetoProdImage() got = %v, want %v", got, tt.want)
+				t.Errorf("processStageToProdImage() got = %v, want %v", got, tt.want)
 			}
 		},
 		)
-	}
-}
-
-func TestGetAndUpdateOperandImage(t *testing.T) {
-	emptyImages := []string{}
-
-	type args struct {
-		manifestDir string
-		images      []string
-		isGa        bool
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    int
-		wantErr bool
-	}{
-		{
-			name:    "Incorrect manifest dir",
-			args:    args{"./a/dir/that/is/not/a/manifest/dir", emptyImages, true},
-			want:    0,
-			wantErr: true,
-		},
-
-		{
-			name:    "Valid manifest dir",
-			args:    args{"./testdata/validManifests/3scale3/", emptyImages, false},
-			want:    8,
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetAndUpdateOperandImages(tt.args.manifestDir, tt.args.images, tt.args.isGa)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GetAndUpdateOperandImages() error = %v, wantErr %v", err, tt.wantErr)
-			}
-			if len(got) != tt.want {
-				t.Errorf("GetAndUpdateOperandImages() got = %v want %v", len(got), tt.want)
-			}
-		})
 	}
 }
