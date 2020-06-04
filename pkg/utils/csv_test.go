@@ -1,16 +1,17 @@
 package utils
 
 import (
+	"io/ioutil"
+	"path"
+	"reflect"
+	"testing"
+
 	"github.com/google/go-cmp/cmp"
 	olmapiv1alpha1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
-	"io/ioutil"
 	appv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"path"
-	"reflect"
-	"testing"
 
 	"github.com/blang/semver"
 	"github.com/operator-framework/operator-registry/pkg/registry"
@@ -474,5 +475,56 @@ func TestCSVSetters(t *testing.T) {
 	}
 	if diff := cmp.Diff(d, &newDeploymentSpec); diff != "" {
 		t.Fatalf("SetOperatorDeploymentSpec failed. Diff = %s", diff)
+	}
+}
+
+func TestProcessToDeloreanImage(t *testing.T) {
+	tests := []struct {
+		name string
+		arg  string
+		want string
+	}{
+		{
+			name: "staging image is processed to delorean image as expected",
+			arg:  "registry.stage.redhat.io/3scale-amp2/3scale-rhel7-operator@sha256:1ba6ec8ed984a011796bbe1eafabb2791957f58ed66ec4a484c024dd96eaf427",
+			want: "quay.io/integreatly/delorean:3scale-amp2-3scale-rhel7-operator_latest",
+		},
+		{
+			name: "production image is processed to delorean image as expected",
+			arg:  "registry.redhat.io/rhscl/redis-32-rhel7@sha256:a9bdf52384a222635efc0284db47d12fbde8c3d0fcb66517ba8eefad1d4e9dc9",
+			want: "quay.io/integreatly/delorean:rhscl-redis-32-rhel7_latest",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := processToDeloreanImage(tt.arg)
+			if got != tt.want {
+				t.Errorf("processToDeloreanImage() got = %v, want %v", got, tt.want)
+			}
+		},
+		)
+	}
+}
+
+func TestProcessStageToProdImage(t *testing.T) {
+	tests := []struct {
+		name string
+		arg  string
+		want string
+	}{
+		{
+			name: "process staging image to non stage image",
+			arg:  "registry.stage.redhat.io/3scale-amp2/backend-rhel7@sha256:d8322db4149afc5672ebc3d0430a077c58a8e3e98d7fce720b6a5a3d2498c9c5",
+			want: "registry.redhat.io/3scale-amp2/backend-rhel7@sha256:d8322db4149afc5672ebc3d0430a077c58a8e3e98d7fce720b6a5a3d2498c9c5",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := processStageToProdImage(tt.arg)
+			if got != tt.want {
+				t.Errorf("processStageToProdImage() got = %v, want %v", got, tt.want)
+			}
+		},
+		)
 	}
 }

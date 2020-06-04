@@ -21,7 +21,7 @@ import (
 )
 
 var ReProd = regexp.MustCompile(`registry.redhat.io/.*`)
-var ReStage = regexp.MustCompile(`registry.stage.redhat.io/.*`)
+var ReStage = regexp.MustCompile(`registry.stage.redhat.io/*`)
 var ReProxy = regexp.MustCompile(`registry-proxy.engineering.redhat.com/rh-osbs/.*`)
 var ReDelorean = regexp.MustCompile(`quay.io/integreatly/delorean.*`)
 var imageWhitelist = [1]string{"registry.redhat.io/openshift4/ose-oauth-proxy:4.2"}
@@ -329,7 +329,7 @@ func ProcessCurrentCSV(packageDir string, processFunc process) error {
 
 type process func(*CSV) error
 
-func GetAndUpdateOperandImagesToDeloreanImages(manifestDir string, extraImages []string) (map[string]string, error) {
+func GetAndUpdateOperandImages(manifestDir string, extraImages []string, isGa bool) (map[string]string, error) {
 	csv, fp, err := GetCurrentCSV(manifestDir)
 	if err != nil {
 		return nil, err
@@ -348,32 +348,29 @@ func GetAndUpdateOperandImagesToDeloreanImages(manifestDir string, extraImages [
 	}
 	for _, container := range deployment.Spec.Template.Spec.Containers {
 		for _, env := range container.Env {
-			var deloreanImage string
-			var matched string
-			prodMatched := ReProd.FindString(env.Value)
-			//found a registry.redhat.io image
-			if prodMatched != "" {
-				matched = prodMatched
-			}
-
-			stageMatched := ReStage.FindString(env.Value)
-			//found a registry.stage.redhat.io image
-			if stageMatched != "" {
-				matched = stageMatched
-			}
-
-			deloreanMatched := ReDelorean.FindString(env.Value)
-			//found a quay.io/integreatly/delorean image so ignore
-			if deloreanMatched != "" {
-				continue
-			}
-			if matched != "" {
-				deloreanImage = BuildDeloreanImage(matched)
-				deloreanImage = StripSHAOrTag(deloreanImage)
-				mirrorString := BuildOSBSImage(matched) + " " + deloreanImage
-				mapping := strings.Split(mirrorString, " ")
-				images[mapping[0]] = mapping[1]
-				container.Env = AddOrUpdateEnvVar(container.Env, env.Name, deloreanImage)
+			//if it's GA, check for stage images and replace them.
+			if isGa {
+				stageMatched := ReStage.FindString(env.Value)
+				if stageMatched != "" {
+					prodImage := processStageToProdImage(env.Value)
+					container.Env = AddOrUpdateEnvVar(container.Env, env.Name, prodImage)
+				}
+				//it it's pre ga check for delorean image and move on
+				//check for stage and prod images and replace them with delorean images
+			} else {
+				deloreanMatched := ReDelorean.FindString(env.Value)
+				if deloreanMatched != "" {
+					continue
+				}
+				prodMatched := ReProd.FindString(env.Value)
+				stageMatched := ReStage.FindString(env.Value)
+				//found a registry.redhat.io image
+				if prodMatched != "" || stageMatched != "" {
+					deloreanImage := processToDeloreanImage(env.Value)
+					mirrorString := BuildOSBSImage(env.Value) + " " + deloreanImage
+					addImageMapping(mirrorString, images)
+					container.Env = AddOrUpdateEnvVar(container.Env, env.Name, deloreanImage)
+				}
 			}
 		}
 	}
@@ -402,7 +399,7 @@ func includeImages(extraImages []string, csv *CSV) error {
 	return nil
 }
 
-func UpdateOperatorImagesToDeloreanImages(manifestDir string, images map[string]string) (map[string]string, error) {
+func GetAndUpdateOperatorImage(manifestDir string, images map[string]string, isGa bool) (map[string]string, error) {
 	csv, fp, err := GetCurrentCSV(manifestDir)
 	if err != nil {
 		return nil, err
@@ -412,26 +409,57 @@ func UpdateOperatorImagesToDeloreanImages(manifestDir string, images map[string]
 	if err != nil {
 		return nil, err
 	}
-	matched := ReDelorean.FindString(deployment.Spec.Template.Spec.Containers[0].Image)
-	operatorImage := BuildDeloreanImage(deployment.Spec.Template.Spec.Containers[0].Image)
-	if matched == "" {
-		operatorImage = StripSHAOrTag(operatorImage)
-		mirrorString := BuildOSBSImage(deployment.Spec.Template.Spec.Containers[0].Image) + " " + operatorImage
-		mapping := strings.Split(mirrorString, " ")
-		images[mapping[0]] = mapping[1]
-		deployment.Spec.Template.Spec.Containers[0].Image = operatorImage
-	}
-	csv.SetOperatorDeploymentSpec(deployment)
-
 	annotations := csv.GetAnnotations()
-	annotationMatched := ReDelorean.FindString(annotations["containerImage"])
-	if annotationMatched == "" {
-		annotations["containerImage"] = operatorImage
-		csv.SetAnnotations(annotations)
+
+	//same flow as the above
+	//if it's GA, check for stage images and replace them.
+	if isGa {
+		//check for stage image and replace it if necessary
+		stageMatched := ReStage.FindString(deployment.Spec.Template.Spec.Containers[0].Image)
+		if stageMatched != "" {
+			prodImage := processStageToProdImage(deployment.Spec.Template.Spec.Containers[0].Image)
+			deployment.Spec.Template.Spec.Containers[0].Image = prodImage
+		}
+		stageMatched = ReStage.FindString(annotations["containerImage"])
+		if stageMatched != "" {
+			prodImage := processStageToProdImage(annotations["containerImage"])
+			annotations["containerImage"] = prodImage
+		}
+	} else {
+		//check for stage and prod images and replace with quay image
+		stageMatched := ReStage.FindString(deployment.Spec.Template.Spec.Containers[0].Image)
+		prodMatched := ReProd.FindString(deployment.Spec.Template.Spec.Containers[0].Image)
+		if stageMatched != "" || prodMatched != "" {
+			processedDeloreanImage := processToDeloreanImage(deployment.Spec.Template.Spec.Containers[0].Image)
+			mirrorString := BuildOSBSImage(deployment.Spec.Template.Spec.Containers[0].Image) + " " + processedDeloreanImage
+			addImageMapping(mirrorString, images)
+			deployment.Spec.Template.Spec.Containers[0].Image = processedDeloreanImage
+		}
+		stageMatched = ReStage.FindString(annotations["containerImage"])
+		prodMatched = ReProd.FindString(annotations["containerImage"])
+		if stageMatched != "" || prodMatched != "" {
+			processedDeloreanImage := processToDeloreanImage(annotations["containerImage"])
+			annotations["containerImage"] = processedDeloreanImage
+		}
 	}
+	csv.SetAnnotations(annotations)
+	csv.SetOperatorDeploymentSpec(deployment)
 
 	err = csv.WriteYAML(fp)
 	return images, nil
+}
+
+func processToDeloreanImage(image string) string {
+	return StripSHAOrTag(BuildDeloreanImage(image))
+}
+
+func processStageToProdImage(stageImage string) string {
+	return strings.Replace(stageImage, ".stage", "", 1)
+}
+
+func addImageMapping(mirrorString string, images map[string]string) {
+	mapping := strings.Split(mirrorString, " ")
+	images[mapping[0]] = mapping[1]
 }
 
 func FindDeploymentByName(deployments []olmapiv1alpha1.StrategyDeploymentSpec, name string) (int, *olmapiv1alpha1.StrategyDeploymentSpec) {

@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/integr8ly/delorean/pkg/utils"
-	"github.com/spf13/cobra"
 	"os"
 	"path"
+
+	"github.com/integr8ly/delorean/pkg/utils"
+	"github.com/spf13/cobra"
 )
 
 type processCSVImagesCmdOptions struct {
@@ -46,6 +47,15 @@ func DoProcessCSV(ctx context.Context, cmdOpts *processCSVImagesCmdOptions) erro
 		handleError(err)
 	}
 
+	images, err := utils.GetAndUpdateOperandImages(cmdOpts.manifestDir, cmdOpts.extraImages, cmdOpts.isGa)
+	if err != nil {
+		handleError(err)
+	}
+	images, err = utils.GetAndUpdateOperatorImage(cmdOpts.manifestDir, images, cmdOpts.isGa)
+	if err != nil {
+		handleError(err)
+	}
+
 	if cmdOpts.isGa {
 		if utils.FileExists(path.Join(cmdOpts.manifestDir, utils.MappingFile)) {
 			err := os.Remove(path.Join(cmdOpts.manifestDir, utils.MappingFile))
@@ -54,11 +64,6 @@ func DoProcessCSV(ctx context.Context, cmdOpts *processCSVImagesCmdOptions) erro
 			}
 		}
 	} else {
-		images, err := utils.GetAndUpdateOperandImagesToDeloreanImages(cmdOpts.manifestDir, cmdOpts.extraImages)
-		images, err = utils.UpdateOperatorImagesToDeloreanImages(cmdOpts.manifestDir, images)
-		if err != nil {
-			handleError(err)
-		}
 		if len(images) > 0 {
 
 			mappingLines := []string{}
