@@ -14,7 +14,9 @@ RUN set -o pipefail && \
     curl -Ls https://mirror.openshift.com/pub/openshift-v4/clients/oc/$OC_VERSION/linux/oc.tar.gz | tar -zx && \
     mv oc /usr/local/bin && \
     curl -Lo /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/3.1.2/yq_linux_amd64 && \
-    chmod +x /usr/local/bin/yq
+    chmod +x /usr/local/bin/yq && \
+    curl -Lo /usr/local/bin/jq https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64 && \
+    chmod +x /usr/local/bin/jq
 
 # install operator-sdk
 RUN curl -LO https://github.com/operator-framework/operator-sdk/releases/download/${OPERATOR_SDK_VERSION}/operator-sdk-${OPERATOR_SDK_VERSION}-x86_64-linux-gnu && \
