@@ -3,13 +3,14 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"github.com/go-git/go-git/v5/config"
 	"io/ioutil"
 	"os"
 	"path"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/go-git/go-git/v5/config"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -103,8 +104,13 @@ func Test_updateCIOperatorConfig(t *testing.T) {
 					return err
 				}
 				promotionStr := "promotion:\n  name: \"2.0\""
-				if strings.Index(string(content), "promotion:\n  name: \"2.0\"") < 0 {
+				if strings.Index(string(content), promotionStr) < 0 {
 					return fmt.Errorf("missing content: %s", promotionStr)
+				}
+
+				branchStr := "zz_generated_metadata:\n  branch: release-v2.0"
+				if strings.Index(string(content), branchStr) < 0 {
+					return fmt.Errorf("missing content: %s", branchStr)
 				}
 
 				return nil

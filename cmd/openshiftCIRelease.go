@@ -4,6 +4,12 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"os"
+	"os/exec"
+	"path"
+	"strings"
+	"time"
+
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -13,12 +19,6 @@ import (
 	"github.com/integr8ly/delorean/pkg/services"
 	"github.com/integr8ly/delorean/pkg/utils"
 	"github.com/spf13/cobra"
-	"io/ioutil"
-	"os"
-	"os/exec"
-	"path"
-	"strings"
-	"time"
 )
 
 const (
@@ -249,16 +249,22 @@ func updateCIOperatorConfig(repoDir string, version *utils.RHMIVersion) error {
 	masterConfig := path.Join(repoDir, "ci-operator/config/integr8ly/integreatly-operator/integr8ly-integreatly-operator-master.yaml")
 	releaseConfig := path.Join(repoDir, fmt.Sprintf("ci-operator/config/integr8ly/integreatly-operator/integr8ly-integreatly-operator-%s.yaml", version.ReleaseBranchName()))
 
-	read, err := ioutil.ReadFile(masterConfig)
+	y, err := utils.LoadUnstructYaml(masterConfig)
 	if err != nil {
 		return err
 	}
 
-	masterPromotion := "promotion:\n  name: integreatly-operator"
-	releasePromotion := fmt.Sprintf("promotion:\n  name: \"%s\"", version.MajorMinor())
-	releaseConfigContents := strings.Replace(string(read), masterPromotion, releasePromotion, -1)
+	err = y.Set("promotion.name", version.MajorMinor())
+	if err != nil {
+		return err
+	}
 
-	err = ioutil.WriteFile(releaseConfig, []byte(releaseConfigContents), 0644)
+	err = y.Set("zz_generated_metadata.branch", version.ReleaseBranchName())
+	if err != nil {
+		return err
+	}
+
+	err = y.Write(releaseConfig)
 	if err != nil {
 		return err
 	}

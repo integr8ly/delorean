@@ -2,10 +2,11 @@ package utils
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
-	"k8s.io/apimachinery/pkg/runtime"
 	"os"
+	"strings"
+
+	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/yaml"
 )
 
@@ -40,7 +41,7 @@ func WriteObjectToYAML(obj interface{}, yamlFile string) error {
 	if err != nil {
 		return err
 	}
-	return writeToYAML(bytes, yamlFile)
+	return ioutil.WriteFile(yamlFile, bytes, 0644)
 }
 
 func WriteK8sObjectToYAML(obj interface{}, yamlFile string) error {
@@ -57,26 +58,7 @@ func WriteK8sObjectToYAML(obj interface{}, yamlFile string) error {
 	if err != nil {
 		return err
 	}
-	return writeToYAML(bytes, yamlFile)
-}
-
-func writeToYAML(bytes []byte, yamlFile string) error {
-	// truncate the existing file
-	write, err := os.Create(yamlFile)
-	if err != nil {
-		return err
-	}
-
-	_, err = write.Write(bytes)
-	if err != nil {
-		return err
-	}
-
-	err = write.Close()
-	if err != nil {
-		return err
-	}
-	return nil
+	return ioutil.WriteFile(yamlFile, bytes, 0644)
 }
 
 // WriteObjectToJSON will marshal the given object and write to the given json file
@@ -135,21 +117,5 @@ func FileExists(filename string) bool {
 }
 
 func WriteToFile(writePath string, content []string) error {
-	f, err := os.Create(writePath)
-	if err != nil {
-		return err
-	}
-
-	for _, i := range content {
-		_, err = fmt.Fprintln(f, i)
-		if err != nil {
-			return err
-		}
-	}
-	err = f.Close()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return ioutil.WriteFile(writePath, []byte(strings.Join(content, "\n")), 0644)
 }
