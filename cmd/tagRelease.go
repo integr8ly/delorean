@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 )
@@ -61,7 +62,12 @@ func DoTagRelease(ctx context.Context, ghClient services.GitService, gitRepoInfo
 		return err
 	}
 	fmt.Println("Fetch git ref:", fmt.Sprintf("refs/heads/%s", cmdOpts.branch))
-	headRef, err := getGitRef(ctx, ghClient, gitRepoInfo, fmt.Sprintf("refs/heads/%s", cmdOpts.branch))
+	headRef, err := getGitRef(ctx, ghClient, gitRepoInfo, fmt.Sprintf("refs/heads/%s", cmdOpts.branch), false)
+	if err != nil {
+		return err
+	}
+	fmt.Println("Fetch git ref:", fmt.Sprintf("refs/tags/%s", rv.TagName()))
+	existingTagRef, err := getGitRef(ctx, ghClient, gitRepoInfo, fmt.Sprintf("refs/tags/%s", rv.TagName()), true)
 	if err != nil {
 		return err
 	}
@@ -74,15 +80,25 @@ func DoTagRelease(ctx context.Context, ghClient services.GitService, gitRepoInfo
 		return err
 	}
 	fmt.Println("Git tag", rv.TagName(), "created:", tagRef.GetURL())
-	branchImageTag := rv.ReleaseBranchImageTag()
 	if len(cmdOpts.quayRepos) > 0 {
 		fmt.Println("Try to create image tags on quay.io:")
-		ok := tryCreateQuayTag(ctx, quayClient, cmdOpts.quayRepos, branchImageTag, rv.TagName(), headRef.GetObject().GetSHA())
+		quayRepos := cmdOpts.quayRepos
+		quayDstTag := rv.TagName()
+		quaySrcTag := rv.ReleaseBranchImageTag()
+		commitSHA := headRef.GetObject().GetSHA()
+
+		//If this is a final release and we have an existing tag (rc tag), promote the existing rc tag to the final release, otherwise continue as normal
+		if !rv.IsPreRelease() && existingTagRef != nil {
+			quaySrcTag = strings.Replace(existingTagRef.GetRef(), "refs/tags/", "", -1)
+			commitSHA = existingTagRef.GetObject().GetSHA()
+		}
+
+		ok := tryCreateQuayTag(ctx, quayClient, quayRepos, quaySrcTag, quayDstTag, commitSHA)
 		if !ok {
 			if cmdOpts.wait {
 				fmt.Println("Wait for the latest image to be available on quay.io. Will check every", cmdOpts.waitInterval, "minutes for", cmdOpts.waitMax, "minutes")
 				err = wait.Poll(time.Duration(cmdOpts.waitInterval)*time.Minute, time.Duration(cmdOpts.waitMax)*time.Minute, func() (bool, error) {
-					ok = tryCreateQuayTag(ctx, quayClient, cmdOpts.quayRepos, branchImageTag, rv.TagName(), headRef.GetObject().GetSHA())
+					ok = tryCreateQuayTag(ctx, quayClient, quayRepos, quaySrcTag, quayDstTag, commitSHA)
 					if !ok {
 						fmt.Println("Failed. Will try again later.")
 					}
@@ -103,7 +119,7 @@ func DoTagRelease(ctx context.Context, ghClient services.GitService, gitRepoInfo
 	return nil
 }
 
-func getGitRef(ctx context.Context, client services.GitService, gitRepoInfo *githubRepoInfo, ref string) (*github.Reference, error) {
+func getGitRef(ctx context.Context, client services.GitService, gitRepoInfo *githubRepoInfo, ref string, mostRecent bool) (*github.Reference, error) {
 	gitRefs, resp, err := client.GetRefs(ctx, gitRepoInfo.owner, gitRepoInfo.repo, ref)
 	if err != nil {
 		if resp != nil && resp.StatusCode == http.StatusNotFound {
@@ -111,9 +127,17 @@ func getGitRef(ctx context.Context, client services.GitService, gitRepoInfo *git
 		}
 		return nil, err
 	}
-	for _, r := range gitRefs {
-		if r.GetRef() == ref {
-			return r, nil
+	//If mostRecent is true, sort the list of refs and return the most recent one based on it's name v1.1.1-rc3 vs v1.1.1-rc2 etc..
+	if mostRecent && len(gitRefs) > 0 {
+		sort.Slice(gitRefs, func(i, j int) bool {
+			return gitRefs[i].GetRef() > gitRefs[j].GetRef()
+		})
+		return gitRefs[0], nil
+	} else {
+		for _, r := range gitRefs {
+			if r.GetRef() == ref {
+				return r, nil
+			}
 		}
 	}
 	return nil, nil
@@ -121,7 +145,7 @@ func getGitRef(ctx context.Context, client services.GitService, gitRepoInfo *git
 
 func createGitTag(ctx context.Context, client services.GitService, gitRepoInfo *githubRepoInfo, tag string, sha string) (*github.Reference, error) {
 	tagRefVal := fmt.Sprintf("refs/tags/%s", tag)
-	tagRef, err := getGitRef(ctx, client, gitRepoInfo, tagRefVal)
+	tagRef, err := getGitRef(ctx, client, gitRepoInfo, tagRefVal, false)
 	if err != nil {
 		return nil, err
 	}
@@ -144,32 +168,31 @@ func createGitTag(ctx context.Context, client services.GitService, gitRepoInfo *
 	return created, nil
 }
 
-func tryCreateQuayTag(ctx context.Context, quayClient *quay.Client, quayRepos string, existingTag string, newTag string, commitSHA string) bool {
+func tryCreateQuayTag(ctx context.Context, quayClient *quay.Client, quayRepos string, quaySrcTag string, quayDstTag string, commitSHA string) bool {
 	repos := strings.Split(quayRepos, ",")
 	ok := true
 	for _, r := range repos {
-		fmt.Println("Create image tag for", r)
-		repo, tag := getImageRepoAndTag(r, newTag)
-		err := createTagForImage(ctx, quayClient, *repo, existingTag, *tag, commitSHA)
+		repo, tag := getImageRepoAndTag(r, quayDstTag)
+		err := createTagForImage(ctx, quayClient, *repo, quaySrcTag, *tag, commitSHA)
 		if err != nil {
 			ok = false
 			fmt.Println("Failed to create the image tag for", r, "due to error:", err)
 		} else {
-			fmt.Println("Image tag", newTag, "created for", r)
+			fmt.Println(fmt.Sprintf("Image tag '%s' created from tag '%s' with commit '%s' in repo '%s'", *tag, quaySrcTag, commitSHA, *repo))
 		}
 	}
 	return ok
 }
 
-func createTagForImage(ctx context.Context, quayClient *quay.Client, quayRepo string, existingTag string, newTag string, commitSHA string) error {
+func createTagForImage(ctx context.Context, quayClient *quay.Client, quayRepo string, quaySrcTag string, quayDstTag string, commitSHA string) error {
 	tags, _, err := quayClient.Tags.List(ctx, quayRepo, &quay.ListTagsOptions{
-		SpecificTag: existingTag,
+		SpecificTag: quaySrcTag,
 	})
 	if err != nil {
 		return err
 	}
 	if len(tags.Tags) == 0 {
-		return fmt.Errorf("tag %s doesn't exit", existingTag)
+		return fmt.Errorf("tag %s doesn't exit", quaySrcTag)
 	}
 	tag := tags.Tags[0]
 	commitID, _, err := quayClient.Manifests.ListLabels(ctx, quayRepo, *tag.ManifestDigest, &quay.ListManifestLabelsOptions{Filter: commitIDLabelFilter})
@@ -180,9 +203,9 @@ func createTagForImage(ctx context.Context, quayClient *quay.Client, quayRepo st
 		return fmt.Errorf("label %s doesn't exist", commitIDLabelFilter)
 	}
 	if *commitID.Labels[0].Value != commitSHA {
-		return fmt.Errorf("can't find an image with given tag %s that matches the given commit SHA: %s", existingTag, commitSHA)
+		return fmt.Errorf("can't find an image with given tag %s that matches the given commit SHA: %s", quaySrcTag, commitSHA)
 	} else {
-		_, err := quayClient.Tags.Change(ctx, quayRepo, newTag, &quay.ChangTag{
+		_, err = quayClient.Tags.Change(ctx, quayRepo, quayDstTag, &quay.ChangTag{
 			ManifestDigest: *tag.ManifestDigest,
 		})
 		if err != nil {
