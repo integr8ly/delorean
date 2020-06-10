@@ -77,6 +77,18 @@ func (v *RHMIVersion) MajorMinor() string {
 	return fmt.Sprintf("%s.%s", v.major, v.minor)
 }
 
+func (v *RHMIVersion) MajorMinorPatch() string {
+	return fmt.Sprintf("%s.%s", v.MajorMinor(), v.patch)
+}
+
+func (v *RHMIVersion) PolarionReleaseId() string {
+	return fmt.Sprintf("v%s_%s_%s", v.major, v.minor, v.patch)
+}
+
+func (v *RHMIVersion) PolarionMilestoneId() string {
+	return fmt.Sprintf("%s_%s", v.PolarionReleaseId(), v.build)
+}
+
 func (v *RHMIVersion) PrepareReleaseBranchName() string {
 	return fmt.Sprintf(releaseBranchNameTemplate, v.TagName())
 }

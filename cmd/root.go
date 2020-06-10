@@ -69,6 +69,12 @@ var pipelineCmd = &cobra.Command{
 	Long:  `Commands to run during RHMI pipelines`,
 }
 
+var reportCmd = &cobra.Command{
+	Use:   "report",
+	Short: "RHMI reporting commands",
+	Long:  "Collection of commands to report test results in Polarion and ReportPortal",
+}
+
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
@@ -104,6 +110,7 @@ func init() {
 	rootCmd.AddCommand(releaseCmd)
 	rootCmd.AddCommand(ewsCmd)
 	rootCmd.AddCommand(pipelineCmd)
+	rootCmd.AddCommand(reportCmd)
 }
 
 // initConfig reads in config file and ENV variables if set.
