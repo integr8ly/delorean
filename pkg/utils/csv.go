@@ -450,7 +450,7 @@ func GetAndUpdateOperatorImage(manifestDir string, images map[string]string, isG
 }
 
 func processToDeloreanImage(image string) string {
-	return StripSHAOrTag(BuildDeloreanImage(image))
+	return BuildDeloreanImage(image)
 }
 
 func processStageToProdImage(stageImage string) string {

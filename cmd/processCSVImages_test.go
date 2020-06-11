@@ -30,8 +30,30 @@ func TestProcessCSVImages(t *testing.T) {
 		verify               func(t *testing.T, manifestDir string) error
 	}{
 		{
-			name:                 "Success",
+			name:                 "Success 3scale",
 			tstCreateManifestDir: "../pkg/utils/testdata/validManifests/3scale",
+			args: args{
+				ctx:        context.TODO(),
+				processCSV: mockProcessCSVImages,
+				cmdOpts: &processCSVImagesCmdOptions{
+					isGa:        false,
+					extraImages: []string{},
+				}}, wantErr: false,
+		},
+		{
+			name:                 "Success fuse-online",
+			tstCreateManifestDir: "../pkg/utils/testdata/validManifests/fuse-online/7.7.0",
+			args: args{
+				ctx:        context.TODO(),
+				processCSV: mockProcessCSVImages,
+				cmdOpts: &processCSVImagesCmdOptions{
+					isGa:        false,
+					extraImages: []string{},
+				}}, wantErr: false,
+		},
+		{
+			name:                 "Success apicurito",
+			tstCreateManifestDir: "../pkg/utils/testdata/validManifests/apicurito/7.7.0",
 			args: args{
 				ctx:        context.TODO(),
 				processCSV: mockProcessCSVImages,

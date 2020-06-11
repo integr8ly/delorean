@@ -10,11 +10,14 @@ const (
 	DeloreanRegistry = "quay.io/integreatly/delorean"
 )
 
-func StripSHAOrTag(in string) string {
+func stripSHAOrTag(in string) string {
 	reImage := regexp.MustCompile(`@.*`)
 	matched := reImage.FindString(in)
 	if matched == "" {
 		s := strings.Split(in, ":")
+		if len(s) == 2 {
+			return s[0] + ":" + s[1] + "_latest"
+		}
 		return s[0] + ":" + s[1] + "_" + s[2]
 	}
 	out := reImage.ReplaceAllString(in, "_latest")
@@ -40,7 +43,7 @@ func BuildDeloreanImage(image string) string {
 	}
 
 	image = DeloreanRegistry + ":" + s[1] + "-" + s[2]
-	return image
+	return stripSHAOrTag(image)
 }
 
 func BuildOSBSImage(image string) string {
