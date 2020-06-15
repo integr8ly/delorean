@@ -191,11 +191,11 @@ func (c *runTestsCmd) runTestContainer(ctx context.Context, test *TestContainer)
 	fmt.Println(fmt.Sprintf("[%s] Tests completed. Exit code = %d", test.Name, containerResult.ExitCode))
 	fmt.Println(fmt.Sprintf("[%s] Download test results", test.Name))
 	if err = c.downloadTestResults(pod, test.Name); err != nil {
-		return false, err
+		fmt.Println(fmt.Sprintf("[%s] Failed to download test result due to error: %v", test.Name, err))
 	}
 	fmt.Println(fmt.Sprintf("[%s] Download test container logs", test.Name))
 	if err = c.downloadLogs(pod, test.Name); err != nil {
-		return false, err
+		fmt.Println(fmt.Sprintf("[%s] Failed to container logs due to error: %v", test.Name, err))
 	}
 	if err = c.completeJob(pod); err != nil {
 		return false, err
