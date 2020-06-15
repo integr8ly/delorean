@@ -332,10 +332,6 @@ main() {
     while :
     do
         case "${1:-}" in
-        create_access_key)
-            create_access_key
-            exit 0
-            ;;
         create_cluster_configuration_file)
             create_cluster_configuration_file
             exit 0
