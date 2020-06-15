@@ -55,9 +55,15 @@ func TestRun(t *testing.T) {
 		namespace: namespace,
 		oc: &mockOC{
 			runFunc: func(arg ...string) error {
+				if arg[0] == "rsync" || arg[0] == "logs" {
+					return errors.New("should be logged but ignored")
+				}
 				return nil
 			},
 			runWithFileFunc: func(outputFile string, arg ...string) error {
+				if arg[0] == "rsync" || arg[0] == "logs" {
+					return errors.New("should be logged but ignored")
+				}
 				return nil
 			},
 		},
