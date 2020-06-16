@@ -58,8 +58,8 @@ type runTestsCmd struct {
 func init() {
 	f := &runTestsCmdFlags{}
 	cmd := &cobra.Command{
-		Use:   "run",
-		Short: "Execute test containers",
+		Use:   "product-tests",
+		Short: "Execute RHMI product test containers",
 		Run: func(cmd *cobra.Command, args []string) {
 			kubeConfig, err := requireValue(KubeConfigKey)
 			if err != nil {
@@ -75,7 +75,7 @@ func init() {
 		},
 	}
 
-	testsCmd.AddCommand(cmd)
+	pipelineCmd.AddCommand(cmd)
 	cmd.Flags().StringVarP(&f.outputDir, "output", "o", "", "Absolute path of the output directory to save reports")
 	cmd.MarkFlagRequired("output")
 	cmd.Flags().StringVarP(&f.namespace, "namespace", "n", defaultNamespace, "The namespace to run the test containers")

@@ -63,10 +63,10 @@ var ewsCmd = &cobra.Command{
 	Long:  `RHMI Early Warning System Commands`,
 }
 
-var testsCmd = &cobra.Command{
-	Use:   "tests",
-	Short: "RHMI tests commands",
-	Long:  `Command to run test containers`,
+var pipelineCmd = &cobra.Command{
+	Use:   "pipeline",
+	Short: "RHMI pipeline commands",
+	Long:  `Commands to run during RHMI pipelines`,
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -98,12 +98,12 @@ func init() {
 	if home := homedir.HomeDir(); home != "" {
 		defaultKubeconfigFilePath = filepath.Join(home, ".kube", "config")
 	}
-	testsCmd.PersistentFlags().StringVar(&kubeconfigFile, "kubeconfig", defaultKubeconfigFilePath, fmt.Sprintf("Path to the kubeconfig file. Can be set via the %s env var", strings.ToUpper(KubeConfigKey)))
-	viper.BindPFlag(KubeConfigKey, testsCmd.PersistentFlags().Lookup("kubeconfig"))
+	pipelineCmd.PersistentFlags().StringVar(&kubeconfigFile, "kubeconfig", defaultKubeconfigFilePath, fmt.Sprintf("Path to the kubeconfig file. Can be set via the %s env var", strings.ToUpper(KubeConfigKey)))
+	viper.BindPFlag(KubeConfigKey, pipelineCmd.PersistentFlags().Lookup("kubeconfig"))
 
 	rootCmd.AddCommand(releaseCmd)
 	rootCmd.AddCommand(ewsCmd)
-	rootCmd.AddCommand(testsCmd)
+	rootCmd.AddCommand(pipelineCmd)
 }
 
 // initConfig reads in config file and ENV variables if set.

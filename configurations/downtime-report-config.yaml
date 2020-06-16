@@ -1,0 +1,140 @@
+---
+# Update this configuration file to add more metrics. You can use the following params in the query:
+# "$range": the range of the query in milliseconds
+# "$duration": the range of the query in seconds. Can be used as the duration param in the query
+name: Downtime Report
+queries:
+  # AMQ related downtime metrics. For k8s endpoints, it assumes that the service is down when the kube_endpoint_address_available value is 0
+  - name: amq_serivce_broker_blackbox_downtime_seconds
+    type: query
+    query: "$range - (probe_success{service='amq-service-broker'} * $range)"
+  - name: amq_addressspace_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='address-space-controller', namespace='redhat-rhmi-amq-online'} , 1)[$duration:30s]) * $range)/1000"
+  - name: amq_console_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='console', namespace='redhat-rhmi-amq-online'} , 1)[$duration:30s]) * $range)/1000"
+  - name: amq_standard_authservice_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='standard-authservice', namespace='redhat-rhmi-amq-online'} , 1)[$duration:30s]) * $range)/1000"
+  - name: amq_workload_app_message_sender_downtime_seconds
+    type: query
+    query: "sum(workload_app_service_downtime_seconds{name='amq_sender'})"
+  - name: amq_workload_app_message_receiver_downtime_seconds
+    type: query
+    query: "sum(workload_app_service_downtime_seconds{name='amq_receiver'})"
+  # 3scale related dowmtime metrics. For k8s endpoints, it assumes that the service is down when the kube_endpoint_address_available value is 0
+  - name: 3scale_apicast_production_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='apicast-production', namespace='redhat-rhmi-3scale'} , 1)[$duration:30s]) * $range)/1000"
+  - name: 3scale_apicast_staging_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='apicast-staging', namespace='redhat-rhmi-3scale'} , 1)[$duration:30s]) * $range)/1000"
+  - name: 3scale_system_developer_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='system-developer', namespace='redhat-rhmi-3scale'} , 1)[$duration:30s]) * $range)/1000"
+  - name: 3scale_system_master_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='system-master', namespace='redhat-rhmi-3scale'} , 1)[$duration:30s]) * $range)/1000"
+  - name: 3scale_system_memcache_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='system-memcache', namespace='redhat-rhmi-3scale'} , 1)[$duration:30s]) * $range)/1000"
+  - name: 3scale_system_provider_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='system-provider', namespace='redhat-rhmi-3scale'} , 1)[$duration:30s]) * $range)/1000"
+  - name: 3scale_system_sphinx_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='system-sphinx', namespace='redhat-rhmi-3scale'} , 1)[$duration:30s]) * $range)/1000"
+  - name: 3scale_zync_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='zync', namespace='redhat-rhmi-3scale'} , 1)[$duration:30s]) * $range)/1000"
+  - name: 3scale_zync_database_provider_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='zync-database', namespace='redhat-rhmi-3scale'} , 1)[$duration:30s]) * $range)/1000"
+  - name: 3scale_backend_listener_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='backend-listener', namespace='redhat-rhmi-3scale'} , 1)[$duration:30s]) * $range)/1000"
+  - name: 3scale_workload_app_downtime_seconds
+    type: query
+    query: "sum(workload_app_service_downtime_seconds{name='3scale_service'})"
+  # rhssouser related downtime metrics
+  - name: rhssouser_keycloak_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='keycloak', namespace='redhat-rhmi-user-sso'} , 1)[$duration:30s]) * $range)/1000"
+  - name: rhssouser_keycloak_discovery_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='keycloak-discovery', namespace='redhat-rhmi-user-sso'} , 1)[$duration:30s]) * $range)/1000"
+  - name: rhssouser_ui_blackbox_downtime_seconds
+    type: query
+    query: "$range - (probe_success{service='rhssouser-ui'} * $range)"
+  - name: rhssouser_workload_app_downtime_seconds
+    type: query
+    query: "sum(workload_app_service_downtime_seconds{name='sso_service'})"
+  # rhsso related downtime metrics
+  - name: rhsso_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='keycloak', namespace='redhat-rhmi-sso'} , 1)[$duration:30s]) * $range)/1000"
+  - name: rhsso_keycloak_discovery_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='keycloak-discovery', namespace='redhat-rhmi-sso'} , 1)[$duration:30s]) * $range)/1000"
+  - name: rhsso_ui_blackbox_downtime_seconds
+    type: query
+    query: "$range - (probe_success{service='rhsso-ui'} * $range)"
+  # codeready related downtime metrics
+  - name: codeready_che_host_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='che-host', namespace='redhat-rhmi-codeready-workspaces'} , 1)[$duration:30s]) * $range)/1000"
+  - name: codeready_devfile_registry_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='devfile-registry', namespace='redhat-rhmi-codeready-workspaces'} , 1)[$duration:30s]) * $range)/1000"
+  - name: codeready_plugin_registry_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='plugin-registry', namespace='redhat-rhmi-codeready-workspaces'} , 1)[$duration:30s]) * $range)/1000"
+  - name: codeready_ui_blackbox_downtime_seconds
+    type: query
+    query: "$range - (probe_success{service='codeready-ui'} * $range)"
+  # apicurito related downtime metrics
+  - name: apicurito_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='apicurito', namespace='redhat-rhmi-apicurito'} , 1)[$duration:30s]) * $range)/1000"
+  - name: apicurito_generator_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='fuse-apicurito-generator', namespace='redhat-rhmi-apicurito'} , 1)[$duration:30s]) * $range)/1000"
+  - name: apicurito_ui_blackbox_downtime_seconds
+    type: query
+    query: "$range - (probe_success{service='apicurito-ui'} * $range)"
+  # syndesis/fuse related downtime metrics
+  - name: syndesis_server_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='syndesis-server', namespace='redhat-rhmi-fuse'} , 1)[$duration:30s]) * $range)/1000"
+  - name: syndesis_ui_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='syndesis-ui', namespace='redhat-rhmi-fuse'} , 1)[$duration:30s]) * $range)/1000"
+  - name: syndesis_oauth_proxy_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='syndesis-oauthproxy', namespace='redhat-rhmi-fuse'} , 1)[$duration:30s]) * $range)/1000"
+  - name: syndesis_meta_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='syndesis-meta', namespace='redhat-rhmi-fuse'} , 1)[$duration:30s]) * $range)/1000"
+  - name: syndesis_prometheus_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='syndesis-prometheus', namespace='redhat-rhmi-fuse'} , 1)[$duration:30s]) * $range)/1000"
+  - name: syndesis_broker_amq_tcp_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='broker-amq-tcp', namespace='redhat-rhmi-fuse'} , 1)[$duration:30s]) * $range)/1000"
+  - name: syndesis_integrations_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='syndesis-integrations', namespace='redhat-rhmi-fuse'} , 1)[$duration:30s]) * $range)/1000"
+  - name: syndesis_ui_blackbox_downtime_seconds
+    type: query
+    query: "$range - (probe_success{service='syndesis-ui'} * $range)"
+  # ups related downtime metrics
+  - name: ups_server_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='ups-unifiedpush', namespace='redhat-rhmi-ups'} , 1)[$duration:30s]) * $range)/1000"
+  - name: ups_server_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='ups-unifiedpush-proxy', namespace='redhat-rhmi-ups'} , 1)[$duration:30s]) * $range)/1000"
+  - name: ups_ui_blackbox_downtime_seconds
+    type: query
+    query: "$range - (probe_success{service='ups-ui'} * $range)"
