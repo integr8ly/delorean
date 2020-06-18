@@ -31,17 +31,6 @@ func BuildDeloreanImage(image string) string {
 		image = DeloreanRegistry + i[1]
 		return image
 	}
-
-	//we need to treat the amq broker image differently
-	amq := strings.Split(image, ":")
-	imagename := strings.Split(amq[0], "/")
-	if imagename[2] == "amq-broker" {
-		majorversion := strings.Split(amq[1], ".")
-		majmin := strings.Split(majorversion[1], "-")
-		image = DeloreanRegistry + ":" + imagename[2] + "-" + majorversion[0] + "-" + imagename[2] + "-" + majorversion[0] + majmin[0] + "-openshift" + ":" + majorversion[0] + "." + majmin[0]
-		return image
-	}
-
 	image = DeloreanRegistry + ":" + s[1] + "-" + s[2]
 	return stripSHAOrTag(image)
 }
@@ -53,6 +42,16 @@ func BuildOSBSImage(image string) string {
 	crw := strings.Split(s[2], "@")
 	if crw[0] == "crw-2-rhel8-operator" {
 		image = osbsRegistry + "/" + s[1] + "-" + "operator" + "@" + crw[1]
+		return image
+	}
+
+	//we need to treat the amq broker image differently
+	amq := strings.Split(image, ":")
+	imagename := strings.Split(amq[0], "/")
+	if imagename[2] == "amq-broker" {
+		majorversion := strings.Split(amq[1], ".")
+		majmin := strings.Split(majorversion[1], "-")
+		image = osbsRegistry + "/" + imagename[2] + "-" + majorversion[0] + "-" + imagename[2] + "-" + majorversion[0] + majmin[0] + "-openshift" + ":" + majorversion[0] + "." + majmin[0]
 		return image
 	}
 
