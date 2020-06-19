@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+	<testsuite tests="7" failures="3" time="4354.820" name="">
+		<testcase classname="" name="TestIntegreatly" time="1451.610">
+			<failure message="Failed" type=""></failure>
+		</testcase>
+		<testcase classname="" name="TestIntegreatly/Integreatly_Happy_Path_Tests" time="1451.610">
+			<failure message="Failed" type=""></failure>
+		</testcase>
+		<testcase classname="" name="TestIntegreatly/Integreatly_Happy_Path_Tests/Verify_RHMI_CRD_Exists" time="1.090"></testcase>
+		<testcase classname="" name="TestIntegreatly/Integreatly_Happy_Path_Tests/A01_-_Verify_that_all_stages_in_the_integreatly-operator_CR_report_completed" time="11.140"></testcase>
+		<testcase classname="" name="TestIntegreatly/Integreatly_Happy_Path_Tests/A22_-_Verify_RHMI_Config_Updates_CRO_Strategy_Override_Config_Map" time="41.600">
+			<failure message="Failed" type="">Some error</failure>
+		</testcase>
+		<testcase classname="" name="TestIntegreatly/Integreatly_Happy_Path_Tests/A21_-_Verify_AWS_maintenance_and_backup_windows" time="44.990">
+			<skipped message="Skip"></skipped>
+		</testcase>
+	</testsuite>
+</testsuites>

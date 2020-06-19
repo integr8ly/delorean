@@ -32,6 +32,11 @@ const (
 	DefaultIntegreatlyOperatorQuayRepo     = "integreatly/integreatly-operator"
 	DefaultIntegreatlyOperatorTestQuayRepo = "integreatly/integreatly-operator-test-harness"
 	KubeConfigKey                          = "kubeconfig"
+	PolarionUsernameKey                    = "polarion_username"
+	PolarionPasswordKey                    = "polarion_password"
+	AWSAccessKeyIDEnv                      = "delorean_aws_access_key_id"
+	AWSSerectAccessKeyEnv                  = "delorean_aws_secret_access_key"
+	AWSDefaultRegion                       = "eu-west-1"
 )
 
 type githubRepoInfo struct {
@@ -106,6 +111,16 @@ func init() {
 	}
 	pipelineCmd.PersistentFlags().StringVar(&kubeconfigFile, "kubeconfig", defaultKubeconfigFilePath, fmt.Sprintf("Path to the kubeconfig file. Can be set via the %s env var", strings.ToUpper(KubeConfigKey)))
 	viper.BindPFlag(KubeConfigKey, pipelineCmd.PersistentFlags().Lookup("kubeconfig"))
+
+	// flags for the report command
+	reportCmd.Flags().String("polarion-username", "", "Polarion username")
+	viper.BindPFlag(PolarionUsernameKey, reportCmd.Flags().Lookup("polarion-username"))
+	reportCmd.Flags().String("polarion-password", "", "Polarion password")
+	viper.BindPFlag(PolarionPasswordKey, reportCmd.Flags().Lookup("polarion-password"))
+	reportCmd.Flags().String("aws-key-id", "", fmt.Sprintf("The AWS key id to use. Can be set via the %s env var", strings.ToUpper(AWSAccessKeyIDEnv)))
+	viper.BindPFlag(AWSAccessKeyIDEnv, reportCmd.Flags().Lookup("aws-key-id"))
+	reportCmd.Flags().String("aws-secret-key", "", fmt.Sprintf("The AWS secret key to use. Can be set via the %s env var", strings.ToUpper(AWSSerectAccessKeyEnv)))
+	viper.BindPFlag(AWSSerectAccessKeyEnv, reportCmd.Flags().Lookup("aws-secret-key"))
 
 	rootCmd.AddCommand(releaseCmd)
 	rootCmd.AddCommand(ewsCmd)
