@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"strings"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -16,8 +19,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"golang.org/x/oauth2"
-	"os"
-	"strings"
 )
 
 const (
@@ -28,11 +29,6 @@ const (
 
 	metadataFileName = "metadata.json"
 	rpTokenKey       = "report_portal_token"
-
-	awsAccessKeyIdEnv     = "delorean_aws_access_key_id"
-	awsSerectAccessKeyEnv = "delorean_aws_secret_access_key"
-
-	awsDefaultRegion = "eu-west-1"
 )
 
 type reportPortalImportCmdFlags struct {
@@ -67,11 +63,11 @@ func init() {
 		Use:   "reportportal-import",
 		Short: "Import test results from s3 to ReportPortal",
 		Run: func(cmd *cobra.Command, args []string) {
-			awsKeyId, err := requireValue(awsAccessKeyIdEnv)
+			awsKeyId, err := requireValue(AWSAccessKeyIDEnv)
 			if err != nil {
 				handleError(err)
 			}
-			awsSecretKey, err := requireValue(awsSerectAccessKeyEnv)
+			awsSecretKey, err := requireValue(AWSSerectAccessKeyEnv)
 			if err != nil {
 				handleError(err)
 			}
@@ -81,7 +77,7 @@ func init() {
 			}
 
 			sess := session.Must(session.NewSession(&aws.Config{
-				Region:      aws.String(awsDefaultRegion),
+				Region:      aws.String(AWSDefaultRegion),
 				Credentials: credentials.NewStaticCredentials(awsKeyId, awsSecretKey, ""),
 			}))
 
@@ -102,10 +98,6 @@ func init() {
 
 	cmd.Flags().String("rp-token", "", fmt.Sprintf("The token (UUID) to access the ReportPortal API. Can be set via the %s env var", strings.ToUpper(rpTokenKey)))
 	viper.BindPFlag(rpTokenKey, cmd.Flags().Lookup("rp-token"))
-	cmd.Flags().String("aws-key-id", "", fmt.Sprintf("The AWS key id to use. Can be set via the %s env var", strings.ToUpper(awsAccessKeyIdEnv)))
-	viper.BindPFlag(awsAccessKeyIdEnv, cmd.Flags().Lookup("aws-key-id"))
-	cmd.Flags().String("aws-secret-key", "", fmt.Sprintf("The AWS secret key to use. Can be set via the %s env var", strings.ToUpper(awsSerectAccessKeyEnv)))
-	viper.BindPFlag(awsSerectAccessKeyEnv, cmd.Flags().Lookup("aws-secret-key"))
 
 	cmd.Flags().BoolVar(&f.noTagging, "no-tagging", false, "Do not add new tags to the AWS resources, for testing purposes.")
 }

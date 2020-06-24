@@ -6,17 +6,13 @@ import (
 	"github.com/integr8ly/delorean/pkg/polarion"
 	"github.com/integr8ly/delorean/pkg/utils"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 const (
-	polarionUsernameKey = "polarion_username"
-	polarionPasswordKey = "polarion_password"
-
 	polarionProjectID = "RedHatManagedIntegration"
 
-	polarionURL        = "https://polarion.engineering.redhat.com/polarion/ws/services"
-	polarionStagingURL = "https://polarion.stage.engineering.redhat.com/polarion/ws/services"
+	polarionServicesURL        = "https://polarion.engineering.redhat.com/polarion/ws/services"
+	polarionServicesStagingURL = "https://polarion.stage.engineering.redhat.com/polarion/ws/services"
 )
 
 type polarionReleaseFlags struct {
@@ -37,21 +33,21 @@ func newPolarionReleaseCmd(f *polarionReleaseFlags) (*polarionReleaseCmd, error)
 		return nil, err
 	}
 
-	polarionUsername, err := requireValue(polarionUsernameKey)
+	polarionUsername, err := requireValue(PolarionUsernameKey)
 	if err != nil {
 		return nil, err
 	}
 
-	polarionPassword, err := requireValue(polarionPasswordKey)
+	polarionPassword, err := requireValue(PolarionPasswordKey)
 	if err != nil {
 		return nil, err
 	}
 
 	var url string
 	if f.stage {
-		url = polarionStagingURL
+		url = polarionServicesStagingURL
 	} else {
-		url = polarionURL
+		url = polarionServicesURL
 	}
 
 	polarion, err := polarion.NewSession(polarionUsername, polarionPassword, url, f.debug)
@@ -93,11 +89,6 @@ func init() {
 	cmd.Flags().BoolVar(&f.stage, "stage", false, "Create the release in the Polarion staging environment")
 	cmd.Flags().BoolVar(&f.debug, "debug", false, "Print the Polarion API request and response")
 
-	cmd.Flags().String("polarion-username", "", "Polarion username")
-	viper.BindPFlag(polarionUsernameKey, cmd.Flags().Lookup("polarion-username"))
-
-	cmd.Flags().String("polarion-password", "", "Polarion password")
-	viper.BindPFlag(polarionPasswordKey, cmd.Flags().Lookup("polarion-password"))
 }
 
 func (c *polarionReleaseCmd) run() error {
