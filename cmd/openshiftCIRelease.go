@@ -345,26 +345,26 @@ func init() {
 			}
 			if c.version.IsPreRelease() {
 				fmt.Println("Skipping the update to Openshift CI release repo as the release version is not a major or a minor one")
-			} else {
-				var intlyOperatorRepoDir string
-				if intlyOperatorRepoDir, err = c.DoIntlyOperatorUpdate(cmd.Context()); err != nil {
+				return
+			}
+			var intlyOperatorRepoDir string
+			if intlyOperatorRepoDir, err = c.DoIntlyOperatorUpdate(cmd.Context()); err != nil {
+				handleError(err)
+			}
+			if intlyOperatorRepoDir != "" {
+				fmt.Println("Remove temporary directory:", intlyOperatorRepoDir)
+				if err = os.RemoveAll(intlyOperatorRepoDir); err != nil {
 					handleError(err)
 				}
-				if intlyOperatorRepoDir != "" {
-					fmt.Println("Remove temporary directory:", intlyOperatorRepoDir)
-					if err = os.RemoveAll(intlyOperatorRepoDir); err != nil {
-						handleError(err)
-					}
-				}
-				var ciReleaseRepoDir string
-				if ciReleaseRepoDir, err = c.DoOpenShiftReleaseUpdate(cmd.Context()); err != nil {
+			}
+			var ciReleaseRepoDir string
+			if ciReleaseRepoDir, err = c.DoOpenShiftReleaseUpdate(cmd.Context()); err != nil {
+				handleError(err)
+			}
+			if ciReleaseRepoDir != "" {
+				fmt.Println("Remove temporary directory:", ciReleaseRepoDir)
+				if err = os.RemoveAll(ciReleaseRepoDir); err != nil {
 					handleError(err)
-				}
-				if ciReleaseRepoDir != "" {
-					fmt.Println("Remove temporary directory:", ciReleaseRepoDir)
-					if err = os.RemoveAll(ciReleaseRepoDir); err != nil {
-						handleError(err)
-					}
 				}
 			}
 		},
