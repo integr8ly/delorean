@@ -343,6 +343,10 @@ func init() {
 			if err != nil {
 				handleError(err)
 			}
+			if c.version.IsPreRelease() {
+				fmt.Println("Skipping the update to Openshift CI release repo as the release version is not a major or a minor one")
+				return
+			}
 			var intlyOperatorRepoDir string
 			if intlyOperatorRepoDir, err = c.DoIntlyOperatorUpdate(cmd.Context()); err != nil {
 				handleError(err)
