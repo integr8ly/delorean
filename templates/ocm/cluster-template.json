@@ -13,6 +13,9 @@
       "compute" : 4,
       "compute_machine_type" : {"id" : "m5.xlarge" }
     },
+    "product": {
+        "id": "rhmi"
+    },
     "region": {
       "id": "eu-west-1"
     }
