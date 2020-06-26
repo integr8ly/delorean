@@ -98,7 +98,7 @@ create_cluster() {
     save_cluster_credentials "${cluster_id}"
 
 
-    printf "Console URL: %s\nLogin credentials: \n%s\n" "$(jq -r .console.url < "${CLUSTER_DETAILS_FILE}")" "$(jq -r < "${CLUSTER_CREDENTIALS_FILE}")"
+    printf "Login credentials: \n%s\n" "$(jq -r < "${CLUSTER_CREDENTIALS_FILE}")"
     printf "Log in to the OSD cluster using oc:\noc login --server=%s --username=kubeadmin --password=%s\n" "$(jq -r .api.url < "${CLUSTER_DETAILS_FILE}")" "$(jq -r .password < "${CLUSTER_CREDENTIALS_FILE}")"
 }
 
@@ -257,7 +257,7 @@ save_cluster_credentials() {
     ocm get "/api/clusters_mgmt/v1/clusters/${cluster_id}" | jq -r > "${CLUSTER_DETAILS_FILE}"
     # Create kubeconfig file & save admin credentials
     ocm get "/api/clusters_mgmt/v1/clusters/${cluster_id}/credentials" | jq -r .kubeconfig > "${CLUSTER_KUBECONFIG_FILE}"
-    ocm get "/api/clusters_mgmt/v1/clusters/${cluster_id}/credentials" | jq -r .admin > "${CLUSTER_CREDENTIALS_FILE}"
+    ocm get "/api/clusters_mgmt/v1/clusters/${cluster_id}/credentials" | jq -r ".admin | .api_url = $(jq .api.url < "${CLUSTER_DETAILS_FILE}") | .console_url = $(jq .console.url < "${CLUSTER_DETAILS_FILE}")" > "${CLUSTER_CREDENTIALS_FILE}"
 }
 
 get_expiration_timestamp() {
