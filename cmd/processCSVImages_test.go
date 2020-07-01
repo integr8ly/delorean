@@ -244,6 +244,135 @@ func TestProcessCSVImages(t *testing.T) {
 				return nil
 			}, wantErr: false,
 		},
+		{
+			name:                 "Ensure relatedImages converted to production (isGA=true)",
+			tstCreateManifestDir: "../pkg/utils/testdata/validManifests/crw",
+			args: args{
+				ctx:        context.TODO(),
+				processCSV: mockProcessCSVImages,
+				cmdOpts: &processCSVImagesCmdOptions{
+					isGa: true,
+				}},
+			verify: func(t *testing.T, manifestDir string) error {
+				_, csvFile, err := utils.GetCurrentCSV(manifestDir)
+				if err != nil {
+					return err
+				}
+
+				b, err := ioutil.ReadFile(csvFile)
+				if err != nil {
+					panic(err)
+				}
+
+				relatedImages := []string{
+					"registry.stage.redhat.io/codeready-workspaces/crw-2-rhel8-operator@sha256:02e8777fa295e6615bbd73f3d92911e7e7029b02cdf6346eba502aaeb8fe3de1",
+					"registry.stage.redhat.io/codeready-workspaces/server-rhel8@sha256:f7b27fb525a24c4273f0a3e18461a70f3cbb897e845e44abd8ca10fd1de3e1b2",
+					"registry.stage.redhat.io/codeready-workspaces/pluginregistry-rhel8@sha256:6cd737a9e9df54407959a0e8e4bb6a3e3b9e37cf590193545f609b2c4af4bf46",
+					"registry.stage.redhat.io/codeready-workspaces/devfileregistry-rhel8@sha256:0124562131e8cde6b2b9a5e4bced93522da3c1c95e9122306ecd8acb093650e0",
+					"registry.stage.redhat.io/ubi8-minimal@sha256:9285da611437622492f9ef4229877efe302589f1401bbd4052e9bb261b3d4387",
+					"registry.stage.redhat.io/rhscl/postgresql-96-rhel7@sha256:196abd9a1221fb38dd5693203f068fc4d520bb351928ef84e5e15984f5152476",
+					"registry.stage.redhat.io/redhat-sso-7/sso73-openshift@sha256:0dc950903bbc971c14e6223efe3493f0f50eb8af7cbe91aeea621f80f99f155f",
+					"registry.stage.redhat.io/codeready-workspaces/pluginbroker-metadata-rhel8@sha256:6c9abe63a70a6146dc49845f2f7732e3e6e0bcae6a19c3a6557367d6965bc1f8",
+					"registry.stage.redhat.io/codeready-workspaces/pluginbroker-artifacts-rhel8@sha256:5815bab69fc343cbf6dac0fd67dd70a25757fac08689a15e4a762655fa2e8a2c",
+				}
+				for _, image := range relatedImages {
+					imageFound, err := regexp.Match(image, b)
+					if err != nil {
+						return err
+					}
+					if imageFound {
+						t.Errorf("found %v in relatedImages", image)
+					}
+				}
+				return nil
+			}, wantErr: false,
+		},
+		{
+			name:                 "Ensure relatedImages set correctly when mixed (isGA=true)",
+			tstCreateManifestDir: "../pkg/utils/testdata/validManifests/3scale3",
+			args: args{
+				ctx:        context.TODO(),
+				processCSV: mockProcessCSVImages,
+				cmdOpts: &processCSVImagesCmdOptions{
+					isGa: true,
+				}},
+			verify: func(t *testing.T, manifestDir string) error {
+				_, csvFile, err := utils.GetCurrentCSV(manifestDir)
+				if err != nil {
+					return err
+				}
+
+				b, err := ioutil.ReadFile(csvFile)
+				if err != nil {
+					panic(err)
+				}
+
+				relatedStagingImages := []string{
+					"registry.stage.redhat.io/3scale-amp2/apicast-gateway-rhel8@sha256:52013cc8722ce507e3d0b066a8ae4edb930fb54e24e9f653016658ad1708b5d7",
+					"registry.stage.redhat.io/3scale-amp2/backend-rhel7@sha256:d8322db4149afc5672ebc3d0430a077c58a8e3e98d7fce720b6a5a3d2498c9c5",
+					"registry.stage.redhat.io/3scale-amp2/system-rhel7@sha256:a934997501b41be2ca2b62e37c35bd334252b5e2ed28652c275bd1de8a9d324a",
+					"registry.stage.redhat.io/3scale-amp2/zync-rhel7@sha256:34fa60de75f5a0e220105c6bf0ed676f16c8b206812fad65078cf98a16a6d4ef",
+					"registry.stage.redhat.io/3scale-amp2/memcached-rhel7@sha256:2be57d773843135c0677e31d34b0cd24fa9dafc4ef1367521caa2bab7c6122e6",
+				}
+				relatedProdImages := []string{
+					"registry.redhat.io/rhscl/redis-32-rhel7@sha256:a9bdf52384a222635efc0284db47d12fbde8c3d0fcb66517ba8eefad1d4e9dc9",
+					"registry.redhat.io/rhscl/mysql-57-rhel7@sha256:9a781abe7581cc141e14a7e404ec34125b3e89c008b14f4e7b41e094fd3049fe",
+					"registry.redhat.io/rhscl/postgresql-10-rhel7@sha256:de3ab628b403dc5eed986a7f392c34687bddafee7bdfccfd65cecf137ade3dfd",
+				}
+
+				for _, image := range relatedStagingImages {
+					imageFound, err := regexp.Match(image, b)
+					if err != nil {
+						return err
+					}
+					if imageFound {
+						t.Errorf("found %v in relatedImages", image)
+					}
+				}
+
+				for _, image := range relatedProdImages {
+					imageFound, err := regexp.Match(image, b)
+					if err != nil {
+						return err
+					}
+					if !imageFound {
+						t.Errorf("expected to find %v in relatedImages", image)
+					}
+				}
+				return nil
+			}, wantErr: false,
+		},
+		{
+			name:                 "Ensure relatedImages field not added",
+			tstCreateManifestDir: "../pkg/utils/testdata/validManifests/3scale",
+			args: args{
+				ctx:        context.TODO(),
+				processCSV: mockProcessCSVImages,
+				cmdOpts: &processCSVImagesCmdOptions{
+					isGa: true,
+				}},
+			verify: func(t *testing.T, manifestDir string) error {
+				_, csvFile, err := utils.GetCurrentCSV(manifestDir)
+				if err != nil {
+					return err
+				}
+
+				b, err := ioutil.ReadFile(csvFile)
+				if err != nil {
+					panic(err)
+				}
+
+				fieldFound, err := regexp.Match("relatedImages", b)
+				if err != nil {
+					return err
+				}
+				if fieldFound {
+					t.Errorf("found relatedImages field in CSV")
+				}
+
+				return nil
+			}, wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {

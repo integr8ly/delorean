@@ -34,6 +34,17 @@ type csvName struct {
 	Name    string
 	Version semver.Version
 }
+
+type relatedImage struct {
+	Name  string
+	Image string
+}
+
+type relatedImageValue struct {
+	Name  string
+	Value string
+}
+
 type csvNames []csvName
 
 func (c csvNames) Len() int           { return len(c) }
@@ -129,6 +140,51 @@ func (csv *CSV) SetOperatorDeploymentSpec(deploymentSpec *olmapiv1alpha1.Strateg
 
 func (csv *CSV) SetReplaces(replaces string) error {
 	return unstructured.SetNestedField(csv.obj.Object, replaces, "spec", "replaces")
+}
+
+func (csv *CSV) GetRelatedImages() ([]relatedImage, error) {
+	relatedImages, _, err := unstructured.NestedSlice(csv.obj.Object, "spec", "relatedImages")
+	if err != nil {
+		return nil, err
+	}
+	ri := make([]relatedImage, len(relatedImages))
+	for k, v := range relatedImages {
+		i := &relatedImage{}
+		vi := &relatedImageValue{}
+
+		err = runtime.DefaultUnstructuredConverter.FromUnstructured(v.(map[string]interface{}), i)
+		if err != nil {
+			return nil, err
+		}
+		err = runtime.DefaultUnstructuredConverter.FromUnstructured(v.(map[string]interface{}), vi)
+		if err != nil {
+			return nil, err
+		}
+
+		if vi.Value != "" {
+			i = &relatedImage{
+				Name:  vi.Name,
+				Image: vi.Value,
+			}
+
+		}
+
+		ri[k] = *i
+	}
+
+	return ri, nil
+}
+
+func (csv *CSV) SetRelatedImages(relatedImages []relatedImage) error {
+	ri := make([]interface{}, len(relatedImages))
+	for k, v := range relatedImages {
+		s, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&v)
+		if err != nil {
+			return err
+		}
+		ri[k] = s
+	}
+	return unstructured.SetNestedSlice(csv.obj.Object, ri, "spec", "relatedImages")
 }
 
 func (csv *CSV) UpdateEnvVarList(envKeyValMap map[string]string) error {
@@ -343,6 +399,7 @@ func GetAndUpdateOperandImages(manifestDir string, extraImages []string, isGa bo
 
 	var images = map[string]string{}
 	deployment, err := csv.GetOperatorDeploymentSpec()
+	relatedImages, err := csv.GetRelatedImages()
 	if err != nil {
 		return nil, err
 	}
@@ -374,6 +431,21 @@ func GetAndUpdateOperandImages(manifestDir string, extraImages []string, isGa bo
 			}
 		}
 	}
+
+	// Check that relatedImages all point to the correct registry if isGa
+	if isGa && len(relatedImages) > 0 {
+		for k, i := range relatedImages {
+			if strings.Contains(i.Image, "registry.stage.redhat.io") {
+				relatedImages[k].Image = strings.Replace(i.Image, "registry.stage.redhat.io", "registry.redhat.io", 1)
+			}
+		}
+
+		err = csv.SetRelatedImages(relatedImages)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	csv.SetOperatorDeploymentSpec(deployment)
 
 	err = csv.WriteYAML(fp)
