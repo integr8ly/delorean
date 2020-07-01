@@ -49,6 +49,11 @@ func BuildOSBSImage(image string) string {
 		return image
 	}
 
+	if crw[0] == "ose-cli" {
+		image = osbsRegistry + "/openshift-ose-cli@" + crw[1]
+		return image
+	}
+
 	//we need to treat the amq broker image differently
 	amq := strings.Split(image, ":")
 	imagename := strings.Split(amq[0], "/")
