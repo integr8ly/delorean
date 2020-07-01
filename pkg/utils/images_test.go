@@ -13,7 +13,7 @@ func TestBuildDeloreanImage(t *testing.T) {
 		{
 			"test sha",
 			"my.registry.io/myrepo/test-operator@sha256:1ba6ec8ed984a011796bbe1eafabb2791957f58ed66ec4a484c024dd96eaf427",
-			"quay.io/integreatly/delorean:myrepo-test-operator_latest",
+			"quay.io/integreatly/delorean:myrepo-test-operator_1ba6ec8ed984a011796bbe1eafabb2791957f58ed66ec4a484c024dd96eaf427",
 		},
 		{
 			"test tag",
@@ -33,7 +33,7 @@ func TestBuildDeloreanImage(t *testing.T) {
 		{
 			"test CRW operator",
 			"registry-proxy.engineering.redhat.com/rh-osbs/codeready-workspaces-operator@sha256:02e8777fa295e6615bbd73f3d92911e7e7029b02cdf6346eba502aaeb8fe3de1",
-			"quay.io/integreatly/delorean:rh-osbs-codeready-workspaces-operator_latest",
+			"quay.io/integreatly/delorean:rh-osbs-codeready-workspaces-operator_02e8777fa295e6615bbd73f3d92911e7e7029b02cdf6346eba502aaeb8fe3de1",
 		},
 	}
 	for _, tt := range tests {

@@ -11,17 +11,21 @@ const (
 )
 
 func stripSHAOrTag(in string) string {
-	reImage := regexp.MustCompile(`@.*`)
-	matched := reImage.FindString(in)
-	if matched == "" {
+	reImage := regexp.MustCompile(`@sha256:.*`)
+	shaDigest := reImage.FindString(in)
+
+	if shaDigest == "" {
 		s := strings.Split(in, ":")
 		if len(s) == 2 {
+			//No sha digest or tag
 			return s[0] + ":" + s[1] + "_latest"
 		}
+		//Tag
 		return s[0] + ":" + s[1] + "_" + s[2]
 	}
-	out := reImage.ReplaceAllString(in, "_latest")
-	return out
+	s := strings.Split(in, "@sha256:")
+	//Sha digest
+	return s[0] + "_" + s[1]
 }
 
 func BuildDeloreanImage(image string) string {

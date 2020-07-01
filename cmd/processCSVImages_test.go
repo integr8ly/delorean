@@ -108,7 +108,7 @@ func TestProcessCSVImages(t *testing.T) {
 			}, wantErr: false,
 		},
 		{
-			name:                 "Ensure image_mirror_file entries are unique",
+			name:                 "Ensure image_mirror_file entries are unique and sorted",
 			tstCreateManifestDir: "../pkg/utils/testdata/validManifests/3scale2",
 			args: args{
 				ctx:        context.TODO(),
@@ -131,10 +131,28 @@ func TestProcessCSVImages(t *testing.T) {
 					lines = append(lines, scanner.Text())
 				}
 
+				expectedMappings := []string{
+					"registry-proxy.engineering.redhat.com/rh-osbs/3scale-amp2-3scale-rhel7-operator@sha256:2ba16314ee046b3c3814fe4e356b728da6853743bd72f8651e1a338e8bbf4f81 quay.io/integreatly/delorean:3scale-amp2-3scale-rhel7-operator_2ba16314ee046b3c3814fe4e356b728da6853743bd72f8651e1a338e8bbf4f81",
+					"registry-proxy.engineering.redhat.com/rh-osbs/3scale-amp2-apicast-gateway-rhel8@sha256:21be62a6557846337dc0cf764be63442718fab03b95c198a301363886a9e74f9 quay.io/integreatly/delorean:3scale-amp2-apicast-gateway-rhel8_21be62a6557846337dc0cf764be63442718fab03b95c198a301363886a9e74f9",
+					"registry-proxy.engineering.redhat.com/rh-osbs/3scale-amp2-backend-rhel7@sha256:ea8a31345d3c2a56b02998b019db2e17f61eeaa26790a07962d5e3b66032d8e5 quay.io/integreatly/delorean:3scale-amp2-backend-rhel7_ea8a31345d3c2a56b02998b019db2e17f61eeaa26790a07962d5e3b66032d8e5",
+					"registry-proxy.engineering.redhat.com/rh-osbs/3scale-amp2-memcached-rhel7@sha256:ff5f3d2d131631d5db8985a5855ff4607e91f0aa86d07dafdcec4f7da13c9e05 quay.io/integreatly/delorean:3scale-amp2-memcached-rhel7_ff5f3d2d131631d5db8985a5855ff4607e91f0aa86d07dafdcec4f7da13c9e05",
+					"registry-proxy.engineering.redhat.com/rh-osbs/3scale-amp2-system-rhel7@sha256:93819c324831353bb8f7cb6e9910694b88609c3a20d4c1b9a22d9c2bbfbad16f quay.io/integreatly/delorean:3scale-amp2-system-rhel7_93819c324831353bb8f7cb6e9910694b88609c3a20d4c1b9a22d9c2bbfbad16f",
+					"registry-proxy.engineering.redhat.com/rh-osbs/3scale-amp2-zync-rhel7@sha256:f4d5c1fdebe306f4e891ddfc4d3045a622d2f01db21ecfc9397cab25c9baa91a quay.io/integreatly/delorean:3scale-amp2-zync-rhel7_f4d5c1fdebe306f4e891ddfc4d3045a622d2f01db21ecfc9397cab25c9baa91a",
+					"registry-proxy.engineering.redhat.com/rh-osbs/rhscl-mysql-57-rhel7@sha256:9a781abe7581cc141e14a7e404ec34125b3e89c008b14f4e7b41e094fd3049fe quay.io/integreatly/delorean:rhscl-mysql-57-rhel7_9a781abe7581cc141e14a7e404ec34125b3e89c008b14f4e7b41e094fd3049fe",
+					"registry-proxy.engineering.redhat.com/rh-osbs/rhscl-postgresql-10-rhel7@sha256:de3ab628b403dc5eed986a7f392c34687bddafee7bdfccfd65cecf137ade3dfd quay.io/integreatly/delorean:rhscl-postgresql-10-rhel7_de3ab628b403dc5eed986a7f392c34687bddafee7bdfccfd65cecf137ade3dfd",
+					"registry-proxy.engineering.redhat.com/rh-osbs/rhscl-redis-32-rhel7@sha256:a9bdf52384a222635efc0284db47d12fbde8c3d0fcb66517ba8eefad1d4e9dc9 quay.io/integreatly/delorean:rhscl-redis-32-rhel7_a9bdf52384a222635efc0284db47d12fbde8c3d0fcb66517ba8eefad1d4e9dc9",
+				}
+
 				numMappings := len(lines)
-				numExpectedMappings := 9 // 3scale2 manifest contains 9 unique images, but 11 references overall
-				if numMappings != numExpectedMappings {
+				numExpectedMappings := len(expectedMappings) // 3scale2 manifest contains 9 unique images, but 11 references overall
+				if numMappings != len(expectedMappings) {
 					t.Errorf("expected %v image miror mappings, found %v", numExpectedMappings, numMappings)
+				}
+
+				for i, line := range lines {
+					if expectedMappings[i] != line {
+						t.Errorf("expected %s at line %v, found %s", expectedMappings[i], i, line)
+					}
 				}
 
 				return nil
@@ -161,14 +179,15 @@ func TestProcessCSVImages(t *testing.T) {
 				}
 
 				expectedImages := []string{
-					"quay.io/integreatly/delorean:3scale-amp2-backend-rhel7_latest",
-					"quay.io/integreatly/delorean:3scale-amp2-apicast-gateway-rhel8_latest",
-					"quay.io/integreatly/delorean:3scale-amp2-system-rhel7_latest",
-					"quay.io/integreatly/delorean:3scale-amp2-zync-rhel7_latest",
-					"quay.io/integreatly/delorean:3scale-amp2-memcached-rhel7_latest",
-					"quay.io/integreatly/delorean:rhscl-redis-32-rhel7_latest",
-					"quay.io/integreatly/delorean:rhscl-mysql-57-rhel7_latest",
-					"quay.io/integreatly/delorean:rhscl-postgresql-10-rhel7_latest",
+					"quay.io/integreatly/delorean:3scale-amp2-backend-rhel7_d8322db4149afc5672ebc3d0430a077c58a8e3e98d7fce720b6a5a3d2498c9c5",
+					"quay.io/integreatly/delorean:3scale-amp2-apicast-gateway-rhel8_52013cc8722ce507e3d0b066a8ae4edb930fb54e24e9f653016658ad1708b5d7",
+					"quay.io/integreatly/delorean:3scale-amp2-system-rhel7_a934997501b41be2ca2b62e37c35bd334252b5e2ed28652c275bd1de8a9d324a",
+					"quay.io/integreatly/delorean:3scale-amp2-zync-rhel7_34fa60de75f5a0e220105c6bf0ed676f16c8b206812fad65078cf98a16a6d4ef",
+					"quay.io/integreatly/delorean:3scale-amp2-memcached-rhel7_2be57d773843135c0677e31d34b0cd24fa9dafc4ef1367521caa2bab7c6122e6",
+					"quay.io/integreatly/delorean:rhscl-redis-32-rhel7_a9bdf52384a222635efc0284db47d12fbde8c3d0fcb66517ba8eefad1d4e9dc9",
+					"quay.io/integreatly/delorean:rhscl-mysql-57-rhel7_9a781abe7581cc141e14a7e404ec34125b3e89c008b14f4e7b41e094fd3049fe",
+					"quay.io/integreatly/delorean:rhscl-postgresql-10-rhel7_de3ab628b403dc5eed986a7f392c34687bddafee7bdfccfd65cecf137ade3dfd",
+					"quay.io/integreatly/delorean:3scale-amp2-3scale-rhel7-operator_1ba6ec8ed984a011796bbe1eafabb2791957f58ed66ec4a484c024dd96eaf427",
 				}
 				for _, image := range expectedImages {
 					imageExists, err := regexp.Match(image, b)
