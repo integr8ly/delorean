@@ -76,6 +76,11 @@ func TestBuildOSBSImage(t *testing.T) {
 			"registry.redhat.io/codeready-workspaces/crw-2-rhel8-operator@sha256:02e8777fa295e6615bbd73f3d92911e7e7029b02cdf6346eba502aaeb8fe3de1",
 			"registry-proxy.engineering.redhat.com/rh-osbs/codeready-workspaces-operator@sha256:02e8777fa295e6615bbd73f3d92911e7e7029b02cdf6346eba502aaeb8fe3de1",
 		},
+		{
+			"test openshift4-ose-cli",
+			"registry.redhat.io/openshift4/ose-cli@sha256:353036a27e810730ce35d699dcf09141af9f8ae9e365116755016d864475c2c4",
+			"registry-proxy.engineering.redhat.com/rh-osbs/openshift-ose-cli@sha256:353036a27e810730ce35d699dcf09141af9f8ae9e365116755016d864475c2c4",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
