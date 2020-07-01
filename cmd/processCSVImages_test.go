@@ -161,14 +161,15 @@ func TestProcessCSVImages(t *testing.T) {
 				}
 
 				expectedImages := []string{
-					"quay.io/integreatly/delorean:3scale-amp2-backend-rhel7_latest",
-					"quay.io/integreatly/delorean:3scale-amp2-apicast-gateway-rhel8_latest",
-					"quay.io/integreatly/delorean:3scale-amp2-system-rhel7_latest",
-					"quay.io/integreatly/delorean:3scale-amp2-zync-rhel7_latest",
-					"quay.io/integreatly/delorean:3scale-amp2-memcached-rhel7_latest",
-					"quay.io/integreatly/delorean:rhscl-redis-32-rhel7_latest",
-					"quay.io/integreatly/delorean:rhscl-mysql-57-rhel7_latest",
-					"quay.io/integreatly/delorean:rhscl-postgresql-10-rhel7_latest",
+					"quay.io/integreatly/delorean:3scale-amp2-backend-rhel7_d8322db4149afc5672ebc3d0430a077c58a8e3e98d7fce720b6a5a3d2498c9c5",
+					"quay.io/integreatly/delorean:3scale-amp2-apicast-gateway-rhel8_52013cc8722ce507e3d0b066a8ae4edb930fb54e24e9f653016658ad1708b5d7",
+					"quay.io/integreatly/delorean:3scale-amp2-system-rhel7_a934997501b41be2ca2b62e37c35bd334252b5e2ed28652c275bd1de8a9d324a",
+					"quay.io/integreatly/delorean:3scale-amp2-zync-rhel7_34fa60de75f5a0e220105c6bf0ed676f16c8b206812fad65078cf98a16a6d4ef",
+					"quay.io/integreatly/delorean:3scale-amp2-memcached-rhel7_2be57d773843135c0677e31d34b0cd24fa9dafc4ef1367521caa2bab7c6122e6",
+					"quay.io/integreatly/delorean:rhscl-redis-32-rhel7_a9bdf52384a222635efc0284db47d12fbde8c3d0fcb66517ba8eefad1d4e9dc9",
+					"quay.io/integreatly/delorean:rhscl-mysql-57-rhel7_9a781abe7581cc141e14a7e404ec34125b3e89c008b14f4e7b41e094fd3049fe",
+					"quay.io/integreatly/delorean:rhscl-postgresql-10-rhel7_de3ab628b403dc5eed986a7f392c34687bddafee7bdfccfd65cecf137ade3dfd",
+					"quay.io/integreatly/delorean:3scale-amp2-3scale-rhel7-operator_1ba6ec8ed984a011796bbe1eafabb2791957f58ed66ec4a484c024dd96eaf427",
 				}
 				for _, image := range expectedImages {
 					imageExists, err := regexp.Match(image, b)

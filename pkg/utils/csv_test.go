@@ -487,11 +487,21 @@ func TestProcessToDeloreanImage(t *testing.T) {
 		{
 			name: "staging image is processed to delorean image as expected",
 			arg:  "registry.stage.redhat.io/3scale-amp2/3scale-rhel7-operator@sha256:1ba6ec8ed984a011796bbe1eafabb2791957f58ed66ec4a484c024dd96eaf427",
-			want: "quay.io/integreatly/delorean:3scale-amp2-3scale-rhel7-operator_latest",
+			want: "quay.io/integreatly/delorean:3scale-amp2-3scale-rhel7-operator_1ba6ec8ed984a011796bbe1eafabb2791957f58ed66ec4a484c024dd96eaf427",
 		},
 		{
 			name: "production image is processed to delorean image as expected",
 			arg:  "registry.redhat.io/rhscl/redis-32-rhel7@sha256:a9bdf52384a222635efc0284db47d12fbde8c3d0fcb66517ba8eefad1d4e9dc9",
+			want: "quay.io/integreatly/delorean:rhscl-redis-32-rhel7_a9bdf52384a222635efc0284db47d12fbde8c3d0fcb66517ba8eefad1d4e9dc9",
+		},
+		{
+			name: "production image is processed to delorean image as expected (no tag or sha)",
+			arg:  "registry.redhat.io/rhscl/redis-32-rhel7",
+			want: "quay.io/integreatly/delorean:rhscl-redis-32-rhel7_latest",
+		},
+		{
+			name: "production image is processed to delorean image as expected (latest tag)",
+			arg:  "registry.redhat.io/rhscl/redis-32-rhel7:latest",
 			want: "quay.io/integreatly/delorean:rhscl-redis-32-rhel7_latest",
 		},
 	}
