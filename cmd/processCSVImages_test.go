@@ -247,7 +247,7 @@ func TestProcessCSVImages(t *testing.T) {
 
 				relatedImages := []string{
 					"registry.stage.redhat.io/codeready-workspaces/crw-2-rhel8-operator@sha256:02e8777fa295e6615bbd73f3d92911e7e7029b02cdf6346eba502aaeb8fe3de1",
-				    "registry.stage.redhat.io/codeready-workspaces/server-rhel8@sha256:f7b27fb525a24c4273f0a3e18461a70f3cbb897e845e44abd8ca10fd1de3e1b2",
+					"registry.stage.redhat.io/codeready-workspaces/server-rhel8@sha256:f7b27fb525a24c4273f0a3e18461a70f3cbb897e845e44abd8ca10fd1de3e1b2",
 					"registry.stage.redhat.io/codeready-workspaces/pluginregistry-rhel8@sha256:6cd737a9e9df54407959a0e8e4bb6a3e3b9e37cf590193545f609b2c4af4bf46",
 					"registry.stage.redhat.io/codeready-workspaces/devfileregistry-rhel8@sha256:0124562131e8cde6b2b9a5e4bced93522da3c1c95e9122306ecd8acb093650e0",
 					"registry.stage.redhat.io/ubi8-minimal@sha256:9285da611437622492f9ef4229877efe302589f1401bbd4052e9bb261b3d4387",
