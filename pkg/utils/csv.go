@@ -418,14 +418,6 @@ func GetAndUpdateOperandImages(manifestDir string, extraImages []string, isGa bo
 			if strings.Contains(i.Image, "registry.stage.redhat.io") {
 				relatedImages[k].Image = strings.Replace(i.Image, "registry.stage.redhat.io", "registry.redhat.io", 1)
 			}
-
-			if strings.Contains(i.Image, "quay.io/integreatly/delorean") {
-				relatedImages[k].Image = strings.Replace(i.Image, "quay.io/integreatly/delorean", "registry.redhat.io", 1)
-			}
-
-			if strings.Contains(i.Image, "registry-proxy.engineering.redhat.com") {
-				relatedImages[k].Image = strings.Replace(i.Image, "registry-proxy.engineering.redhat.com", "registry.redhat.io", 1)
-			}
 		}
 
 		err = csv.SetRelatedImages(relatedImages)
