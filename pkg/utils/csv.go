@@ -40,6 +40,11 @@ type relatedImage struct {
 	Image string
 }
 
+type relatedImageValue struct {
+	Name  string
+	Value string
+}
+
 type csvNames []csvName
 
 func (c csvNames) Len() int           { return len(c) }
@@ -145,13 +150,28 @@ func (csv *CSV) GetRelatedImages() ([]relatedImage, error) {
 	ri := make([]relatedImage, len(relatedImages))
 	for k, v := range relatedImages {
 		i := &relatedImage{}
+		vi := &relatedImageValue{}
+
 		err = runtime.DefaultUnstructuredConverter.FromUnstructured(v.(map[string]interface{}), i)
 		if err != nil {
 			return nil, err
 		}
+		err = runtime.DefaultUnstructuredConverter.FromUnstructured(v.(map[string]interface{}), vi)
+		if err != nil {
+			return nil, err
+		}
+
+		if vi.Value != "" {
+			i = &relatedImage{
+				Name:  vi.Name,
+				Image: vi.Value,
+			}
+
+		}
 
 		ri[k] = *i
 	}
+
 	return ri, nil
 }
 
