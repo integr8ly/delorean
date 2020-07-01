@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
-	"path"
-
 	"github.com/integr8ly/delorean/pkg/utils"
 	"github.com/spf13/cobra"
+	"os"
+	"path"
+	"sort"
 )
 
 type processCSVImagesCmdOptions struct {
@@ -70,6 +70,7 @@ func DoProcessCSV(ctx context.Context, cmdOpts *processCSVImagesCmdOptions) erro
 			for src, dest := range images {
 				mappingLines = append(mappingLines, fmt.Sprintf("%s %s", src, dest))
 			}
+			sort.Strings(mappingLines)
 
 			err = utils.WriteToFile(path.Join(cmdOpts.manifestDir, utils.MappingFile), mappingLines)
 			if err != nil {
