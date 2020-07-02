@@ -67,7 +67,7 @@ func init() {
 			if err != nil {
 				handleError(err)
 			}
-			awsSecretKey, err := requireValue(AWSSerectAccessKeyEnv)
+			awsSecretKey, err := requireValue(AWSSecretAccessKeyEnv)
 			if err != nil {
 				handleError(err)
 			}
