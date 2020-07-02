@@ -2,6 +2,7 @@ package utils
 
 import (
 	"io/ioutil"
+	"os"
 	"testing"
 )
 
@@ -39,6 +40,12 @@ func TestReadFileFromZip(t *testing.T) {
 }
 
 func TestZipFolder(t *testing.T) {
+	tmpDir, err := ioutil.TempDir(os.TempDir(), "zip-*")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer os.RemoveAll(tmpDir) // clean up
+
 	cases := []struct {
 		description         string
 		zipFileAbsolutePath string
@@ -46,7 +53,7 @@ func TestZipFolder(t *testing.T) {
 	}{
 		{
 			description:         "should create zip file",
-			zipFileAbsolutePath: "/tmp/results.zip",
+			zipFileAbsolutePath: tmpDir + "/results.zip",
 			folderToZip:         "./testdata/results/",
 		},
 	}
