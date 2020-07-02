@@ -1,10 +1,14 @@
 package utils
 
 import (
+	"bytes"
 	"context"
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager/s3manageriface"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path"
 	"strings"
@@ -31,4 +35,28 @@ func DownloadS3ObjectToTempDir(ctx context.Context, downloader s3manageriface.Do
 		return "", err
 	}
 	return o, nil
+}
+
+func UploadFileToS3(ctx context.Context, uploader s3manageriface.UploaderAPI, bucket string, fileDir string, fileName string) (string, error) {
+
+	// Open the file for use
+	file, err := os.Open(fileDir + fileName)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	// Get file size and read the file content into a buffer
+	fileInfo, _ := file.Stat()
+	buffer := make([]byte, fileInfo.Size())
+	file.Read(buffer)
+
+	i := &s3manager.UploadInput{
+		Body:        bytes.NewReader(buffer),
+		Bucket:      aws.String(bucket),
+		ContentType: aws.String(http.DetectContentType(buffer)),
+		Key:         aws.String(fileName),
+	}
+	output, err := uploader.UploadWithContext(ctx, i)
+	return output.Location, err
 }

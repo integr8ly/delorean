@@ -35,7 +35,7 @@ const (
 	PolarionUsernameKey                    = "polarion_username"
 	PolarionPasswordKey                    = "polarion_password"
 	AWSAccessKeyIDEnv                      = "delorean_aws_access_key_id"
-	AWSSerectAccessKeyEnv                  = "delorean_aws_secret_access_key"
+	AWSSecretAccessKeyEnv                  = "delorean_aws_secret_access_key"
 	AWSDefaultRegion                       = "eu-west-1"
 )
 
@@ -119,8 +119,8 @@ func init() {
 	viper.BindPFlag(PolarionPasswordKey, reportCmd.Flags().Lookup("polarion-password"))
 	reportCmd.Flags().String("aws-key-id", "", fmt.Sprintf("The AWS key id to use. Can be set via the %s env var", strings.ToUpper(AWSAccessKeyIDEnv)))
 	viper.BindPFlag(AWSAccessKeyIDEnv, reportCmd.Flags().Lookup("aws-key-id"))
-	reportCmd.Flags().String("aws-secret-key", "", fmt.Sprintf("The AWS secret key to use. Can be set via the %s env var", strings.ToUpper(AWSSerectAccessKeyEnv)))
-	viper.BindPFlag(AWSSerectAccessKeyEnv, reportCmd.Flags().Lookup("aws-secret-key"))
+	reportCmd.Flags().String("aws-secret-key", "", fmt.Sprintf("The AWS secret key to use. Can be set via the %s env var", strings.ToUpper(AWSSecretAccessKeyEnv)))
+	viper.BindPFlag(AWSSecretAccessKeyEnv, reportCmd.Flags().Lookup("aws-secret-key"))
 
 	rootCmd.AddCommand(releaseCmd)
 	rootCmd.AddCommand(ewsCmd)

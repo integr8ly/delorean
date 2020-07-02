@@ -74,7 +74,7 @@ func newPolarionImportCmd(f *polarionImportCmdFlags) (*polarionImportCmd, error)
 	if err != nil {
 		return nil, err
 	}
-	awsSecretAccessKey, err := requireValue(AWSSerectAccessKeyEnv)
+	awsSecretAccessKey, err := requireValue(AWSSecretAccessKeyEnv)
 	if err != nil {
 		return nil, err
 	}

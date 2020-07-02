@@ -1,6 +1,9 @@
 package utils
 
-import "testing"
+import (
+	"io/ioutil"
+	"testing"
+)
 
 func TestReadFileFromZip(t *testing.T) {
 	cases := []struct {
@@ -31,6 +34,38 @@ func TestReadFileFromZip(t *testing.T) {
 			if string(read) != c.expectedContent {
 				t.Fatalf("want: %s, got: %s", c.expectedContent, string(read))
 			}
+		})
+	}
+}
+
+func TestZipFolder(t *testing.T) {
+	cases := []struct {
+		description         string
+		zipFileAbsolutePath string
+		folderToZip         string
+	}{
+		{
+			description:         "should create zip file",
+			zipFileAbsolutePath: "/tmp/results.zip",
+			folderToZip:         "./testdata/results/",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.description, func(t *testing.T) {
+			err := ZipFolder(c.folderToZip, c.zipFileAbsolutePath)
+			if err != nil {
+				t.Fatalf("failed to create zip file: %v", err)
+			}
+			_, err = ioutil.ReadFile(c.zipFileAbsolutePath)
+			if err != nil {
+				t.Fatalf("zip file not found: %v", err)
+			}
+			_, err = ReadFileFromZip(c.zipFileAbsolutePath, "metadata.json")
+			if err != nil {
+				t.Fatalf("zip file missing expected file: %v", err)
+			}
+
 		})
 	}
 }
