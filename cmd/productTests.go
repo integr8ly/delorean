@@ -4,6 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path"
+	"sync"
+	"time"
+
 	"github.com/integr8ly/delorean/pkg/utils"
 	"github.com/spf13/cobra"
 	batchv1 "k8s.io/api/batch/v1"
@@ -14,10 +19,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/utils/pointer"
-	"os"
-	"path"
-	"sync"
-	"time"
 )
 
 const (
@@ -189,6 +190,10 @@ func (c *runTestsCmd) runTestContainer(ctx context.Context, test *TestContainer)
 		return false, err
 	}
 	fmt.Println(fmt.Sprintf("[%s] Tests completed. Exit code = %d", test.Name, containerResult.ExitCode))
+	fmt.Println(fmt.Sprintf("[%s] Save test pod status", test.Name))
+	if err = c.savePodStatus(pod, test.Name); err != nil {
+		fmt.Println(fmt.Sprintf("[%s] Failed to save test pod status due to error: %v", test.Name, err))
+	}
 	fmt.Println(fmt.Sprintf("[%s] Download test results", test.Name))
 	if err = c.downloadTestResults(pod, test.Name); err != nil {
 		fmt.Println(fmt.Sprintf("[%s] Failed to download test result due to error: %v", test.Name, err))
@@ -210,6 +215,12 @@ func (c *runTestsCmd) runTestContainer(ctx context.Context, test *TestContainer)
 }
 
 func getTestContainerJob(namespace string, t *TestContainer) *batchv1.Job {
+
+	// extend the job timeout compared to the test timeout to allow the delorean
+	// cli to retrieve the logs from the containers before the pod is destroyed
+	// from the job
+	var extendedTimeout = t.Timeout + 180
+
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      t.Name,
@@ -218,7 +229,7 @@ func getTestContainerJob(namespace string, t *TestContainer) *batchv1.Job {
 		Spec: batchv1.JobSpec{
 			Parallelism:           pointer.Int32Ptr(testJobParallelism),
 			Completions:           pointer.Int32Ptr(testJobCompletions),
-			ActiveDeadlineSeconds: &t.Timeout,
+			ActiveDeadlineSeconds: &extendedTimeout,
 			BackoffLimit:          pointer.Int32Ptr(testJobBackoffLimit),
 			Template: v1.PodTemplateSpec{
 				Spec: v1.PodSpec{
@@ -258,6 +269,18 @@ func getTestContainerJob(namespace string, t *TestContainer) *batchv1.Job {
 			},
 		},
 	}
+}
+
+func (c *runTestsCmd) savePodStatus(pod v1.Pod, testName string) error {
+	p, err := utils.GetPod(c.clientset, c.namespace, pod.GetName())
+	if err != nil {
+		return err
+	}
+	o := path.Join(c.outputDir, testName, "logs", "pod.yaml")
+	if err := os.MkdirAll(path.Dir(o), os.ModePerm); err != nil {
+		return err
+	}
+	return utils.WriteObjectToYAML(p, o)
 }
 
 func (c *runTestsCmd) downloadTestResults(pod v1.Pod, testName string) error {

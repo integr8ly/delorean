@@ -3,6 +3,8 @@ package utils
 import (
 	"errors"
 	"fmt"
+	"time"
+
 	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -10,7 +12,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
-	"time"
 )
 
 // Create the given Job object. If a job with the same name exists, it will delete the existing job first before creating.
@@ -163,4 +164,8 @@ func GetContainerStatus(statuses []v1.ContainerStatus, name string) (v1.Containe
 func GetPods(client kubernetes.Interface, namespace string, podSelector string) (*v1.PodList, error) {
 	api := client.CoreV1().Pods(namespace)
 	return api.List(metav1.ListOptions{LabelSelector: podSelector})
+}
+
+func GetPod(client kubernetes.Interface, namespace string, name string) (*v1.Pod, error) {
+	return client.CoreV1().Pods(namespace).Get(name, metav1.GetOptions{})
 }
