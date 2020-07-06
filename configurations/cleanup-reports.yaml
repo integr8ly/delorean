@@ -1,0 +1,8 @@
+---
+configs:
+  - bucket: rhmi-test-data-storage-tf56
+    tags:
+      - key: polarion
+        value: true
+      - key: rp
+        value: true

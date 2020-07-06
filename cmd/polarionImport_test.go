@@ -40,8 +40,8 @@ func TestPolarionImportCmd(t *testing.T) {
 	}{
 		{
 			description: "success",
-			s3: &mockS3API{
-				listObjsFunc: func(input *s3.ListObjectsV2Input) (output *s3.ListObjectsV2Output, err error) {
+			s3: &utils.MockS3API{
+				ListObjsFunc: func(input *s3.ListObjectsV2Input) (output *s3.ListObjectsV2Output, err error) {
 					obj := &s3.Object{
 						Key: aws.String("tests/results.zip"),
 					}
@@ -49,13 +49,13 @@ func TestPolarionImportCmd(t *testing.T) {
 						Contents: []*s3.Object{obj},
 					}, nil
 				},
-				getObjTaggingFunc: func(input *s3.GetObjectTaggingInput) (output *s3.GetObjectTaggingOutput, err error) {
+				GetObjTaggingFunc: func(input *s3.GetObjectTaggingInput) (output *s3.GetObjectTaggingOutput, err error) {
 					t := []*s3.Tag{}
 					return &s3.GetObjectTaggingOutput{
 						TagSet: t,
 					}, nil
 				},
-				putObjTaggingFun: func(input *s3.PutObjectTaggingInput) (output *s3.PutObjectTaggingOutput, err error) {
+				PutObjTaggingFunc: func(input *s3.PutObjectTaggingInput) (output *s3.PutObjectTaggingOutput, err error) {
 					if !hasTag(input.Tagging.TagSet, polarionTagKey, polarionTagVal) {
 						return nil, fmt.Errorf("missing expected tag: %s=%s", polarionTagKey, polarionTagVal)
 					}
@@ -116,15 +116,15 @@ func TestPolarionImportCmd(t *testing.T) {
 		},
 		{
 			description: "skip import",
-			s3: &mockS3API{
-				listObjsFunc: func(input *s3.ListObjectsV2Input) (output *s3.ListObjectsV2Output, err error) {
+			s3: &utils.MockS3API{
+				ListObjsFunc: func(input *s3.ListObjectsV2Input) (output *s3.ListObjectsV2Output, err error) {
 					obj := &s3.Object{Key: aws.String("tests/results.zip")}
 					return &s3.ListObjectsV2Output{Contents: []*s3.Object{obj}}, nil
 				},
-				getObjTaggingFunc: func(input *s3.GetObjectTaggingInput) (output *s3.GetObjectTaggingOutput, err error) {
+				GetObjTaggingFunc: func(input *s3.GetObjectTaggingInput) (output *s3.GetObjectTaggingOutput, err error) {
 					return &s3.GetObjectTaggingOutput{TagSet: []*s3.Tag{}}, nil
 				},
-				putObjTaggingFun: func(input *s3.PutObjectTaggingInput) (output *s3.PutObjectTaggingOutput, err error) {
+				PutObjTaggingFunc: func(input *s3.PutObjectTaggingInput) (output *s3.PutObjectTaggingOutput, err error) {
 					return &s3.PutObjectTaggingOutput{}, nil
 				},
 			},
@@ -152,15 +152,15 @@ func TestPolarionImportCmd(t *testing.T) {
 		},
 		{
 			description: "simulate error",
-			s3: &mockS3API{
-				listObjsFunc: func(input *s3.ListObjectsV2Input) (output *s3.ListObjectsV2Output, err error) {
+			s3: &utils.MockS3API{
+				ListObjsFunc: func(input *s3.ListObjectsV2Input) (output *s3.ListObjectsV2Output, err error) {
 					obj := &s3.Object{Key: aws.String("tests/results.zip")}
 					return &s3.ListObjectsV2Output{Contents: []*s3.Object{obj}}, nil
 				},
-				getObjTaggingFunc: func(input *s3.GetObjectTaggingInput) (output *s3.GetObjectTaggingOutput, err error) {
+				GetObjTaggingFunc: func(input *s3.GetObjectTaggingInput) (output *s3.GetObjectTaggingOutput, err error) {
 					return &s3.GetObjectTaggingOutput{TagSet: []*s3.Tag{}}, nil
 				},
-				putObjTaggingFun: func(input *s3.PutObjectTaggingInput) (output *s3.PutObjectTaggingOutput, err error) {
+				PutObjTaggingFunc: func(input *s3.PutObjectTaggingInput) (output *s3.PutObjectTaggingOutput, err error) {
 					return &s3.PutObjectTaggingOutput{}, nil
 				},
 			},
