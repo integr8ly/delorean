@@ -153,6 +153,12 @@ install_rhmi() {
     oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" create secret generic redhat-rhmi-deadmanssnitch -n ${RHMI_OPERATOR_NAMESPACE} \
         --from-literal=url=https://dms.example.com
 
+    if [[ "${PATCH_CR_AWS_CM}" == true ]]; then
+        echo "Patching Cloud Resources AWS Strategies Config Map"
+        wait_for "oc --kubeconfig ${CLUSTER_KUBECONFIG_FILE} get configMap cloud-resources-aws-strategies -n ${RHMI_OPERATOR_NAMESPACE} | grep -q cloud-resources-aws-strategies" "cloud-resources-aws-strategies ready" "5m" "20"
+        oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" patch configMap cloud-resources-aws-strategies -n "${RHMI_OPERATOR_NAMESPACE}" --type='json' -p '[{"op": "add", "path": "/data/_network", "value":"{ \"production\": { \"createStrategy\": { \"CidrBlock\": \"'10.1.0.0/23'\" } } }"}]'
+    fi
+
     wait_for "oc --kubeconfig ${CLUSTER_KUBECONFIG_FILE} get rhmi ${rhmi_name} -n ${RHMI_OPERATOR_NAMESPACE} -o json | jq -r .status.stages.\\\"solution-explorer\\\".phase | grep -q completed" "rhmi installation" "90m" "300"
     oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get rhmi "${rhmi_name}" -n ${RHMI_OPERATOR_NAMESPACE} -o json | jq -r '.status.stages'
 }
