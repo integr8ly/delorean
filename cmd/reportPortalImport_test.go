@@ -57,11 +57,14 @@ func TestReportPortalImportCmd(t *testing.T) {
 			description: "success",
 			s3: &utils.MockS3API{
 				ListObjsFunc: func(input *s3.ListObjectsV2Input) (output *s3.ListObjectsV2Output, err error) {
-					obj := &s3.Object{
-						Key: aws.String("tests/results.zip"),
+					obj1 := &s3.Object{
+						Key: aws.String("results.zip"),
+					}
+					obj2 := &s3.Object{
+						Key: aws.String("results"),
 					}
 					return &s3.ListObjectsV2Output{
-						Contents: []*s3.Object{obj},
+						Contents: []*s3.Object{obj1, obj2},
 					}, nil
 				},
 				GetObjTaggingFunc: func(input *s3.GetObjectTaggingInput) (output *s3.GetObjectTaggingOutput, err error) {

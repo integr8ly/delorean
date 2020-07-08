@@ -6,6 +6,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -116,7 +117,7 @@ func newPolarionImportCmd(f *polarionImportCmdFlags) (*polarionImportCmd, error)
 }
 
 func (c *polarionImportCmd) run(ctx context.Context) error {
-	o, err := c.s3.ListObjectsV2WithContext(ctx, &s3.ListObjectsV2Input{Bucket: &c.fromBucket})
+	o, err := c.s3.ListObjectsV2WithContext(ctx, &s3.ListObjectsV2Input{Bucket: &c.fromBucket, Delimiter: aws.String("/")})
 	if err != nil {
 		return err
 	}
@@ -147,6 +148,11 @@ func (c *polarionImportCmd) processReportFile(ctx context.Context, object *s3.Ob
 	}
 	if hasTag(tags.TagSet, polarionTagKey, polarionTagVal) {
 		fmt.Println(fmt.Sprintf("[%s] file in bucket %s has been processed already. Ignored.", *object.Key, c.fromBucket))
+		return &reportProcessResult{}, nil
+	}
+
+	if !strings.HasSuffix(*object.Key, ".zip") {
+		fmt.Println(fmt.Sprintf("[%s] file in bucket %s is ignored as it is not a zip file", *object.Key, c.fromBucket))
 		return &reportProcessResult{}, nil
 	}
 
