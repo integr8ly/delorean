@@ -28,3 +28,5 @@ COPY scripts/delorean /usr/local/bin
 COPY scripts/ocm /usr/local/bin
 COPY scripts/jenkins-reports /usr/local/bin
 COPY build/delorean /usr/local/bin/delorean
+COPY configurations /etc/delorean/configurations
+RUN chmod -R +r /etc/delorean/configurations

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager/s3manageriface"
@@ -15,25 +14,6 @@ import (
 	"io/ioutil"
 	"testing"
 )
-
-type mockS3API struct {
-	s3iface.S3API
-	listObjsFunc      func(*s3.ListObjectsV2Input) (*s3.ListObjectsV2Output, error)
-	getObjTaggingFunc func(*s3.GetObjectTaggingInput) (*s3.GetObjectTaggingOutput, error)
-	putObjTaggingFun  func(*s3.PutObjectTaggingInput) (*s3.PutObjectTaggingOutput, error)
-}
-
-func (m *mockS3API) ListObjectsV2WithContext(_ aws.Context, input *s3.ListObjectsV2Input, _ ...request.Option) (*s3.ListObjectsV2Output, error) {
-	return m.listObjsFunc(input)
-}
-
-func (m *mockS3API) GetObjectTaggingWithContext(_ aws.Context, input *s3.GetObjectTaggingInput, _ ...request.Option) (*s3.GetObjectTaggingOutput, error) {
-	return m.getObjTaggingFunc(input)
-}
-
-func (m *mockS3API) PutObjectTaggingWithContext(_ aws.Context, input *s3.PutObjectTaggingInput, _ ...request.Option) (*s3.PutObjectTaggingOutput, error) {
-	return m.putObjTaggingFun(input)
-}
 
 type mockRPLaunchService struct {
 	reportportal.RPLaunchManager
@@ -75,8 +55,8 @@ func TestReportPortalImportCmd(t *testing.T) {
 	}{
 		{
 			description: "success",
-			s3: &mockS3API{
-				listObjsFunc: func(input *s3.ListObjectsV2Input) (output *s3.ListObjectsV2Output, err error) {
+			s3: &utils.MockS3API{
+				ListObjsFunc: func(input *s3.ListObjectsV2Input) (output *s3.ListObjectsV2Output, err error) {
 					obj := &s3.Object{
 						Key: aws.String("tests/results.zip"),
 					}
@@ -84,13 +64,13 @@ func TestReportPortalImportCmd(t *testing.T) {
 						Contents: []*s3.Object{obj},
 					}, nil
 				},
-				getObjTaggingFunc: func(input *s3.GetObjectTaggingInput) (output *s3.GetObjectTaggingOutput, err error) {
+				GetObjTaggingFunc: func(input *s3.GetObjectTaggingInput) (output *s3.GetObjectTaggingOutput, err error) {
 					t := []*s3.Tag{}
 					return &s3.GetObjectTaggingOutput{
 						TagSet: t,
 					}, nil
 				},
-				putObjTaggingFun: func(input *s3.PutObjectTaggingInput) (output *s3.PutObjectTaggingOutput, err error) {
+				PutObjTaggingFunc: func(input *s3.PutObjectTaggingInput) (output *s3.PutObjectTaggingOutput, err error) {
 					if !hasTag(input.Tagging.TagSet, reportPortalTagKey, reportPortalTagVal) {
 						return nil, fmt.Errorf("missing expected tag: %s=%s", reportPortalTagKey, reportPortalTagVal)
 					}
