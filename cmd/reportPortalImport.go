@@ -127,7 +127,7 @@ func newReportPortalImportCmd(f *reportPortalImportCmdFlags, session *session.Se
 
 func (c *reportPortalImportCmd) run(ctx context.Context) error {
 	fmt.Println(fmt.Sprintf("[All] Listing objects from bucket %s", c.fromBucket))
-	o, err := c.s3.ListObjectsV2WithContext(ctx, &s3.ListObjectsV2Input{Bucket: &c.fromBucket})
+	o, err := c.s3.ListObjectsV2WithContext(ctx, &s3.ListObjectsV2Input{Bucket: &c.fromBucket, Delimiter: aws.String("/")})
 	if err != nil {
 		return err
 	}
@@ -159,6 +159,10 @@ func (c *reportPortalImportCmd) processReportFile(ctx context.Context, object *s
 	}
 	if hasTag(tags.TagSet, reportPortalTagKey, reportPortalTagVal) {
 		fmt.Println(fmt.Sprintf("[%s] File in bucket %s has been processed already. Ignored.", *object.Key, c.fromBucket))
+		return &reportProcessResult{}, nil
+	}
+	if !strings.HasSuffix(*object.Key, ".zip") {
+		fmt.Println(fmt.Sprintf("[%s] File in bucket %s is ignored as it is not a zip file", *object.Key, c.fromBucket))
 		return &reportProcessResult{}, nil
 	}
 	fmt.Println(fmt.Sprintf("[%s] Downloading file from s3 bucket %s", *object.Key, c.fromBucket))
