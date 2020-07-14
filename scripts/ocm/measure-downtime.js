@@ -5,11 +5,22 @@ const exec = util.promisify(require('child_process').exec);
 let projects = []; // used to store all projects that will be monitored (along with their dcs, deployments and statefulsets (if any))
 let keepRunning = true; // boolean flag used to control the monitoring loop
 const start = getCurrentEpochTimestamp();
-const NAMESPACE_PREFIX = process.env.NAMESPACE_PREFIX || 'redhat-rhmi-';
+let NAMESPACE_PREFIX;
 
 monitorDowntime();
 
-async function monitorDowntime() {
+async function monitorDowntime(){
+  await getNamespacePrefix();
+  startMonitorDowntime();
+}
+
+async function getNamespacePrefix(){
+  let ns = await exec(`oc get namespaces --all-namespaces | grep fuse`);
+  let stdout = ns.stdout;
+  (stdout.includes('redhat-rhmi-')) ? NAMESPACE_PREFIX = 'redhat-rhmi-' : (stdout.includes('openshift-')) ? NAMESPACE_PREFIX = 'openshift-' : NAMESPACE_PREFIX = '';
+}
+
+async function startMonitorDowntime() {
   await getProjects(); // get the list of the projects to monitor
   await monitorDowntimePerNs(); // run the loop to monitor the projects until cancelled
   calculateDowntimes(true);
