@@ -5,12 +5,12 @@ const exec = util.promisify(require('child_process').exec);
 let projects = []; // used to store all projects that will be monitored (along with their dcs, deployments and statefulsets (if any))
 let keepRunning = true; // boolean flag used to control the monitoring loop
 const start = getCurrentEpochTimestamp();
-let NAMESPACE_PREFIX;
+let NAMESPACE_PREFIX = process.env.NAMESPACE_PREFIX || '';
 
 monitorDowntime();
 
 async function monitorDowntime(){
-  await getNamespacePrefix();
+ (NAMESPACE_PREFIX === '') ? await getNamespacePrefix() : null;
   startMonitorDowntime();
 }
 
