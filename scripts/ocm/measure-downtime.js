@@ -15,7 +15,7 @@ async function monitorDowntime(){
 }
 
 async function getNamespacePrefix(){
-  let ns = await exec(`oc get namespaces --all-namespaces | grep fuse`);
+  let ns = await exec(`oc get namespaces --all-namespaces | grep user-sso`);
   let stdout = ns.stdout;
   (stdout.includes('redhat-rhmi-')) ? NAMESPACE_PREFIX = 'redhat-rhmi-' : (stdout.includes('openshift-')) ? NAMESPACE_PREFIX = 'openshift-' : NAMESPACE_PREFIX = '';
 }
