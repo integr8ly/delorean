@@ -111,8 +111,8 @@ install_rhmi() {
     : "${USE_CLUSTER_STORAGE:=true}"
     cluster_id=$(get_cluster_id)
 
-    echo "Applying RHMI Addon on a cluster with ID: ${cluster_id}"
-    echo '{"addon":{"id":"rhmi"}}' | ocm post "/api/clusters_mgmt/v1/clusters/${cluster_id}/addons"
+#    echo "Applying RHMI Addon on a cluster with ID: ${cluster_id}"
+#    echo '{"addon":{"id":"rhmi"}}' | ocm post "/api/clusters_mgmt/v1/clusters/${cluster_id}/addons"
 
     wait_for "oc --kubeconfig ${CLUSTER_KUBECONFIG_FILE} get rhmi -n ${RHMI_OPERATOR_NAMESPACE} | grep -q NAME" "rhmi installation CR to be created" "15m" "30"
 
