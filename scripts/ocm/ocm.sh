@@ -87,7 +87,7 @@ create_cluster() {
     fi
 
     echo "Sending a request to OCM to create an OSD cluster"
-    #send_cluster_create_request
+    send_cluster_create_request
     cluster_id=$(get_cluster_id)
 
     echo "Cluster ID: ${cluster_id}"
