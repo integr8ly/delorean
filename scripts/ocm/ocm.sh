@@ -87,14 +87,13 @@ create_cluster() {
     fi
 
     echo "Sending a request to OCM to create an OSD cluster"
-    send_cluster_create_request
+    #send_cluster_create_request
     cluster_id=$(get_cluster_id)
 
     echo "Cluster ID: ${cluster_id}"
 
     wait_for "ocm get /api/clusters_mgmt/v1/clusters/${cluster_id} | jq -r .api.url | grep -q https://.*:6443" "cluster creation" "180m" "300"
     wait_for "ocm get /api/clusters_mgmt/v1/clusters/${cluster_id}/credentials | jq -r .admin | grep -q admin" "fetching cluster credentials" "10m" "30"
-    wait_for "oc --kubeconfig ${CLUSTER_KUBECONFIG_FILE} get route console -n openshift-console -o jsonpath='{.spec.host}' | grep -q console" "OpenShift console to be ready" "10m" "20"
 
     save_cluster_credentials "${cluster_id}"
 
@@ -257,14 +256,18 @@ wait_for() {
 
 save_cluster_credentials() {
     local cluster_id="${1}"
-    local api_url, console_url
+    local api_url
+    local console_url
 
     api_url=$(jq .api.url < "${CLUSTER_DETAILS_FILE}")
-    console_url=$(printf "https://%s" "$(oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get route console -n openshift-console -o jsonpath='{.spec.host}')")
     # Update cluster details (with master & console URL)
     ocm get "/api/clusters_mgmt/v1/clusters/${cluster_id}" | jq -r > "${CLUSTER_DETAILS_FILE}"
     # Create kubeconfig file & save admin credentials
     ocm get "/api/clusters_mgmt/v1/clusters/${cluster_id}/credentials" | jq -r .kubeconfig > "${CLUSTER_KUBECONFIG_FILE}"
+
+    wait_for "oc --kubeconfig ${CLUSTER_KUBECONFIG_FILE} get route console -n openshift-console -o jsonpath='{.spec.host}' | grep -q console" "OpenShift console to be ready" "10m" "20"
+    console_url=\"https://$(oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get route console -n openshift-console -o jsonpath='{.spec.host}')\"
+
     ocm get "/api/clusters_mgmt/v1/clusters/${cluster_id}/credentials" | jq -r ".admin | .api_url = ${api_url} | .console_url = ${console_url}" > "${CLUSTER_CREDENTIALS_FILE}"
 }
 
