@@ -109,6 +109,8 @@ install_rhmi() {
     local csv_name
 
     : "${USE_CLUSTER_STORAGE:=true}"
+    : "${PATCH_CR_AWS_CM:=true}"
+
     cluster_id=$(get_cluster_id)
 
     wait_for "oc --kubeconfig ${CLUSTER_KUBECONFIG_FILE} get rhmi -n ${RHMI_OPERATOR_NAMESPACE} | grep -q NAME" "rhmi installation CR to be created" "15m" "30"
@@ -321,6 +323,7 @@ Optional exported variables:
 - SENDGRID_API_KEY                  a token for creating SMTP secret
 - ALERTING_EMAIL_ADDRESS            email address for receiving alert notifications
 - SELF_SIGNED_CERTS                 true/false - cluster certificate can be invalid
+- PATCH_CR_AWS_CM                   true/false - set to true from 2.5.0 (standalone VPC)
 ==========================================================================================
 upgrade_cluster                   - upgrade OSD cluster to latest version (if available)
 ==========================================================================================
