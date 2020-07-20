@@ -37,16 +37,6 @@ func init() {
 }
 
 func processManifest(csv *utils.CSV) error {
-	//Get the correct replaces value and update it.
-	sortedCSVs, err := utils.GetSortedCSVNames(manifestDir)
-	if err != nil {
-		handleError(err)
-	}
-
-	if sortedCSVs.Len() > 1 {
-		csv.SetReplaces(sortedCSVs[(sortedCSVs.Len() - 2)].Name)
-	}
-
 	//update "WATCH_NAMESPACE" and "NAMESPACE" env vars if present
 	envKeyValMap := map[string]string{
 		envVarWatchNamespace: "metadata.annotations['olm.targetNamespaces']",
