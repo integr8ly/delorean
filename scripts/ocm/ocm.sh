@@ -187,7 +187,7 @@ delete_cluster() {
 
         cluster_region=$(get_cluster_region)
         echo "Cleaning up RHMI AWS resources for the cluster with infra ID: ${infra_id}, region: ${cluster_region}, AWS Account ID: ${AWS_ACCOUNT_ID}"
-        cluster-service cleanup "${infra_id}" --region="${cluster_region}" --dry-run=false
+        cluster-service cleanup "${infra_id}" --region="${cluster_region}" --dry-run=false --watch
     fi
 }
 
