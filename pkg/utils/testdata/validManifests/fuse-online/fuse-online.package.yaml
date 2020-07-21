@@ -1,0 +1,4 @@
+packageName: rhmi-fuse-online
+channels:
+- name: rhmi
+  currentCSV: fuse-online-operator.v7.7.0
