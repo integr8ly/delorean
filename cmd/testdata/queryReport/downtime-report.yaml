@@ -1,0 +1,585 @@
+name: Downtime Report
+results:
+- name: amq_serivce_broker_blackbox_downtime_seconds
+  query: $range - (probe_success{service='amq-service-broker'} * $range)
+  result:
+  - metric:
+      instance: https://console-redhat-rhmi-amq-online.apps.addon-flow-181.m0m6.s1.devshift.org/oauth/healthz
+      job: blackbox
+      service: amq-service-broker
+    value:
+    - 1.594817927501e+09
+    - "0"
+  resultType: vector
+- name: amq_addressspace_k8s_endpoint_downtime_seconds
+  query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='address-space-controller',
+    namespace='redhat-rhmi-amq-online'} , 1)[$duration:30s]) * $range)/1000
+  result:
+  - metric:
+      endpoint: address-space-controller
+      instance: 10.11.78.9:8443
+      job: kube-state-metrics
+      namespace: redhat-rhmi-amq-online
+      pod: kube-state-metrics-5b489644c9-k9g8h
+      prometheus: openshift-monitoring/k8s
+      service: kube-state-metrics
+    value:
+    - 1.594817927502e+09
+    - "0"
+  resultType: vector
+- name: amq_console_k8s_endpoint_downtime_seconds
+  query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='console',
+    namespace='redhat-rhmi-amq-online'} , 1)[$duration:30s]) * $range)/1000
+  result:
+  - metric:
+      endpoint: console
+      instance: 10.11.78.9:8443
+      job: kube-state-metrics
+      namespace: redhat-rhmi-amq-online
+      pod: kube-state-metrics-5b489644c9-k9g8h
+      prometheus: openshift-monitoring/k8s
+      service: kube-state-metrics
+    value:
+    - 1.594817927502e+09
+    - "0"
+  resultType: vector
+- name: amq_standard_authservice_k8s_endpoint_downtime_seconds
+  query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='standard-authservice',
+    namespace='redhat-rhmi-amq-online'} , 1)[$duration:30s]) * $range)/1000
+  result:
+  - metric:
+      endpoint: standard-authservice
+      instance: 10.11.78.9:8443
+      job: kube-state-metrics
+      namespace: redhat-rhmi-amq-online
+      pod: kube-state-metrics-5b489644c9-k9g8h
+      prometheus: openshift-monitoring/k8s
+      service: kube-state-metrics
+    value:
+    - 1.594817927502e+09
+    - "0"
+  resultType: vector
+- name: amq_workload_app_message_sender_downtime_seconds
+  query: sum(workload_app_service_downtime_seconds{name='amq_sender'})
+  result:
+  - metric: {}
+    value:
+    - 1.594817927502e+09
+    - "0"
+  resultType: vector
+- name: amq_workload_app_message_receiver_downtime_seconds
+  query: sum(workload_app_service_downtime_seconds{name='amq_receiver'})
+  result:
+  - metric: {}
+    value:
+    - 1.59481792786e+09
+    - "0"
+  resultType: vector
+- name: 3scale_apicast_production_k8s_endpoint_downtime_seconds
+  query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='apicast-production',
+    namespace='redhat-rhmi-3scale'} , 1)[$duration:30s]) * $range)/1000
+  result:
+  - metric:
+      endpoint: apicast-production
+      instance: 10.11.78.9:8443
+      job: kube-state-metrics
+      namespace: redhat-rhmi-3scale
+      pod: kube-state-metrics-5b489644c9-k9g8h
+      prometheus: openshift-monitoring/k8s
+      service: kube-state-metrics
+    value:
+    - 1.594817927861e+09
+    - "0"
+  resultType: vector
+- name: 3scale_apicast_staging_k8s_endpoint_downtime_seconds
+  query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='apicast-staging',
+    namespace='redhat-rhmi-3scale'} , 1)[$duration:30s]) * $range)/1000
+  result:
+  - metric:
+      endpoint: apicast-staging
+      instance: 10.11.78.9:8443
+      job: kube-state-metrics
+      namespace: redhat-rhmi-3scale
+      pod: kube-state-metrics-5b489644c9-k9g8h
+      prometheus: openshift-monitoring/k8s
+      service: kube-state-metrics
+    value:
+    - 1.594817927863e+09
+    - "0"
+  resultType: vector
+- name: 3scale_system_developer_k8s_endpoint_downtime_seconds
+  query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='system-developer',
+    namespace='redhat-rhmi-3scale'} , 1)[$duration:30s]) * $range)/1000
+  result:
+  - metric:
+      endpoint: system-developer
+      instance: 10.11.78.9:8443
+      job: kube-state-metrics
+      namespace: redhat-rhmi-3scale
+      pod: kube-state-metrics-5b489644c9-k9g8h
+      prometheus: openshift-monitoring/k8s
+      service: kube-state-metrics
+    value:
+    - 1.594817927864e+09
+    - "0"
+  resultType: vector
+- name: 3scale_system_master_k8s_endpoint_downtime_seconds
+  query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='system-master',
+    namespace='redhat-rhmi-3scale'} , 1)[$duration:30s]) * $range)/1000
+  result:
+  - metric:
+      endpoint: system-master
+      instance: 10.11.78.9:8443
+      job: kube-state-metrics
+      namespace: redhat-rhmi-3scale
+      pod: kube-state-metrics-5b489644c9-k9g8h
+      prometheus: openshift-monitoring/k8s
+      service: kube-state-metrics
+    value:
+    - 1.594817927864e+09
+    - "0"
+  resultType: vector
+- name: 3scale_system_memcache_k8s_endpoint_downtime_seconds
+  query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='system-memcache',
+    namespace='redhat-rhmi-3scale'} , 1)[$duration:30s]) * $range)/1000
+  result:
+  - metric:
+      endpoint: system-memcache
+      instance: 10.11.78.9:8443
+      job: kube-state-metrics
+      namespace: redhat-rhmi-3scale
+      pod: kube-state-metrics-5b489644c9-k9g8h
+      prometheus: openshift-monitoring/k8s
+      service: kube-state-metrics
+    value:
+    - 1.5948179279e+09
+    - "0"
+  resultType: vector
+- name: 3scale_system_provider_k8s_endpoint_downtime_seconds
+  query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='system-provider',
+    namespace='redhat-rhmi-3scale'} , 1)[$duration:30s]) * $range)/1000
+  result:
+  - metric:
+      endpoint: system-provider
+      instance: 10.11.78.9:8443
+      job: kube-state-metrics
+      namespace: redhat-rhmi-3scale
+      pod: kube-state-metrics-5b489644c9-k9g8h
+      prometheus: openshift-monitoring/k8s
+      service: kube-state-metrics
+    value:
+    - 1.594817927901e+09
+    - "0"
+  resultType: vector
+- name: 3scale_system_sphinx_k8s_endpoint_downtime_seconds
+  query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='system-sphinx',
+    namespace='redhat-rhmi-3scale'} , 1)[$duration:30s]) * $range)/1000
+  result:
+  - metric:
+      endpoint: system-sphinx
+      instance: 10.11.78.9:8443
+      job: kube-state-metrics
+      namespace: redhat-rhmi-3scale
+      pod: kube-state-metrics-5b489644c9-k9g8h
+      prometheus: openshift-monitoring/k8s
+      service: kube-state-metrics
+    value:
+    - 1.594817927902e+09
+    - "0"
+  resultType: vector
+- name: 3scale_zync_k8s_endpoint_downtime_seconds
+  query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='zync',
+    namespace='redhat-rhmi-3scale'} , 1)[$duration:30s]) * $range)/1000
+  result:
+  - metric:
+      endpoint: zync
+      instance: 10.11.78.9:8443
+      job: kube-state-metrics
+      namespace: redhat-rhmi-3scale
+      pod: kube-state-metrics-5b489644c9-k9g8h
+      prometheus: openshift-monitoring/k8s
+      service: kube-state-metrics
+    value:
+    - 1.594817927909e+09
+    - "0"
+  resultType: vector
+- name: 3scale_zync_database_provider_k8s_endpoint_downtime_seconds
+  query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='zync-database',
+    namespace='redhat-rhmi-3scale'} , 1)[$duration:30s]) * $range)/1000
+  result:
+  - metric:
+      endpoint: zync-database
+      instance: 10.11.78.9:8443
+      job: kube-state-metrics
+      namespace: redhat-rhmi-3scale
+      pod: kube-state-metrics-5b489644c9-k9g8h
+      prometheus: openshift-monitoring/k8s
+      service: kube-state-metrics
+    value:
+    - 1.594817927909e+09
+    - "0"
+  resultType: vector
+- name: 3scale_backend_listener_k8s_endpoint_downtime_seconds
+  query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='backend-listener',
+    namespace='redhat-rhmi-3scale'} , 1)[$duration:30s]) * $range)/1000
+  result:
+  - metric:
+      endpoint: backend-listener
+      instance: 10.11.78.9:8443
+      job: kube-state-metrics
+      namespace: redhat-rhmi-3scale
+      pod: kube-state-metrics-5b489644c9-k9g8h
+      prometheus: openshift-monitoring/k8s
+      service: kube-state-metrics
+    value:
+    - 1.594817927943e+09
+    - "0"
+  resultType: vector
+- name: 3scale_workload_app_downtime_seconds
+  query: sum(workload_app_service_downtime_seconds{name='3scale_service'})
+  result:
+  - metric: {}
+    value:
+    - 1.594817927944e+09
+    - "0"
+  resultType: vector
+- name: rhssouser_keycloak_k8s_endpoint_downtime_seconds
+  query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='keycloak',
+    namespace='redhat-rhmi-user-sso'} , 1)[$duration:30s]) * $range)/1000
+  result:
+  - metric:
+      endpoint: keycloak
+      instance: 10.11.78.9:8443
+      job: kube-state-metrics
+      namespace: redhat-rhmi-user-sso
+      pod: kube-state-metrics-5b489644c9-k9g8h
+      prometheus: openshift-monitoring/k8s
+      service: kube-state-metrics
+    value:
+    - 1.594817927944e+09
+    - "0"
+  resultType: vector
+- name: rhssouser_keycloak_discovery_k8s_endpoint_downtime_seconds
+  query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='keycloak-discovery',
+    namespace='redhat-rhmi-user-sso'} , 1)[$duration:30s]) * $range)/1000
+  result:
+  - metric:
+      endpoint: keycloak-discovery
+      instance: 10.11.78.9:8443
+      job: kube-state-metrics
+      namespace: redhat-rhmi-user-sso
+      pod: kube-state-metrics-5b489644c9-k9g8h
+      prometheus: openshift-monitoring/k8s
+      service: kube-state-metrics
+    value:
+    - 1.594817927951e+09
+    - "0"
+  resultType: vector
+- name: rhssouser_ui_blackbox_downtime_seconds
+  query: $range - (probe_success{service='rhssouser-ui'} * $range)
+  result:
+  - metric:
+      instance: https://keycloak-edge-redhat-rhmi-user-sso.apps.addon-flow-181.m0m6.s1.devshift.org
+      job: blackbox
+      service: rhssouser-ui
+    value:
+    - 1.594817927952e+09
+    - "0"
+  resultType: vector
+- name: rhssouser_workload_app_downtime_seconds
+  query: sum(workload_app_service_downtime_seconds{name='sso_service'})
+  result:
+  - metric: {}
+    value:
+    - 1.59481792798e+09
+    - "0"
+  resultType: vector
+- name: rhsso_k8s_endpoint_downtime_seconds
+  query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='keycloak',
+    namespace='redhat-rhmi-sso'} , 1)[$duration:30s]) * $range)/1000
+  result: []
+  resultType: vector
+- name: rhsso_keycloak_discovery_k8s_endpoint_downtime_seconds
+  query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='keycloak-discovery',
+    namespace='redhat-rhmi-sso'} , 1)[$duration:30s]) * $range)/1000
+  result: []
+  resultType: vector
+- name: rhsso_ui_blackbox_downtime_seconds
+  query: $range - (probe_success{service='rhsso-ui'} * $range)
+  result:
+  - metric:
+      instance: https://keycloak-edge-redhat-rhmi-rhsso.apps.addon-flow-181.m0m6.s1.devshift.org
+      job: blackbox
+      service: rhsso-ui
+    value:
+    - 1.594817927985e+09
+    - "0"
+  resultType: vector
+- name: codeready_che_host_k8s_endpoint_downtime_seconds
+  query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='che-host',
+    namespace='redhat-rhmi-codeready-workspaces'} , 1)[$duration:30s]) * $range)/1000
+  result:
+  - metric:
+      endpoint: che-host
+      instance: 10.11.78.9:8443
+      job: kube-state-metrics
+      namespace: redhat-rhmi-codeready-workspaces
+      pod: kube-state-metrics-5b489644c9-k9g8h
+      prometheus: openshift-monitoring/k8s
+      service: kube-state-metrics
+    value:
+    - 1.594817927987e+09
+    - "0"
+  resultType: vector
+- name: codeready_devfile_registry_k8s_endpoint_downtime_seconds
+  query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='devfile-registry',
+    namespace='redhat-rhmi-codeready-workspaces'} , 1)[$duration:30s]) * $range)/1000
+  result:
+  - metric:
+      endpoint: devfile-registry
+      instance: 10.11.78.9:8443
+      job: kube-state-metrics
+      namespace: redhat-rhmi-codeready-workspaces
+      pod: kube-state-metrics-5b489644c9-k9g8h
+      prometheus: openshift-monitoring/k8s
+      service: kube-state-metrics
+    value:
+    - 1.594817928013e+09
+    - "0"
+  resultType: vector
+- name: codeready_plugin_registry_k8s_endpoint_downtime_seconds
+  query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='plugin-registry',
+    namespace='redhat-rhmi-codeready-workspaces'} , 1)[$duration:30s]) * $range)/1000
+  result:
+  - metric:
+      endpoint: plugin-registry
+      instance: 10.11.78.9:8443
+      job: kube-state-metrics
+      namespace: redhat-rhmi-codeready-workspaces
+      pod: kube-state-metrics-5b489644c9-k9g8h
+      prometheus: openshift-monitoring/k8s
+      service: kube-state-metrics
+    value:
+    - 1.594817928024e+09
+    - "0"
+  resultType: vector
+- name: codeready_ui_blackbox_downtime_seconds
+  query: $range - (probe_success{service='codeready-ui'} * $range)
+  result:
+  - metric:
+      instance: https://codeready-redhat-rhmi-codeready-workspaces.apps.addon-flow-181.m0m6.s1.devshift.org
+      job: blackbox
+      service: codeready-ui
+    value:
+    - 1.594817928024e+09
+    - "0"
+  resultType: vector
+- name: apicurito_k8s_endpoint_downtime_seconds
+  query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='apicurito',
+    namespace='redhat-rhmi-apicurito'} , 1)[$duration:30s]) * $range)/1000
+  result:
+  - metric:
+      endpoint: apicurito
+      instance: 10.11.78.9:8443
+      job: kube-state-metrics
+      namespace: redhat-rhmi-apicurito
+      pod: kube-state-metrics-5b489644c9-k9g8h
+      prometheus: openshift-monitoring/k8s
+      service: kube-state-metrics
+    value:
+    - 1.594817928024e+09
+    - "0"
+  resultType: vector
+- name: apicurito_generator_k8s_endpoint_downtime_seconds
+  query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='fuse-apicurito-generator',
+    namespace='redhat-rhmi-apicurito'} , 1)[$duration:30s]) * $range)/1000
+  result:
+  - metric:
+      endpoint: fuse-apicurito-generator
+      instance: 10.11.78.9:8443
+      job: kube-state-metrics
+      namespace: redhat-rhmi-apicurito
+      pod: kube-state-metrics-5b489644c9-k9g8h
+      prometheus: openshift-monitoring/k8s
+      service: kube-state-metrics
+    value:
+    - 1.594817928025e+09
+    - "0"
+  resultType: vector
+- name: apicurito_ui_blackbox_downtime_seconds
+  query: $range - (probe_success{service='apicurito-ui'} * $range)
+  result:
+  - metric:
+      instance: https://apicurito-redhat-rhmi-apicurito.apps.addon-flow-181.m0m6.s1.devshift.org/oauth/healthz
+      job: blackbox
+      service: apicurito-ui
+    value:
+    - 1.594817928047e+09
+    - "0"
+  resultType: vector
+- name: syndesis_server_k8s_endpoint_downtime_seconds
+  query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='syndesis-server',
+    namespace='redhat-rhmi-fuse'} , 1)[$duration:30s]) * $range)/1000
+  result:
+  - metric:
+      endpoint: syndesis-server
+      instance: 10.11.78.9:8443
+      job: kube-state-metrics
+      namespace: redhat-rhmi-fuse
+      pod: kube-state-metrics-5b489644c9-k9g8h
+      prometheus: openshift-monitoring/k8s
+      service: kube-state-metrics
+    value:
+    - 1.594817928066e+09
+    - "0"
+  resultType: vector
+- name: syndesis_ui_k8s_endpoint_downtime_seconds
+  query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='syndesis-ui',
+    namespace='redhat-rhmi-fuse'} , 1)[$duration:30s]) * $range)/1000
+  result:
+  - metric:
+      endpoint: syndesis-ui
+      instance: 10.11.78.9:8443
+      job: kube-state-metrics
+      namespace: redhat-rhmi-fuse
+      pod: kube-state-metrics-5b489644c9-k9g8h
+      prometheus: openshift-monitoring/k8s
+      service: kube-state-metrics
+    value:
+    - 1.594817928067e+09
+    - "0"
+  resultType: vector
+- name: syndesis_oauth_proxy_k8s_endpoint_downtime_seconds
+  query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='syndesis-oauthproxy',
+    namespace='redhat-rhmi-fuse'} , 1)[$duration:30s]) * $range)/1000
+  result:
+  - metric:
+      endpoint: syndesis-oauthproxy
+      instance: 10.11.78.9:8443
+      job: kube-state-metrics
+      namespace: redhat-rhmi-fuse
+      pod: kube-state-metrics-5b489644c9-k9g8h
+      prometheus: openshift-monitoring/k8s
+      service: kube-state-metrics
+    value:
+    - 1.594817928068e+09
+    - "0"
+  resultType: vector
+- name: syndesis_meta_k8s_endpoint_downtime_seconds
+  query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='syndesis-meta',
+    namespace='redhat-rhmi-fuse'} , 1)[$duration:30s]) * $range)/1000
+  result:
+  - metric:
+      endpoint: syndesis-meta
+      instance: 10.11.78.9:8443
+      job: kube-state-metrics
+      namespace: redhat-rhmi-fuse
+      pod: kube-state-metrics-5b489644c9-k9g8h
+      prometheus: openshift-monitoring/k8s
+      service: kube-state-metrics
+    value:
+    - 1.594817928068e+09
+    - "0"
+  resultType: vector
+- name: syndesis_prometheus_k8s_endpoint_downtime_seconds
+  query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='syndesis-prometheus',
+    namespace='redhat-rhmi-fuse'} , 1)[$duration:30s]) * $range)/1000
+  result:
+  - metric:
+      endpoint: syndesis-prometheus
+      instance: 10.11.78.9:8443
+      job: kube-state-metrics
+      namespace: redhat-rhmi-fuse
+      pod: kube-state-metrics-5b489644c9-k9g8h
+      prometheus: openshift-monitoring/k8s
+      service: kube-state-metrics
+    value:
+    - 1.594817928092e+09
+    - "0"
+  resultType: vector
+- name: syndesis_broker_amq_tcp_k8s_endpoint_downtime_seconds
+  query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='broker-amq-tcp',
+    namespace='redhat-rhmi-fuse'} , 1)[$duration:30s]) * $range)/1000
+  result:
+  - metric:
+      endpoint: broker-amq-tcp
+      instance: 10.11.78.9:8443
+      job: kube-state-metrics
+      namespace: redhat-rhmi-fuse
+      pod: kube-state-metrics-5b489644c9-k9g8h
+      prometheus: openshift-monitoring/k8s
+      service: kube-state-metrics
+    value:
+    - 1.59481792811e+09
+    - "0"
+  resultType: vector
+- name: syndesis_integrations_k8s_endpoint_downtime_seconds
+  query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='syndesis-integrations',
+    namespace='redhat-rhmi-fuse'} , 1)[$duration:30s]) * $range)/1000
+  result:
+  - metric:
+      endpoint: syndesis-integrations
+      instance: 10.11.78.9:8443
+      job: kube-state-metrics
+      namespace: redhat-rhmi-fuse
+      pod: kube-state-metrics-5b489644c9-k9g8h
+      prometheus: openshift-monitoring/k8s
+      service: kube-state-metrics
+    value:
+    - 1.59481792811e+09
+    - "0"
+  resultType: vector
+- name: syndesis_ui_blackbox_downtime_seconds
+  query: $range - (probe_success{service='syndesis-ui'} * $range)
+  result:
+  - metric:
+      instance: https://syndesis-redhat-rhmi-fuse.apps.addon-flow-181.m0m6.s1.devshift.org/oauth/healthz
+      job: blackbox
+      service: syndesis-ui
+    value:
+    - 1.594817928111e+09
+    - "0"
+  resultType: vector
+- name: ups_server_k8s_endpoint_downtime_seconds
+  query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='ups-unifiedpush',
+    namespace='redhat-rhmi-ups'} , 1)[$duration:30s]) * $range)/1000
+  result:
+  - metric:
+      endpoint: ups-unifiedpush
+      instance: 10.11.78.9:8443
+      job: kube-state-metrics
+      namespace: redhat-rhmi-ups
+      pod: kube-state-metrics-5b489644c9-k9g8h
+      prometheus: openshift-monitoring/k8s
+      service: kube-state-metrics
+    value:
+    - 1.594817928111e+09
+    - "0"
+  resultType: vector
+- name: ups_server_k8s_endpoint_downtime_seconds
+  query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='ups-unifiedpush-proxy',
+    namespace='redhat-rhmi-ups'} , 1)[$duration:30s]) * $range)/1000
+  result:
+  - metric:
+      endpoint: ups-unifiedpush-proxy
+      instance: 10.11.78.9:8443
+      job: kube-state-metrics
+      namespace: redhat-rhmi-ups
+      pod: kube-state-metrics-5b489644c9-k9g8h
+      prometheus: openshift-monitoring/k8s
+      service: kube-state-metrics
+    value:
+    - 1.594817928127e+09
+    - "0"
+  resultType: vector
+- name: ups_ui_blackbox_downtime_seconds
+  query: $range - (probe_success{service='ups-ui'} * $range)
+  result:
+  - metric:
+      instance: https://ups-unifiedpush-proxy-redhat-rhmi-ups.apps.addon-flow-181.m0m6.s1.devshift.org//rest/auth/config/
+      job: blackbox
+      service: ups-ui
+    value:
+    - 1.594817928142e+09
+    - "0"
+  resultType: vector

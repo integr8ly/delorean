@@ -127,3 +127,17 @@ func TestQueryReportCmd(t *testing.T) {
 		})
 	}
 }
+
+func TestQueryResult_UnmarshalJSON(t *testing.T) {
+	r := "./testdata/queryReport/downtime-report.yaml"
+	qr := &queryResults{}
+	err := utils.PopulateObjectFromYAML(r, qr)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	for _, re := range qr.Results {
+		if re.Result == nil {
+			t.Fatal("result is nil")
+		}
+	}
+}
