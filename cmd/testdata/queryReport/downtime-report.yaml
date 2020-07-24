@@ -9,7 +9,7 @@ results:
       service: amq-service-broker
     value:
     - 1.594817927501e+09
-    - "0"
+    - "10"
   resultType: vector
 - name: amq_addressspace_k8s_endpoint_downtime_seconds
   query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='address-space-controller',
@@ -25,7 +25,7 @@ results:
       service: kube-state-metrics
     value:
     - 1.594817927502e+09
-    - "0"
+    - "20"
   resultType: vector
 - name: amq_console_k8s_endpoint_downtime_seconds
   query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='console',
@@ -41,7 +41,7 @@ results:
       service: kube-state-metrics
     value:
     - 1.594817927502e+09
-    - "0"
+    - "4"
   resultType: vector
 - name: amq_standard_authservice_k8s_endpoint_downtime_seconds
   query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='standard-authservice',
@@ -57,7 +57,7 @@ results:
       service: kube-state-metrics
     value:
     - 1.594817927502e+09
-    - "0"
+    - "7"
   resultType: vector
 - name: amq_workload_app_message_sender_downtime_seconds
   query: sum(workload_app_service_downtime_seconds{name='amq_sender'})
@@ -65,7 +65,7 @@ results:
   - metric: {}
     value:
     - 1.594817927502e+09
-    - "0"
+    - "8"
   resultType: vector
 - name: amq_workload_app_message_receiver_downtime_seconds
   query: sum(workload_app_service_downtime_seconds{name='amq_receiver'})
@@ -73,7 +73,7 @@ results:
   - metric: {}
     value:
     - 1.59481792786e+09
-    - "0"
+    - "10"
   resultType: vector
 - name: 3scale_apicast_production_k8s_endpoint_downtime_seconds
   query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='apicast-production',
@@ -89,7 +89,7 @@ results:
       service: kube-state-metrics
     value:
     - 1.594817927861e+09
-    - "0"
+    - "20"
   resultType: vector
 - name: 3scale_apicast_staging_k8s_endpoint_downtime_seconds
   query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='apicast-staging',
@@ -105,7 +105,7 @@ results:
       service: kube-state-metrics
     value:
     - 1.594817927863e+09
-    - "0"
+    - "40"
   resultType: vector
 - name: 3scale_system_developer_k8s_endpoint_downtime_seconds
   query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='system-developer',
@@ -121,7 +121,7 @@ results:
       service: kube-state-metrics
     value:
     - 1.594817927864e+09
-    - "0"
+    - "2"
   resultType: vector
 - name: 3scale_system_master_k8s_endpoint_downtime_seconds
   query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='system-master',
@@ -169,7 +169,7 @@ results:
       service: kube-state-metrics
     value:
     - 1.594817927901e+09
-    - "0"
+    - "4"
   resultType: vector
 - name: 3scale_system_sphinx_k8s_endpoint_downtime_seconds
   query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='system-sphinx',
@@ -201,7 +201,7 @@ results:
       service: kube-state-metrics
     value:
     - 1.594817927909e+09
-    - "0"
+    - "9"
   resultType: vector
 - name: 3scale_zync_database_provider_k8s_endpoint_downtime_seconds
   query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='zync-database',
@@ -329,7 +329,7 @@ results:
       service: kube-state-metrics
     value:
     - 1.594817927987e+09
-    - "0"
+    - "3"
   resultType: vector
 - name: codeready_devfile_registry_k8s_endpoint_downtime_seconds
   query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='devfile-registry',
@@ -361,7 +361,7 @@ results:
       service: kube-state-metrics
     value:
     - 1.594817928024e+09
-    - "0"
+    - "8"
   resultType: vector
 - name: codeready_ui_blackbox_downtime_seconds
   query: $range - (probe_success{service='codeready-ui'} * $range)
@@ -404,7 +404,7 @@ results:
       service: kube-state-metrics
     value:
     - 1.594817928025e+09
-    - "0"
+    - "8"
   resultType: vector
 - name: apicurito_ui_blackbox_downtime_seconds
   query: $range - (probe_success{service='apicurito-ui'} * $range)
@@ -431,7 +431,7 @@ results:
       service: kube-state-metrics
     value:
     - 1.594817928066e+09
-    - "0"
+    - "4"
   resultType: vector
 - name: syndesis_ui_k8s_endpoint_downtime_seconds
   query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='syndesis-ui',
@@ -479,7 +479,7 @@ results:
       service: kube-state-metrics
     value:
     - 1.594817928068e+09
-    - "0"
+    - "30"
   resultType: vector
 - name: syndesis_prometheus_k8s_endpoint_downtime_seconds
   query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='syndesis-prometheus',
@@ -511,7 +511,7 @@ results:
       service: kube-state-metrics
     value:
     - 1.59481792811e+09
-    - "0"
+    - "20"
   resultType: vector
 - name: syndesis_integrations_k8s_endpoint_downtime_seconds
   query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='syndesis-integrations',
@@ -554,7 +554,7 @@ results:
       service: kube-state-metrics
     value:
     - 1.594817928111e+09
-    - "0"
+    - "10"
   resultType: vector
 - name: ups_server_k8s_endpoint_downtime_seconds
   query: ($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='ups-unifiedpush-proxy',
@@ -583,3 +583,4 @@ results:
     - 1.594817928142e+09
     - "0"
   resultType: vector
+version: 9.9.9
