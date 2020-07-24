@@ -30,9 +30,10 @@ const (
 	imagePullSecret = "integreatly-delorean-pull-secret"
 )
 
-type csvName struct {
-	Name    string
-	Version semver.Version
+type CSVName struct {
+	Name     string
+	Version  semver.Version
+	Replaces string
 }
 
 type relatedImage struct {
@@ -45,11 +46,19 @@ type relatedImageValue struct {
 	Value string
 }
 
-type csvNames []csvName
+type CSVNames []CSVName
 
-func (c csvNames) Len() int           { return len(c) }
-func (c csvNames) Less(i, j int) bool { return c[i].Version.LT(c[j].Version) }
-func (c csvNames) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
+func (c CSVNames) Len() int           { return len(c) }
+func (c CSVNames) Less(i, j int) bool { return c[i].Version.LT(c[j].Version) }
+func (c CSVNames) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
+func (c CSVNames) Contains(name string) bool {
+	for i := 0; i < c.Len(); i++ {
+		if c[i].Name == name {
+			return true
+		}
+	}
+	return false
+}
 
 type CSV struct {
 	obj *unstructured.Unstructured
@@ -73,6 +82,14 @@ func (csv *CSV) GetVersion() (semver.Version, error) {
 		version = ""
 	}
 	return semver.Parse(version)
+}
+
+func (csv *CSV) GetReplaces() (string, error) {
+	r, ok, err := unstructured.NestedString(csv.obj.Object, "spec", "replaces")
+	if !ok || err != nil {
+		return "", err
+	}
+	return r, err
 }
 
 func (csv *CSV) GetAnnotations() map[string]string {
@@ -282,9 +299,9 @@ func GetPackageManifest(packageDir string) (*registry.PackageManifest, string, e
 	return pkgManifest, pkgManifestFile, nil
 }
 
-func GetSortedCSVNames(packageDir string) (csvNames, error) {
+func GetSortedCSVNames(packageDir string) (CSVNames, error) {
 	bundleDirs, err := ioutil.ReadDir(packageDir)
-	var sortedCSVNames csvNames
+	var sortedCSVNames CSVNames
 	if err != nil {
 		return nil, err
 	}
@@ -298,7 +315,11 @@ func GetSortedCSVNames(packageDir string) (csvNames, error) {
 			if err != nil {
 				return nil, err
 			}
-			sortedCSVNames = append(sortedCSVNames, csvName{Name: csv.GetName(), Version: v})
+			r, err := csv.GetReplaces()
+			if err != nil {
+				return nil, err
+			}
+			sortedCSVNames = append(sortedCSVNames, CSVName{Name: csv.GetName(), Version: v, Replaces: r})
 		}
 	}
 	sort.Sort(sortedCSVNames)
