@@ -74,6 +74,11 @@ func (qr *queryResult) UnmarshalJSON(b []byte) error {
 		return err
 	}
 
+	qr.Name = v.Name
+	qr.Type = v.Type
+	qr.Query = v.Query
+	qr.Result = v.Result
+
 	switch v.Type {
 	case model.ValScalar:
 		var sv model.Scalar
