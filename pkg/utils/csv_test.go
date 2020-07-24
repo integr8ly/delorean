@@ -126,7 +126,7 @@ func TestGetPackageManifest(t *testing.T) {
 }
 
 func TestGetSortedCSVNames(t *testing.T) {
-	sortedcsvs := []csvName{
+	sortedcsvs := []CSVName{
 		{
 			Name: "3scale-operator.v0.4.0",
 			Version: semver.Version{
@@ -150,7 +150,7 @@ func TestGetSortedCSVNames(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    csvNames
+		want    CSVNames
 		wantErr bool
 	}{
 		{
