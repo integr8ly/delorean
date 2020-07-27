@@ -109,7 +109,7 @@ func (qr *queryResult) UnmarshalJSON(b []byte) error {
 type queryResults struct {
 	Name    string        `json:"name"`
 	Results []queryResult `json:"results"`
-	Version	string		  `json:"version"`
+	Version string        `json:"version"`
 }
 
 type queryReportConfig struct {
@@ -173,7 +173,7 @@ func init() {
 	cmd.Flags().Int64Var(&f.end, "end-time", time.Now().Unix(), "End time for queryRange type of queries. Default to current time")
 	cmd.Flags().Int64Var(&f.start, "start-time", 0, "Start time for queryRange type of queries. Only either start-time or duration should be specified")
 	cmd.Flags().DurationVar(&f.duration, "duration", time.Duration(2*time.Hour), "Duration for queryRange type of queries. Only either start-time or duration should be specified")
-	cmd.Flags().StringVarP(&f.version, "version", "v","","the RHMI version installed on the cluster")
+	cmd.Flags().StringVarP(&f.version, "version", "v", "", "the RHMI version installed on the cluster")
 }
 
 func newQueryReportCmd(kubeconfig string, f *queryReportCmdFlags) (*queryReportCmd, error) {
@@ -209,7 +209,7 @@ func newQueryReportCmd(kubeconfig string, f *queryReportCmdFlags) (*queryReportC
 		timeout:    f.timeout,
 		config:     qrConfig,
 		queryRange: queryRange,
-		version:	f.version,
+		version:    f.version,
 	}, nil
 }
 
@@ -254,7 +254,7 @@ func (c *queryReportCmd) processQueries(ctx context.Context) ([]queryResult, err
 	for i, q := range c.config.Queries {
 		v := q
 		t := func() (utils.TaskResult, error) {
-			r,_, err := c.queryProm(ctx, v)
+			r, _, err := c.queryProm(ctx, v)
 			if err != nil {
 				return nil, err
 			}

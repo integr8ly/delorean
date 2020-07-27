@@ -31,7 +31,7 @@ func TestDatahubImportCmd(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !bytes.Equal(lastBody, wantBody){
+			if !bytes.Equal(lastBody, wantBody) {
 				w.WriteHeader(http.StatusBadGateway)
 			}
 			if bytes.Equal(lastBody, wantBody) {
@@ -42,12 +42,12 @@ func TestDatahubImportCmd(t *testing.T) {
 	defer pgwOK.Close()
 
 	var cases = []struct {
-		description  	string
-		s3           	s3iface.S3API
-		s3downloader 	s3manageriface.DownloaderAPI
-		expectError  	bool
-		gateway			string
-		reportName		string
+		description  string
+		s3           s3iface.S3API
+		s3downloader s3manageriface.DownloaderAPI
+		expectError  bool
+		gateway      string
+		reportName   string
 	}{
 		{
 			description: "push success",
@@ -78,8 +78,8 @@ func TestDatahubImportCmd(t *testing.T) {
 				},
 			},
 			expectError: false,
-			gateway: pgwOK.URL,
-			reportName: "downtime-report.yaml",
+			gateway:     pgwOK.URL,
+			reportName:  "downtime-report.yaml",
 		},
 		{
 			description: "push gateway failure",
@@ -110,8 +110,8 @@ func TestDatahubImportCmd(t *testing.T) {
 				},
 			},
 			expectError: true,
-			gateway: "not-a-real-gateway",
-			reportName: "downtime-report.yaml",
+			gateway:     "not-a-real-gateway",
+			reportName:  "downtime-report.yaml",
 		},
 		{
 			description: "invalid file failure",
@@ -142,19 +142,19 @@ func TestDatahubImportCmd(t *testing.T) {
 				},
 			},
 			expectError: true,
-			gateway: pgwOK.URL,
-			reportName: "not-a-report.yaml",
+			gateway:     pgwOK.URL,
+			reportName:  "not-a-report.yaml",
 		},
 	}
 	for _, c := range cases {
 		t.Run(c.description, func(t *testing.T) {
 			cmd := &datahubImportCmd{
-				s3:				c.s3,
-				s3Downloader:	c.s3downloader,
-				fromBucket:		"test-bucket",
-				reportName:		c.reportName,
-				pushgateway:	c.gateway,
-				jobName:		"testJob",
+				s3:           c.s3,
+				s3Downloader: c.s3downloader,
+				fromBucket:   "test-bucket",
+				reportName:   c.reportName,
+				pushgateway:  c.gateway,
+				jobName:      "testJob",
 			}
 			err := cmd.run(context.TODO())
 

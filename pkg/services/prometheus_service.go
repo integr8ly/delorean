@@ -9,6 +9,6 @@ import (
 )
 
 type PrometheusService interface {
-	Query(ctx context.Context, query string, ts time.Time) (model.Value, api.Warnings ,error)
+	Query(ctx context.Context, query string, ts time.Time) (model.Value, api.Warnings, error)
 	QueryRange(ctx context.Context, query string, r promv1.Range) (model.Value, api.Warnings, error)
 }
