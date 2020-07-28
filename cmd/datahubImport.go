@@ -196,6 +196,9 @@ func (c *datahubImportCmd) processReportFile(ctx context.Context, object *s3.Obj
 		}
 	}
 	err = pusher.Push()
+	if err != nil {
+		return nil, err
+	}
 	// update tags
 	t := append(tags.TagSet, &s3.Tag{
 		Key:   aws.String(datahubTagKey),
