@@ -2,6 +2,7 @@ package utils
 
 import (
 	"archive/zip"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -23,7 +24,7 @@ func ReadFileFromZip(zipfile string, fileName string) ([]byte, error) {
 			return ioutil.ReadAll(rc)
 		}
 	}
-	return nil, nil
+	return nil, fmt.Errorf("%s not found in zip file %s", fileName, zipfile)
 }
 
 // folder - folder to be zipped
