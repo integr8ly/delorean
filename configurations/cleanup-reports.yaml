@@ -6,3 +6,5 @@ configs:
         value: true
       - key: rp
         value: true
+      - key: datahub
+        value: true
