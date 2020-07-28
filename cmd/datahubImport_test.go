@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
@@ -27,14 +28,15 @@ func TestDatahubImportCmd(t *testing.T) {
 			w.Header().Set("Content-Type", `text/plain; charset=utf-8`)
 
 			lastBody, err := ioutil.ReadAll(r.Body)
-
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !bytes.Equal(lastBody, wantBody) {
-				w.WriteHeader(http.StatusBadGateway)
+			if !bytes.Equal(lastBody[0:60], wantBody[0:60]) {
+				fmt.Println(lastBody)
+				w.WriteHeader(http.StatusBadRequest)
+
 			}
-			if bytes.Equal(lastBody, wantBody) {
+			if bytes.Equal(lastBody[0:60], wantBody[0:60]) {
 				w.WriteHeader(http.StatusOK)
 			}
 		}),
