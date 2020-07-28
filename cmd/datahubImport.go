@@ -20,6 +20,9 @@ import (
 )
 
 const (
+	datahubTagKey = "datahub"
+	datahubTagVal = "true"
+
 	downtimeReportFilename = "downtime-report.yaml"
 	pushgateway            = "http://pushgateway-dh-prod-monitoring.cloud.datahub.psi.redhat.com:9091"
 	jobName                = "rhmi-product-downtime"
@@ -140,12 +143,17 @@ func (c *datahubImportCmd) processReportFile(ctx context.Context, object *s3.Obj
 
 	fmt.Println(fmt.Sprintf("[%s] Start processing object", *object.Key))
 
-	_, err := c.s3.GetObjectTaggingWithContext(ctx, &s3.GetObjectTaggingInput{
+	tags, err := c.s3.GetObjectTaggingWithContext(ctx, &s3.GetObjectTaggingInput{
 		Bucket: &c.fromBucket,
 		Key:    object.Key,
 	})
 	if err != nil {
 		return nil, err
+	}
+
+	if hasTag(tags.TagSet, datahubTagKey, datahubTagVal){
+		fmt.Println(fmt.Sprintf("[%s] file in bucket %s has been processed already. Ignored.", *object.Key, c.fromBucket))
+		return nil, nil
 	}
 
 	fmt.Println(fmt.Sprintf("[%s] Downloading file from s3 bucket %s", *object.Key, c.fromBucket))
@@ -164,42 +172,44 @@ func (c *datahubImportCmd) processReportFile(ctx context.Context, object *s3.Obj
 
 	fmt.Println(fmt.Sprintf("[%s] Downtime Report file is loaded. Uploading to prometheus at %s", *object.Key, c.pushgateway))
 
-	var name string
-	var count int
 	// Get version string
 	ver, err := utils.NewRHMIVersion(qr.Version)
 	if err != nil {
 		return nil, err
 	}
+	var name string
 	for _, i := range qr.Results {
-		if strings.Split(i.Name, "_")[0] != name {
-			// We don't have a name yet so set it
-			if name == "" {
-				name = strings.Split(i.Name, "_")[0]
-			}
-			//We've finished processing a product so push the metric
-			pusher := push.New(c.pushgateway, c.jobName)
-			downtimeCount.Set(float64(count))
-			pusher.Collector(downtimeCount).Grouping("product", name).Grouping("version", ver.String())
-			err = pusher.Push()
-
-			// Set the new name
-			name = strings.Split(i.Name, "_")[0]
-			count = 0
-			if err != nil {
-				e := fmt.Errorf("failed to push to %s", c.pushgateway)
-				return nil, e
-			}
-		}
-
+		name = strings.Split(i.Name,"_")[0]
 		if len(i.v.String()) > 0 {
 			// The metric value comes with the query so split it to get the int value we care about
-			n, err := parseValue(i.v.String())
+			count, err := parseValue(i.v.String())
 			if err != nil {
 				return 0, err
 			}
-			count = count + n
+			downtimeCount.Set(float64(count))
+
 		}
+		// push the metric
+		pusher := push.New(c.pushgateway, c.jobName)
+		pusher.Collector(downtimeCount).Grouping("product", name).Grouping("query", i.Name).Grouping("version", ver.String())
+		err = pusher.Push()
+
+		if err != nil {
+			e := fmt.Errorf("failed to push to %s: %s", c.pushgateway, err)
+			return nil, e
+		}
+	}
+	// update tags
+	t := append(tags.TagSet, &s3.Tag{
+		Key:   aws.String(datahubTagKey),
+		Value: aws.String(datahubTagVal),
+	})
+	if _, err = c.s3.PutObjectTaggingWithContext(ctx, &s3.PutObjectTaggingInput{
+		Bucket:  aws.String(c.fromBucket),
+		Key:     object.Key,
+		Tagging: &s3.Tagging{TagSet: t},
+	}); err != nil {
+		return nil, err
 	}
 
 	return &struct{}{}, nil
