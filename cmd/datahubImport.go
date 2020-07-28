@@ -44,10 +44,10 @@ type datahubImportCmd struct {
 	jobName      string
 }
 
-var downtimeCount = prometheus.NewGauge(prometheus.GaugeOpts{
+var downtimeCount = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 	Name: "rhmi_product_downtime",
 	Help: "Downtime count in seconds",
-})
+}, []string{"product", "query", "version"})
 
 func init() {
 	f := &datahubImportCmdFlags{}
@@ -151,7 +151,7 @@ func (c *datahubImportCmd) processReportFile(ctx context.Context, object *s3.Obj
 		return nil, err
 	}
 
-	if hasTag(tags.TagSet, datahubTagKey, datahubTagVal){
+	if hasTag(tags.TagSet, datahubTagKey, datahubTagVal) {
 		fmt.Println(fmt.Sprintf("[%s] file in bucket %s has been processed already. Ignored.", *object.Key, c.fromBucket))
 		return nil, nil
 	}
@@ -178,27 +178,24 @@ func (c *datahubImportCmd) processReportFile(ctx context.Context, object *s3.Obj
 		return nil, err
 	}
 	var name string
+	pusher := push.New(c.pushgateway, c.jobName)
+	pusher.Collector(downtimeCount)
 	for _, i := range qr.Results {
-		name = strings.Split(i.Name,"_")[0]
+		name = strings.Split(i.Name, "_")[0]
 		if len(i.v.String()) > 0 {
 			// The metric value comes with the query so split it to get the int value we care about
 			count, err := parseValue(i.v.String())
 			if err != nil {
 				return 0, err
 			}
-			downtimeCount.Set(float64(count))
-
-		}
-		// push the metric
-		pusher := push.New(c.pushgateway, c.jobName)
-		pusher.Collector(downtimeCount).Grouping("product", name).Grouping("query", i.Name).Grouping("version", ver.String())
-		err = pusher.Push()
-
-		if err != nil {
-			e := fmt.Errorf("failed to push to %s: %s", c.pushgateway, err)
-			return nil, e
+			downtimeCount.With(prometheus.Labels{"product": name, "query": i.Name, "version": ver.String()}).Set(float64(count))
+			if err != nil {
+				e := fmt.Errorf("failed to push to %s: %s", c.pushgateway, err)
+				return nil, e
+			}
 		}
 	}
+	err = pusher.Push()
 	// update tags
 	t := append(tags.TagSet, &s3.Tag{
 		Key:   aws.String(datahubTagKey),
