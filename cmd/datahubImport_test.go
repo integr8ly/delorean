@@ -18,10 +18,10 @@ import (
 
 func TestDatahubImportCmd(t *testing.T) {
 	// Expected request body
-	wantBody := []byte{65, 10, 21, 114, 104, 109, 105, 95, 112, 114, 111, 100, 117, 99,
-		116, 95, 100, 111, 119, 110, 116, 105, 109, 101, 18, 25, 68, 111, 119, 110, 116,
-		105, 109, 101, 32, 99, 111, 117, 110, 116, 32, 105, 110, 32, 115, 101, 99, 111,
-		110, 100, 115, 24, 1, 34, 11, 18, 9, 9, 0, 0, 0, 0, 0, 0, 0, 0}
+	wantBody := []byte{65, 10, 21, 114, 104, 109, 105, 95, 112, 114, 111, 100,
+		117, 99, 116, 95, 100, 111, 119, 110, 116, 105, 109, 101, 18, 25, 68, 111,
+		119, 110, 116, 105, 109, 101, 32, 99, 111, 117, 110, 116, 32, 105, 110, 32,
+		115, 101, 99, 111, 110, 100, 115, 24, 1, 34, 11, 18, 9, 9, 0, 0, 0, 0, 0, 0}
 
 	pgwOK := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -31,12 +31,11 @@ func TestDatahubImportCmd(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !bytes.Equal(lastBody[0:60], wantBody[0:60]) {
-				fmt.Println(lastBody)
+			if !bytes.Equal(lastBody[0:63], wantBody[0:63]) {
 				w.WriteHeader(http.StatusBadRequest)
 
 			}
-			if bytes.Equal(lastBody[0:60], wantBody[0:60]) {
+			if bytes.Equal(lastBody[0:63], wantBody[0:63]) {
 				w.WriteHeader(http.StatusOK)
 			}
 		}),
@@ -67,6 +66,12 @@ func TestDatahubImportCmd(t *testing.T) {
 					return &s3.GetObjectTaggingOutput{
 						TagSet: t,
 					}, nil
+				},
+				PutObjTaggingFunc: func(input *s3.PutObjectTaggingInput) (output *s3.PutObjectTaggingOutput, err error) {
+					if !hasTag(input.Tagging.TagSet, datahubTagKey, datahubTagVal) {
+						return nil, fmt.Errorf("missing expected tag: %s=%s", datahubTagKey, datahubTagVal)
+					}
+					return &s3.PutObjectTaggingOutput{}, nil
 				},
 			},
 			s3downloader: &utils.MockS3Downloader{
@@ -99,6 +104,12 @@ func TestDatahubImportCmd(t *testing.T) {
 					return &s3.GetObjectTaggingOutput{
 						TagSet: t,
 					}, nil
+				},
+				PutObjTaggingFunc: func(input *s3.PutObjectTaggingInput) (output *s3.PutObjectTaggingOutput, err error) {
+					if !hasTag(input.Tagging.TagSet, datahubTagKey, datahubTagVal) {
+						return nil, fmt.Errorf("missing expected tag: %s=%s", datahubTagKey, datahubTagVal)
+					}
+					return &s3.PutObjectTaggingOutput{}, nil
 				},
 			},
 			s3downloader: &utils.MockS3Downloader{
