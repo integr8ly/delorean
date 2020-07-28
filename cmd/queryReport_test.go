@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/integr8ly/delorean/pkg/services"
 	"github.com/integr8ly/delorean/pkg/utils"
+	"github.com/prometheus/client_golang/api"
 	promv1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"
 	"io/ioutil"
@@ -16,18 +17,18 @@ import (
 )
 
 type mockPromService struct {
-	queryFunc      func(ctx context.Context, query string, ts time.Time) (model.Value, error)
-	queryRangeFunc func(ctx context.Context, query string, r promv1.Range) (model.Value, error)
+	queryFunc      func(ctx context.Context, query string, ts time.Time) (model.Value, api.Warnings, error)
+	queryRangeFunc func(ctx context.Context, query string, r promv1.Range) (model.Value, api.Warnings, error)
 }
 
-func (m *mockPromService) Query(ctx context.Context, query string, ts time.Time) (model.Value, error) {
+func (m *mockPromService) Query(ctx context.Context, query string, ts time.Time) (model.Value, api.Warnings, error) {
 	if m.queryFunc != nil {
 		return m.queryFunc(ctx, query, ts)
 	}
 	panic("not implemented")
 }
 
-func (m *mockPromService) QueryRange(ctx context.Context, query string, r promv1.Range) (model.Value, error) {
+func (m *mockPromService) QueryRange(ctx context.Context, query string, r promv1.Range) (model.Value, api.Warnings, error) {
 	if m.queryRangeFunc != nil {
 		return m.queryRangeFunc(ctx, query, r)
 	}
@@ -62,8 +63,8 @@ func TestQueryReportCmd(t *testing.T) {
 		{
 			description: "queries run successfully",
 			promAPI: &mockPromService{
-				queryFunc: func(ctx context.Context, query string, ts time.Time) (value model.Value, err error) {
-					return &model.String{Value: query, Timestamp: model.Now()}, nil
+				queryFunc: func(ctx context.Context, query string, ts time.Time) (value model.Value, warnings api.Warnings, err error) {
+					return &model.String{Value: query, Timestamp: model.Now()}, nil, nil
 				},
 			},
 			config: &queryReportConfig{
@@ -95,8 +96,8 @@ func TestQueryReportCmd(t *testing.T) {
 		{
 			description: "check query returns error",
 			promAPI: &mockPromService{
-				queryFunc: func(ctx context.Context, query string, ts time.Time) (value model.Value, err error) {
-					return nil, errors.New("unexpected error")
+				queryFunc: func(ctx context.Context, query string, ts time.Time) (value model.Value, warnings api.Warnings, err error) {
+					return nil, nil, errors.New("unexpected error")
 				},
 			},
 			config: &queryReportConfig{
