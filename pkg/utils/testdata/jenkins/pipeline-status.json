@@ -1,0 +1,234 @@
+{
+  "_links": {
+    "self": {
+      "href": "/job/Nightly/job/rhmi-install-addon-flow/131/wfapi/describe"
+    },
+    "changesets": {
+      "href": "/job/Nightly/job/rhmi-install-addon-flow/131/wfapi/changesets"
+    }
+  },
+  "id": "131",
+  "name": "#131",
+  "status": "FAILED",
+  "startTimeMillis": 1595800560168,
+  "endTimeMillis": 1595811500460,
+  "durationMillis": 10940292,
+  "queueDurationMillis": 153,
+  "pauseDurationMillis": 0,
+  "stages": [
+    {
+      "_links": {
+        "self": {
+          "href": "/job/Nightly/job/rhmi-install-addon-flow/131/execution/node/16/wfapi/describe"
+        }
+      },
+      "id": "16",
+      "name": "Nightly check",
+      "execNode": "",
+      "status": "SUCCESS",
+      "startTimeMillis": 1595800655532,
+      "durationMillis": 186,
+      "pauseDurationMillis": 0
+    },
+    {
+      "_links": {
+        "self": {
+          "href": "/job/Nightly/job/rhmi-install-addon-flow/131/execution/node/20/wfapi/describe"
+        }
+      },
+      "id": "20",
+      "name": "Clone required Github repositories",
+      "execNode": "",
+      "status": "SUCCESS",
+      "startTimeMillis": 1595800655757,
+      "durationMillis": 73,
+      "pauseDurationMillis": 0
+    },
+    {
+      "_links": {
+        "self": {
+          "href": "/job/Nightly/job/rhmi-install-addon-flow/131/execution/node/22/wfapi/describe"
+        }
+      },
+      "id": "22",
+      "name": "Clone delorean",
+      "execNode": "",
+      "status": "SUCCESS",
+      "startTimeMillis": 1595800655830,
+      "durationMillis": 8463,
+      "pauseDurationMillis": 0
+    },
+    {
+      "_links": {
+        "self": {
+          "href": "/job/Nightly/job/rhmi-install-addon-flow/131/execution/node/27/wfapi/describe"
+        }
+      },
+      "id": "27",
+      "name": "Clone integreatly-operator",
+      "execNode": "",
+      "status": "SUCCESS",
+      "startTimeMillis": 1595800664338,
+      "durationMillis": 7217,
+      "pauseDurationMillis": 0
+    },
+    {
+      "_links": {
+        "self": {
+          "href": "/job/Nightly/job/rhmi-install-addon-flow/131/execution/node/38/wfapi/describe"
+        }
+      },
+      "id": "38",
+      "name": "Create OSD 4 cluster and target it with oc",
+      "execNode": "",
+      "status": "FAILED",
+      "error": {
+        "message": "script returned exit code 2",
+        "type": "hudson.AbortException"
+      },
+      "startTimeMillis": 1595800671652,
+      "durationMillis": 10825218,
+      "pauseDurationMillis": 0
+    },
+    {
+      "_links": {
+        "self": {
+          "href": "/job/Nightly/job/rhmi-install-addon-flow/131/execution/node/49/wfapi/describe"
+        }
+      },
+      "id": "49",
+      "name": "Install RHMI using Addon-flow",
+      "execNode": "",
+      "status": "FAILED",
+      "error": {
+        "message": "script returned exit code 2",
+        "type": "hudson.AbortException"
+      },
+      "startTimeMillis": 1595811496919,
+      "durationMillis": 91,
+      "pauseDurationMillis": 0
+    },
+    {
+      "_links": {
+        "self": {
+          "href": "/job/Nightly/job/rhmi-install-addon-flow/131/execution/node/53/wfapi/describe"
+        }
+      },
+      "id": "53",
+      "name": "Setup IDP",
+      "execNode": "",
+      "status": "FAILED",
+      "error": {
+        "message": "script returned exit code 2",
+        "type": "hudson.AbortException"
+      },
+      "startTimeMillis": 1595811497052,
+      "durationMillis": 91,
+      "pauseDurationMillis": 0
+    },
+    {
+      "_links": {
+        "self": {
+          "href": "/job/Nightly/job/rhmi-install-addon-flow/131/execution/node/57/wfapi/describe"
+        }
+      },
+      "id": "57",
+      "name": "Run the test suite",
+      "execNode": "",
+      "status": "FAILED",
+      "error": {
+        "message": "script returned exit code 2",
+        "type": "hudson.AbortException"
+      },
+      "startTimeMillis": 1595811497189,
+      "durationMillis": 74,
+      "pauseDurationMillis": 0
+    },
+    {
+      "_links": {
+        "self": {
+          "href": "/job/Nightly/job/rhmi-install-addon-flow/131/execution/node/61/wfapi/describe"
+        }
+      },
+      "id": "61",
+      "name": "Run the products tests",
+      "execNode": "",
+      "status": "FAILED",
+      "error": {
+        "message": "script returned exit code 2",
+        "type": "hudson.AbortException"
+      },
+      "startTimeMillis": 1595811497318,
+      "durationMillis": 80,
+      "pauseDurationMillis": 0
+    },
+    {
+      "_links": {
+        "self": {
+          "href": "/job/Nightly/job/rhmi-install-addon-flow/131/execution/node/65/wfapi/describe"
+        }
+      },
+      "id": "65",
+      "name": "Persist operators logs",
+      "execNode": "",
+      "status": "FAILED",
+      "error": {
+        "message": "script returned exit code 2",
+        "type": "hudson.AbortException"
+      },
+      "startTimeMillis": 1595811497443,
+      "durationMillis": 87,
+      "pauseDurationMillis": 0
+    },
+    {
+      "_links": {
+        "self": {
+          "href": "/job/Nightly/job/rhmi-install-addon-flow/131/execution/node/69/wfapi/describe"
+        }
+      },
+      "id": "69",
+      "name": "Report the test results",
+      "execNode": "",
+      "status": "FAILED",
+      "error": {
+        "message": "script returned exit code 2",
+        "type": "hudson.AbortException"
+      },
+      "startTimeMillis": 1595811497575,
+      "durationMillis": 84,
+      "pauseDurationMillis": 0
+    },
+    {
+      "_links": {
+        "self": {
+          "href": "/job/Nightly/job/rhmi-install-addon-flow/131/execution/node/73/wfapi/describe"
+        }
+      },
+      "id": "73",
+      "name": "Uninstall RHMI",
+      "execNode": "",
+      "status": "FAILED",
+      "error": {
+        "message": "script returned exit code 2",
+        "type": "hudson.AbortException"
+      },
+      "startTimeMillis": 1595811497704,
+      "durationMillis": 78,
+      "pauseDurationMillis": 0
+    },
+    {
+      "_links": {
+        "self": {
+          "href": "/job/Nightly/job/rhmi-install-addon-flow/131/execution/node/77/wfapi/describe"
+        }
+      },
+      "id": "77",
+      "name": "Declarative: Post Actions",
+      "execNode": "",
+      "status": "SUCCESS",
+      "startTimeMillis": 1595811497837,
+      "durationMillis": 2123,
+      "pauseDurationMillis": 0
+    }
+  ]
+}
