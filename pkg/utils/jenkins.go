@@ -69,56 +69,56 @@ func (s *JUnitTestSuites) WriteXML(w io.Writer) error {
 }
 
 type PipelineRunStageError struct {
-	Type string `json:"type"`
+	Type    string `json:"type"`
 	Message string `json:"message"`
 }
 
 type PipelineRunStage struct {
-	Name string `json:"name"`
-	StartTimeInMillis int64 `json:"startTimeMillis"`
-	DurationInMills int64 `json:"durationMillis"`
-	Status string `json:"status"`
-	Error PipelineRunStageError `json:"error,omitempty"`
+	Name              string                `json:"name"`
+	StartTimeInMillis int64                 `json:"startTimeMillis"`
+	DurationInMills   int64                 `json:"durationMillis"`
+	Status            string                `json:"status"`
+	Error             PipelineRunStageError `json:"error,omitempty"`
 }
 
 type PipelineRun struct {
-	Name string `json:"name"`
-	Status string `json:"status"`
-	StartTimeInMillis int64 `json:"startTimeMillis"`
-	EndTimeInMillis int64 `json:"endTimeMillis"`
-	DurationInMillis int64 `json:"durationMillis"`
-	Stages []PipelineRunStage `json:"stages"`
+	Name              string             `json:"name"`
+	Status            string             `json:"status"`
+	StartTimeInMillis int64              `json:"startTimeMillis"`
+	EndTimeInMillis   int64              `json:"endTimeMillis"`
+	DurationInMillis  int64              `json:"durationMillis"`
+	Stages            []PipelineRunStage `json:"stages"`
 }
 
 const (
-	TestSuiteName = "pipeline-status"
+	TestSuiteName           = "pipeline-status"
 	PipelineRunStatusFailed = "FAILED"
 )
 
 // ToJUnitSuites will convert the status of the pipeline run into JUnit test suites
-func (p *PipelineRun) ToJUnitSuites()  (*JUnitTestSuites, error) {
+func (p *PipelineRun) ToJUnitSuites() (*JUnitTestSuites, error) {
 	suites := &JUnitTestSuites{
 		Suites: []JUnitTestSuite{},
 	}
 	ts := JUnitTestSuite{
-		Tests:      len(p.Stages),
-		Time:       formatMillis(p.DurationInMillis),
-		Name:       TestSuiteName,
-		TestCases:  []JUnitTestCase{},
-		Failures: 0,
+		Tests:     len(p.Stages),
+		Time:      formatMillis(p.DurationInMillis),
+		Name:      TestSuiteName,
+		TestCases: []JUnitTestCase{},
+		Failures:  0,
 	}
 
 	for _, s := range p.Stages {
 		tc := JUnitTestCase{
-			Name:  s.Name,
-			Time: formatMillis(s.DurationInMills),
+			Name:    s.Name,
+			Time:    formatMillis(s.DurationInMills),
 			Failure: nil,
 		}
 		if s.Status == PipelineRunStatusFailed {
 			ts.Failures++
 			tc.Failure = &JUnitFailure{
 				Message: s.Error.Message,
-				Type: s.Error.Type,
+				Type:    s.Error.Type,
 			}
 		}
 
@@ -133,4 +133,3 @@ func formatMillis(t int64) string {
 	d := time.Duration(t) * time.Millisecond
 	return fmt.Sprintf("%.3f", d.Seconds())
 }
-
