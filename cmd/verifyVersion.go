@@ -30,10 +30,10 @@ func init() {
 
 	ewsCmd.AddCommand(cmd)
 
-	cmd.Flags().StringVar(&flags.currentManifests, "incoming-manifests", "", "the manifests directory with the incoming CSV that must be bigger or equal then the current CSV")
+	cmd.Flags().StringVar(&flags.incomingManifests, "incoming-manifests", "", "the manifests directory with the incoming CSV that must be bigger or equal then the current CSV")
 	cmd.MarkFlagRequired("incoming-manifests")
 
-	cmd.Flags().StringVarP(&flags.incomingManifests, "current-manifests", "o", "", "the manifests directory with the current CSV")
+	cmd.Flags().StringVar(&flags.currentManifests, "current-manifests", "", "the manifests directory with the current CSV")
 	cmd.MarkFlagRequired("current-manifests")
 }
 
@@ -49,6 +49,7 @@ func doVerifyVersion(flags *verifyVersionFlags) error {
 		return err
 	}
 
+	fmt.Printf("comparing incoming CSV version %s with current version %s", incoming, current)
 	o := incoming.Compare(current)
 	switch o {
 	case -1:
