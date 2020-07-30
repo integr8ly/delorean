@@ -49,7 +49,7 @@ func doVerifyVersion(flags *verifyVersionFlags) error {
 		return err
 	}
 
-	fmt.Printf("comparing incoming CSV version %s with current version %s", incoming, current)
+	fmt.Printf("comparing incoming CSV version %s with current version %s\n", incoming, current)
 	o := incoming.Compare(current)
 	switch o {
 	case -1:
