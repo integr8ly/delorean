@@ -109,7 +109,7 @@ func TestManageRHMITypes(t *testing.T) {
 	}
 }
 
-func verifyTypesFile(t *testing.T, directory, product string, version string, majmin string) (error) {
+func verifyTypesFile(t *testing.T, directory, product string, version string, majmin string) error {
 	f, err := os.Open(directory)
 	if err != nil {
 		return err
@@ -151,7 +151,6 @@ func verifyTypesFile(t *testing.T, directory, product string, version string, ma
 			t.Errorf("error found incorrect version string, wanted = CHANGEME got %s", pvs)
 		}
 	}
-
 
 	return nil
 }
