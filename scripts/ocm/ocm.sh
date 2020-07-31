@@ -148,9 +148,10 @@ install_rhmi() {
             --from-literal=port=587 \
             --from-literal=tls=true
     fi
-    oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" apply secret generic redhat-rhmi-pagerduty -n ${RHMI_OPERATOR_NAMESPACE} \
+    oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get secret redhat-rhmi-pagerduty -n ${RHMI_OPERATOR_NAMESPACE} \
+        || oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" create secret generic redhat-rhmi-pagerduty -n ${RHMI_OPERATOR_NAMESPACE} \
         --from-literal=serviceKey=dummykey
-    oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" apply secret generic redhat-rhmi-deadmanssnitch -n ${RHMI_OPERATOR_NAMESPACE} \
+    oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" create secret generic redhat-rhmi-deadmanssnitch -n ${RHMI_OPERATOR_NAMESPACE} \
         --from-literal=url=https://dms.example.com
 
     if [[ "${PATCH_CR_AWS_CM}" == true ]]; then
