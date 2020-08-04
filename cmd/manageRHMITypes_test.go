@@ -27,7 +27,7 @@ func TestManageRHMITypes(t *testing.T) {
 		{
 			name: "test setting 3scale major version",
 			args: args{context.TODO(), &manageTypesCmdOptions{
-				directory: "",
+				filepath: "",
 				product:   "3scale",
 				version:   "9.9.9",
 			}},
@@ -40,7 +40,7 @@ func TestManageRHMITypes(t *testing.T) {
 		{
 			name: "test setting amq-online major version",
 			args: args{context.TODO(), &manageTypesCmdOptions{
-				directory: "",
+				filepath: "",
 				product:   "amq-online",
 				version:   "9.9.9",
 			}},
@@ -53,7 +53,7 @@ func TestManageRHMITypes(t *testing.T) {
 		{
 			name: "test setting 3scale minor version",
 			args: args{context.TODO(), &manageTypesCmdOptions{
-				directory: "",
+				filepath: "",
 				product:   "3scale",
 				version:   "9.10.0",
 			}},
@@ -66,7 +66,7 @@ func TestManageRHMITypes(t *testing.T) {
 		{
 			name: "test setting amq-online minor version",
 			args: args{context.TODO(), &manageTypesCmdOptions{
-				directory: "",
+				filepath: "",
 				product:   "amq-online",
 				version:   "9.10.0",
 			}},
@@ -86,16 +86,16 @@ func TestManageRHMITypes(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		tt.args.cmdOpts.directory = path.Join(testDir, "rhmi_types")
+		tt.args.cmdOpts.filepath = path.Join(testDir, "rhmi_types")
 		t.Run(tt.name, func(t *testing.T) {
-			if err := SetVersion(tt.args.cmdOpts.directory, tt.args.cmdOpts.product, tt.args.cmdOpts.version); (err != nil) != tt.wantErr {
+			if err := SetVersion(tt.args.cmdOpts.filepath, tt.args.cmdOpts.product, tt.args.cmdOpts.version); (err != nil) != tt.wantErr {
 				t.Errorf("SetVersion() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
 			if !tt.wantErr {
 				if tt.verify != nil {
-					if err := tt.verify(t, tt.args.cmdOpts.directory, tt.args.cmdOpts.product, tt.args.cmdOpts.version, tt.majmin); err != nil {
-						fmt.Println("d: ", tt.args.cmdOpts.directory)
+					if err := tt.verify(t, tt.args.cmdOpts.filepath, tt.args.cmdOpts.product, tt.args.cmdOpts.version, tt.majmin); err != nil {
+						fmt.Println("d: ", tt.args.cmdOpts.filepath)
 						t.Fatalf("verification failed due to error: %v", err)
 					}
 				}
@@ -109,8 +109,8 @@ func TestManageRHMITypes(t *testing.T) {
 	}
 }
 
-func verifyTypesFile(t *testing.T, directory, product string, version string, majmin string) error {
-	f, err := os.Open(directory)
+func verifyTypesFile(t *testing.T, filepath, product string, version string, majmin string) error {
+	f, err := os.Open(filepath)
 	if err != nil {
 		return err
 	}

@@ -11,7 +11,7 @@ import (
 )
 
 type manageTypesCmdOptions struct {
-	directory string
+	filepath string
 	product   string
 	version   string
 }
@@ -24,7 +24,7 @@ func init() {
 		Use:   "set-product-version",
 		Short: "Sets the operator and product version for a product in the rhmi_types file",
 		Run: func(cmd *cobra.Command, args []string) {
-			err := SetVersion(flags.directory, flags.product, flags.version)
+			err := SetVersion(flags.filepath, flags.product, flags.version)
 			if err != nil {
 				handleError(err)
 			}
@@ -33,8 +33,8 @@ func init() {
 
 	ewsCmd.AddCommand(cmd)
 
-	cmd.Flags().StringVarP(&flags.directory, "directory", "d", "", "Path to rhmi_types file")
-	cmd.MarkFlagRequired("directory")
+	cmd.Flags().StringVarP(&flags.filepath, "filepath", "f", "", "Path to rhmi_types file")
+	cmd.MarkFlagRequired("filepath")
 
 	cmd.Flags().StringVarP(&flags.product, "product", "p", "", "The product name")
 	cmd.MarkFlagRequired("product")
@@ -43,10 +43,10 @@ func init() {
 	cmd.MarkFlagRequired("version")
 }
 
-func SetVersion(directory string, product string, version string) error {
+func SetVersion(filepath string, product string, version string) error {
 	product = PrepareProductName(product)
 	fmt.Println(fmt.Sprintf("setting version of product %s to %s", product, version))
-	read, err := os.Open(directory)
+	read, err := os.Open(filepath)
 	if err != nil {
 		return err
 	}
@@ -55,8 +55,8 @@ func SetVersion(directory string, product string, version string) error {
 		return err
 	}
 	out := ParseVersion(bytes, product, version)
-	fmt.Println(fmt.Sprintf("writing changes to rhmi_types file at %s ", directory))
-	err = ioutil.WriteFile(directory, []byte(out), 600)
+	fmt.Println(fmt.Sprintf("writing changes to rhmi_types file at %s ", filepath))
+	err = ioutil.WriteFile(filepath, []byte(out), 600)
 	if err != nil {
 		return err
 	}
