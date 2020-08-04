@@ -28,8 +28,8 @@ func TestManageRHMITypes(t *testing.T) {
 			name: "test setting 3scale major version",
 			args: args{context.TODO(), &manageTypesCmdOptions{
 				filepath: "",
-				product:   "3scale",
-				version:   "9.9.9",
+				product:  "3scale",
+				version:  "9.9.9",
 			}},
 			wantErr: false,
 			verify: func(t *testing.T, directory string, product string, version string, majmin string) error {
@@ -41,8 +41,8 @@ func TestManageRHMITypes(t *testing.T) {
 			name: "test setting amq-online major version",
 			args: args{context.TODO(), &manageTypesCmdOptions{
 				filepath: "",
-				product:   "amq-online",
-				version:   "9.9.9",
+				product:  "amq-online",
+				version:  "9.9.9",
 			}},
 			wantErr: false,
 			verify: func(t *testing.T, directory string, product string, version string, majmin string) error {
@@ -54,8 +54,8 @@ func TestManageRHMITypes(t *testing.T) {
 			name: "test setting 3scale minor version",
 			args: args{context.TODO(), &manageTypesCmdOptions{
 				filepath: "",
-				product:   "3scale",
-				version:   "9.10.0",
+				product:  "3scale",
+				version:  "9.10.0",
 			}},
 			wantErr: false,
 			verify: func(t *testing.T, directory string, product string, version string, majmin string) error {
@@ -67,8 +67,8 @@ func TestManageRHMITypes(t *testing.T) {
 			name: "test setting amq-online minor version",
 			args: args{context.TODO(), &manageTypesCmdOptions{
 				filepath: "",
-				product:   "amq-online",
-				version:   "9.10.0",
+				product:  "amq-online",
+				version:  "9.10.0",
 			}},
 			wantErr: false,
 			verify: func(t *testing.T, directory string, product string, version string, majmin string) error {

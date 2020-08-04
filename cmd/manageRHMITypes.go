@@ -12,8 +12,8 @@ import (
 
 type manageTypesCmdOptions struct {
 	filepath string
-	product   string
-	version   string
+	product  string
+	version  string
 }
 
 func init() {
@@ -21,8 +21,8 @@ func init() {
 	flags := &manageTypesCmdOptions{}
 
 	cmd := &cobra.Command{
-		Use:   "set-product-version",
-		Short: "Sets the operator and product version for a product in the rhmi_types file",
+		Use:   "set-product-operator-version",
+		Short: "Sets the operator version for a product in the rhmi_types file and sets product to CHANGEME if a minor version update",
 		Run: func(cmd *cobra.Command, args []string) {
 			err := SetVersion(flags.filepath, flags.product, flags.version)
 			if err != nil {
@@ -45,7 +45,7 @@ func init() {
 
 func SetVersion(filepath string, product string, version string) error {
 	product = PrepareProductName(product)
-	fmt.Println(fmt.Sprintf("setting version of product %s to %s", product, version))
+	fmt.Println(fmt.Sprintf("setting version of product operator %s to %s", product, version))
 	read, err := os.Open(filepath)
 	if err != nil {
 		return err
