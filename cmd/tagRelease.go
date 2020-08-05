@@ -3,124 +3,169 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"sort"
+	"strings"
+	"time"
+
 	"github.com/google/go-github/v30/github"
 	"github.com/integr8ly/delorean/pkg/quay"
 	"github.com/integr8ly/delorean/pkg/services"
 	"github.com/integr8ly/delorean/pkg/utils"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"net/http"
-	"sort"
-	"strings"
-	"time"
 )
 
 const (
 	commitIDLabelFilter = "io.openshift.build.commit.id"
 )
 
-type tagReleaseOptions struct {
-	releaseVersion string
-	branch         string
-	wait           bool
-	waitInterval   int64
-	waitMax        int64
-	quayRepos      string
+type tagReleaseConfigGithubRepo struct {
+	Owner string
+	Repo  string
 }
 
-var tagReleaseCmdOpts = &tagReleaseOptions{}
-
-// tagReleaseCmd represents the tagRelease command
-var tagReleaseCmd = &cobra.Command{
-	Use:   "tag-release",
-	Short: "Tag the integreatly repo and image with the given release",
-	Long: `Change a release tag using the given release version for the HEAD of the given branch.
-           Also create the same tag for the image that is built from the same commit`,
-	Run: func(cmd *cobra.Command, args []string) {
-		var ghToken string
-		var quayToken string
-		var err error
-		if ghToken, err = requireValue(GithubTokenKey); err != nil {
-			handleError(err)
-		}
-		if quayToken, err = requireValue(QuayTokenKey); err != nil {
-			handleError(err)
-		}
-		ghClient := newGithubClient(ghToken)
-		quayClient := newQuayClient(quayToken)
-		repoInfo := &githubRepoInfo{owner: integreatlyGHOrg, repo: integreatlyOperatorRepo}
-		tagReleaseCmdOpts.releaseVersion = releaseVersion
-		if err = DoTagRelease(cmd.Context(), ghClient.Git, repoInfo, quayClient, tagReleaseCmdOpts); err != nil {
-			handleError(err)
-		}
-	},
+type tagReleaseConfigRepo struct {
+	Name           string
+	SkipPreRelease bool
+	GithubRepo     tagReleaseConfigGithubRepo
+	QuayRepos      []string
 }
 
-func DoTagRelease(ctx context.Context, ghClient services.GitService, gitRepoInfo *githubRepoInfo, quayClient *quay.Client, cmdOpts *tagReleaseOptions) error {
-	rv, err := utils.NewRHMIVersion(cmdOpts.releaseVersion)
+type tagReleaseConfig struct {
+	Version      string
+	Branch       string
+	Wait         bool
+	WaitInterval int64
+	WaitMax      int64
+	Repositories []tagReleaseConfigRepo
+}
+
+type tagReleaseFlags struct {
+	configFile string
+}
+
+type tagReleaseCmd struct {
+	githubClient services.GitService
+	quayClient   *quay.Client
+	config       *tagReleaseConfig
+}
+
+func newTagReleaseCmd(f *tagReleaseFlags) (*tagReleaseCmd, error) {
+
+	c := &tagReleaseConfig{}
+	err := utils.PopulateObjectFromYAML(f.configFile, c)
+	if err != nil {
+		return nil, err
+	}
+
+	githubToken, err := requireValue(GithubTokenKey)
+	if err != nil {
+		handleError(err)
+	}
+
+	quayToken, err := requireValue(QuayTokenKey)
+	if err != nil {
+		handleError(err)
+	}
+
+	githubClient := newGithubClient(githubToken)
+	quayClient := newQuayClient(quayToken)
+
+	return &tagReleaseCmd{
+		githubClient: githubClient.Git,
+		quayClient:   quayClient,
+		config:       c,
+	}, nil
+}
+
+func (cmd *tagReleaseCmd) run(ctx context.Context) error {
+
+	version, err := utils.NewRHMIVersion(cmd.config.Version)
 	if err != nil {
 		return err
 	}
-	fmt.Println("Fetch git ref:", fmt.Sprintf("refs/heads/%s", cmdOpts.branch))
-	headRef, err := getGitRef(ctx, ghClient, gitRepoInfo, fmt.Sprintf("refs/heads/%s", cmdOpts.branch), false)
+
+	for _, r := range cmd.config.Repositories {
+		err = cmd.runRepository(ctx, version, &r)
+		if err != nil {
+			return fmt.Errorf("failed to tag repository %s with error: %s", r.Name, err)
+		}
+	}
+	return nil
+}
+
+func (cmd *tagReleaseCmd) runRepository(ctx context.Context, v *utils.RHMIVersion, r *tagReleaseConfigRepo) error {
+
+	if r.SkipPreRelease && v.IsPreRelease() {
+		fmt.Printf("[%s] skip pre-release version: %s\n", r.Name, v)
+		return nil
+	}
+
+	branchRefName := fmt.Sprintf("refs/heads/%s", cmd.config.Branch)
+	fmt.Printf("[%s] fetch git ref: %s\n", r.Name, branchRefName)
+	branchHeadRef, err := getGitRef(ctx, cmd.githubClient, &r.GithubRepo, branchRefName, false)
 	if err != nil {
 		return err
 	}
-	fmt.Println("Fetch git ref:", fmt.Sprintf("refs/tags/%s", rv.TagName()))
-	existingTagRef, err := getGitRef(ctx, ghClient, gitRepoInfo, fmt.Sprintf("refs/tags/%s", rv.TagName()), true)
+	if branchHeadRef == nil {
+		return fmt.Errorf("can not find git ref: %s", branchHeadRef)
+	}
+
+	preReleaseTagRefName := fmt.Sprintf("refs/tags/%s-", v.TagName())
+	fmt.Printf("[%s] fetch git ref: %s\n", r.Name, preReleaseTagRefName)
+	preReleaseTagRef, err := getGitRef(ctx, cmd.githubClient, &r.GithubRepo, preReleaseTagRefName, true)
 	if err != nil {
 		return err
 	}
-	fmt.Println("Create git tag:", rv.TagName())
-	if headRef == nil {
-		return fmt.Errorf("can not find git ref: refs/heads/%s", cmdOpts.branch)
-	}
-	tagRef, err := createGitTag(ctx, ghClient, gitRepoInfo, rv.TagName(), headRef.GetObject().GetSHA())
+
+	fmt.Printf("[%s] create git tag: %s\n", r.Name, v.TagName())
+	tagRef, err := createGitTag(ctx, cmd.githubClient, &r.GithubRepo, v.TagName(), branchHeadRef.GetObject().GetSHA())
 	if err != nil {
 		return err
 	}
-	fmt.Println("Git tag", rv.TagName(), "created:", tagRef.GetURL())
-	if len(cmdOpts.quayRepos) > 0 {
-		fmt.Println("Try to create image tags on quay.io:")
-		quayRepos := cmdOpts.quayRepos
-		quayDstTag := rv.TagName()
-		quaySrcTag := rv.ReleaseBranchImageTag()
-		commitSHA := headRef.GetObject().GetSHA()
+	fmt.Printf("[%s] git tag %s created: %s\n", r.Name, v.TagName(), tagRef.GetURL())
+
+	if len(r.QuayRepos) > 0 {
+		fmt.Printf("[%s] tags image on quay.io\n", r.Name)
+		quayDstTag := v.TagName()
+		quaySrcTag := v.ReleaseBranchImageTag()
+		commitSHA := branchHeadRef.GetObject().GetSHA()
 
 		//If this is a final release and we have an existing tag (rc tag), promote the existing rc tag to the final release, otherwise continue as normal
-		if !rv.IsPreRelease() && existingTagRef != nil {
-			quaySrcTag = strings.Replace(existingTagRef.GetRef(), "refs/tags/", "", -1)
-			commitSHA = existingTagRef.GetObject().GetSHA()
+		if !v.IsPreRelease() && preReleaseTagRef != nil {
+			quaySrcTag = strings.Replace(preReleaseTagRef.GetRef(), "refs/tags/", "", -1)
+			commitSHA = preReleaseTagRef.GetObject().GetSHA()
 		}
 
-		ok := tryCreateQuayTag(ctx, quayClient, quayRepos, quaySrcTag, quayDstTag, commitSHA)
+		ok := cmd.tryCreateQuayTag(ctx, r, quaySrcTag, quayDstTag, commitSHA)
 		if !ok {
-			if cmdOpts.wait {
-				fmt.Println("Wait for the latest image to be available on quay.io. Will check every", cmdOpts.waitInterval, "minutes for", cmdOpts.waitMax, "minutes")
-				err = wait.Poll(time.Duration(cmdOpts.waitInterval)*time.Minute, time.Duration(cmdOpts.waitMax)*time.Minute, func() (bool, error) {
-					ok = tryCreateQuayTag(ctx, quayClient, quayRepos, quaySrcTag, quayDstTag, commitSHA)
+			if cmd.config.Wait {
+				fmt.Printf("[%s] wait for the latest image with tag %s to be available on quay.io\n", r.Name, quaySrcTag)
+				fmt.Printf("[%s] will check every %d minutes for max %d minutes\n", r.Name, cmd.config.WaitInterval, cmd.config.WaitMax)
+				err = wait.Poll(time.Duration(cmd.config.WaitInterval)*time.Minute, time.Duration(cmd.config.WaitMax)*time.Minute, func() (bool, error) {
+					ok = cmd.tryCreateQuayTag(ctx, r, quaySrcTag, quayDstTag, commitSHA)
 					if !ok {
-						fmt.Println("Failed. Will try again later.")
+						fmt.Println("[%s] failed to image on quay.io, try again in %d minutes\n", r.Name, cmd.config.WaitInterval)
 					}
 					return ok, nil
 				})
 				if err != nil {
-					fmt.Println("Can not create image tag on quay.io")
-					return err
+					return fmt.Errorf("failed to tag images %v on quay.io with error: %s", r.QuayRepos, err)
 				}
 			} else {
 				return err
 			}
 		}
-		fmt.Println("Image tags created:", rv.TagName())
+		fmt.Printf("[%s] image tags created: %s\n", r.Name, v.TagName())
 	} else {
-		fmt.Println("Skip creating image tags as no quay repos specified")
+		fmt.Printf("[%s] skip creating image tags as no quay repos specified\n", r.Name)
 	}
 	return nil
 }
 
-func getGitRef(ctx context.Context, client services.GitService, gitRepoInfo *githubRepoInfo, ref string, mostRecent bool) (*github.Reference, error) {
-	gitRefs, resp, err := client.GetRefs(ctx, gitRepoInfo.owner, gitRepoInfo.repo, ref)
+func getGitRef(ctx context.Context, client services.GitService, gitRepoInfo *tagReleaseConfigGithubRepo, ref string, mostRecent bool) (*github.Reference, error) {
+	gitRefs, resp, err := client.GetRefs(ctx, gitRepoInfo.Owner, gitRepoInfo.Repo, ref)
 	if err != nil {
 		if resp != nil && resp.StatusCode == http.StatusNotFound {
 			return nil, nil
@@ -143,7 +188,7 @@ func getGitRef(ctx context.Context, client services.GitService, gitRepoInfo *git
 	return nil, nil
 }
 
-func createGitTag(ctx context.Context, client services.GitService, gitRepoInfo *githubRepoInfo, tag string, sha string) (*github.Reference, error) {
+func createGitTag(ctx context.Context, client services.GitService, gitRepoInfo *tagReleaseConfigGithubRepo, tag string, sha string) (*github.Reference, error) {
 	tagRefVal := fmt.Sprintf("refs/tags/%s", tag)
 	tagRef, err := getGitRef(ctx, client, gitRepoInfo, tagRefVal, false)
 	if err != nil {
@@ -161,24 +206,23 @@ func createGitTag(ctx context.Context, client services.GitService, gitRepoInfo *
 			SHA: &sha,
 		},
 	}
-	created, _, err := client.CreateRef(ctx, gitRepoInfo.owner, gitRepoInfo.repo, tagRef)
+	created, _, err := client.CreateRef(ctx, gitRepoInfo.Owner, gitRepoInfo.Repo, tagRef)
 	if err != nil {
 		return nil, err
 	}
 	return created, nil
 }
 
-func tryCreateQuayTag(ctx context.Context, quayClient *quay.Client, quayRepos string, quaySrcTag string, quayDstTag string, commitSHA string) bool {
-	repos := strings.Split(quayRepos, ",")
+func (cmd *tagReleaseCmd) tryCreateQuayTag(ctx context.Context, repository *tagReleaseConfigRepo, quaySrcTag string, quayDstTag string, commitSHA string) bool {
 	ok := true
-	for _, r := range repos {
+	for _, r := range repository.QuayRepos {
 		repo, tag := getImageRepoAndTag(r, quayDstTag)
-		err := createTagForImage(ctx, quayClient, *repo, quaySrcTag, *tag, commitSHA)
+		err := createTagForImage(ctx, cmd.quayClient, *repo, quaySrcTag, *tag, commitSHA)
 		if err != nil {
 			ok = false
-			fmt.Println("Failed to create the image tag for", r, "due to error:", err)
+			fmt.Printf("[%s] failed to create the image tag for %s with error: %s\n", repository.Name, r, err)
 		} else {
-			fmt.Println(fmt.Sprintf("Image tag '%s' created from tag '%s' with commit '%s' in repo '%s'", *tag, quaySrcTag, commitSHA, *repo))
+			fmt.Printf("[%s] image tag '%s' created from tag '%s' with commit '%s' in repo '%s'\n", repository.Name, *tag, quaySrcTag, commitSHA, *repo)
 		}
 	}
 	return ok
@@ -224,10 +268,30 @@ func getImageRepoAndTag(s string, defaultTag string) (*string, *string) {
 }
 
 func init() {
-	releaseCmd.AddCommand(tagReleaseCmd)
-	tagReleaseCmd.Flags().StringVarP(&tagReleaseCmdOpts.branch, "branch", "b", "master", "Branch to create the tag")
-	tagReleaseCmd.Flags().StringVar(&tagReleaseCmdOpts.quayRepos, "quayRepos", fmt.Sprintf("%s,%s", DefaultIntegreatlyOperatorQuayRepo, DefaultIntegreatlyOperatorTestQuayRepo), "Quay repositories. Multiple repos can be specified and separated by ','")
-	tagReleaseCmd.Flags().BoolVarP(&tagReleaseCmdOpts.wait, "wait", "w", false, "Wait for the quay tag to be created (it could take up to 1 hour)")
-	tagReleaseCmd.Flags().Int64Var(&tagReleaseCmdOpts.waitInterval, "wait-interval", 5, "Specify the interval to check tags in quay while waiting. In minutes.")
-	tagReleaseCmd.Flags().Int64Var(&tagReleaseCmdOpts.waitMax, "wait-max", 90, "Specify the max wait time for tags be to created in quay. In minutes.")
+	var flags = &tagReleaseFlags{}
+
+	// tagReleaseCmd represents the tagRelease command
+	var cmd = &cobra.Command{
+		Use:   "tag-release",
+		Short: "Tag the given repos and images with the given release version",
+		Long: `Change a release tag using the given release version for the HEAD of the given branch.
+           Also create the same tag for the image that is built from the same commit`,
+		Run: func(cmd *cobra.Command, args []string) {
+
+			c, err := newTagReleaseCmd(flags)
+			if err != nil {
+				handleError(err)
+			}
+
+			err = c.run(cmd.Context())
+			if err != nil {
+				handleError(err)
+			}
+		},
+	}
+
+	cmd.Flags().StringVar(&flags.configFile, "config-file", "", "Path to the configuration file for this command")
+	cmd.MarkFlagRequired("config-file")
+
+	releaseCmd.AddCommand(cmd)
 }

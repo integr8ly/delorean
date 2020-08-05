@@ -1,0 +1,19 @@
+---
+version: 0.0.0
+branch: master
+wait: true
+waitInterval: 5
+waitMax: 90
+repositories:
+  - name: integreatly-operator
+    githubRepo:
+      owner: integr8ly
+      repo: integreatly-operator
+    quayRepos:
+      - integreatly/integreatly-operator
+      - integreatly/integreatly-operator-test-harness
+  - name: integreatly-help
+    skipPreRelease: true
+    githubRepo:
+      owner: RHCloudServices
+      repo: integreatly-help
