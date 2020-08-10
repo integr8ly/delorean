@@ -197,9 +197,15 @@ github.com/onsi/gomega/gstruct/errors
 github.com/onsi/gomega/types
 # github.com/openshift/api v3.9.1-0.20190924102528-32369d4db2ad+incompatible => github.com/openshift/api v3.9.1-0.20190904142825-922d36944de3+incompatible
 github.com/openshift/api/route/v1
+github.com/openshift/api/user/v1
 # github.com/openshift/client-go v0.0.0-20190923180330-3b6373338c9b => github.com/openshift/client-go v0.0.0-20190923180330-3b6373338c9b
 github.com/openshift/client-go/route/clientset/versioned/scheme
 github.com/openshift/client-go/route/clientset/versioned/typed/route/v1
+github.com/openshift/client-go/user/clientset/versioned
+github.com/openshift/client-go/user/clientset/versioned/fake
+github.com/openshift/client-go/user/clientset/versioned/scheme
+github.com/openshift/client-go/user/clientset/versioned/typed/user/v1
+github.com/openshift/client-go/user/clientset/versioned/typed/user/v1/fake
 # github.com/operator-framework/api v0.1.1
 github.com/operator-framework/api/pkg/lib/version
 github.com/operator-framework/api/pkg/operators

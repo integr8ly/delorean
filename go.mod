@@ -13,6 +13,7 @@ require (
 	github.com/google/go-querystring v1.0.0
 	github.com/gorilla/handlers v1.4.2 // indirect
 	github.com/jstemmer/go-junit-report v0.9.1
+	github.com/openshift/api v3.9.1-0.20190924102528-32369d4db2ad+incompatible
 	github.com/openshift/client-go v0.0.0-20190923180330-3b6373338c9b
 	github.com/operator-framework/operator-lifecycle-manager v0.0.0-20200213132121-99643127d862
 	github.com/operator-framework/operator-registry v1.9.0
