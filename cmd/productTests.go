@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	userv1typedclient "github.com/openshift/client-go/user/clientset/versioned/typed/user/v1"
 	"os"
 	"path"
 	"sync"
@@ -13,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -22,11 +24,12 @@ import (
 )
 
 const (
-	testJobParallelism  = 1
-	testJobCompletions  = 1
-	testJobBackoffLimit = 0
-	defaultNamespace    = "rhmi-product-tests"
-	serviceAccountName  = "cluster-admin-sa"
+	testJobParallelism       = 1
+	testJobCompletions       = 1
+	testJobBackoffLimit      = 0
+	defaultNamespace         = "rhmi-product-tests"
+	serviceAccountName       = "cluster-admin-sa"
+	osdSREClusterAdminsGroup = "osd-sre-cluster-admins"
 )
 
 type TestContainer struct {
@@ -49,11 +52,12 @@ type runTestsCmdFlags struct {
 }
 
 type runTestsCmd struct {
-	clientset kubernetes.Interface
-	tests     []*TestContainer
-	outputDir string
-	namespace string
-	oc        utils.OCInterface
+	clientset   kubernetes.Interface
+	tests       []*TestContainer
+	outputDir   string
+	namespace   string
+	oc          utils.OCInterface
+	groupclient userv1typedclient.GroupsGetter
 }
 
 func init() {
@@ -94,6 +98,10 @@ func newRunTestsCmd(kubeconfig string, f *runTestsCmdFlags) (*runTestsCmd, error
 		return nil, err
 	}
 
+	groupClient, err := userv1typedclient.NewForConfig(config)
+	if err != nil {
+		return nil, err
+	}
 	dt := time.Now()
 	outputDir := path.Join(f.outputDir, dt.Format("2006-01-02-03-04-05"))
 	if err = os.MkdirAll(outputDir, os.ModePerm); err != nil {
@@ -105,11 +113,12 @@ func newRunTestsCmd(kubeconfig string, f *runTestsCmdFlags) (*runTestsCmd, error
 	}
 
 	return &runTestsCmd{
-		clientset: clientset,
-		tests:     testList.Tests,
-		outputDir: outputDir,
-		namespace: f.namespace,
-		oc:        utils.NewOC(kubeconfig),
+		clientset:   clientset,
+		tests:       testList.Tests,
+		outputDir:   outputDir,
+		namespace:   f.namespace,
+		oc:          utils.NewOC(kubeconfig),
+		groupclient: groupClient,
 	}, nil
 }
 
@@ -130,6 +139,17 @@ func (c *runTestsCmd) run(ctx context.Context) error {
 	owner := metav1.NewControllerRef(ns, gvk)
 	if _, err = utils.CreateClusterRoleBinding(c.clientset, sa, "cluster-admin", *owner); err != nil {
 		return err
+	}
+	hasGroup, err := c.hasGroup(osdSREClusterAdminsGroup)
+	if err != nil {
+		return err
+	}
+	if hasGroup {
+		fmt.Println("[Prepare] Add ServiceAccount to group", osdSREClusterAdminsGroup)
+		n := fmt.Sprintf("system:serviceaccount:%s:%s", c.namespace, serviceAccountName)
+		if err = utils.AddUsersToGroup(c.groupclient, []string{n}, osdSREClusterAdminsGroup); err != nil {
+			return err
+		}
 	}
 	var wg sync.WaitGroup
 	for _, testContainer := range c.tests {
@@ -302,4 +322,16 @@ func (c *runTestsCmd) downloadLogs(pod v1.Pod, testName string) error {
 
 func (c *runTestsCmd) completeJob(pod v1.Pod) error {
 	return c.oc.Run("exec", pod.GetName(), "-c", "sidecar", "-n", c.namespace, "--", "touch", "/tmp/done")
+}
+
+func (c *runTestsCmd) hasGroup(groupName string) (bool, error) {
+	_, err := c.groupclient.Groups().Get(groupName, metav1.GetOptions{})
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			return false, nil
+		} else {
+			return true, err
+		}
+	}
+	return true, nil
 }

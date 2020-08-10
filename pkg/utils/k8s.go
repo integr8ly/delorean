@@ -3,6 +3,8 @@ package utils
 import (
 	"errors"
 	"fmt"
+	userv1typedclient "github.com/openshift/client-go/user/clientset/versioned/typed/user/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"time"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -106,6 +108,24 @@ func CreateClusterRoleBinding(client kubernetes.Interface, sa *v1.ServiceAccount
 		return nil, err
 	}
 	return r, nil
+}
+
+func AddUsersToGroup(client userv1typedclient.GroupsGetter, users []string, group string) error {
+	g, err := client.Groups().Get(group, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	existingUsers := sets.NewString(g.Users...)
+	for _, u := range users {
+		if existingUsers.Has(u) {
+			continue
+		}
+		g.Users = append(g.Users, u)
+	}
+	if _, err := client.Groups().Update(g); err != nil {
+		return err
+	}
+	return nil
 }
 
 func WaitForContainerToComplete(client kubernetes.Interface, namespace string, podSelector string, containerName string, timeout time.Duration, logPrefix string) (*v1.ContainerStateTerminated, error) {

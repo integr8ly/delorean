@@ -3,6 +3,8 @@ package cmd
 import (
 	"context"
 	"errors"
+	userv1 "github.com/openshift/api/user/v1"
+	fakeuser "github.com/openshift/client-go/user/clientset/versioned/fake"
 	"io/ioutil"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -34,6 +36,13 @@ func (o *mockOC) RunWithOutputFile(outputFile string, arg ...string) error {
 
 func TestRun(t *testing.T) {
 	client := fake.NewSimpleClientset()
+	g := &userv1.Group{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: osdSREClusterAdminsGroup,
+		},
+		Users: []string{},
+	}
+	userClient := fakeuser.NewSimpleClientset(g)
 	outputDir, err := ioutil.TempDir("/tmp", "run-tests-container-")
 	if err != nil {
 		t.Fatalf("Failed to create output dir: %v", err)
@@ -49,10 +58,11 @@ func TestRun(t *testing.T) {
 		},
 	}
 	cmd := &runTestsCmd{
-		clientset: client,
-		tests:     tests,
-		outputDir: outputDir,
-		namespace: namespace,
+		clientset:   client,
+		tests:       tests,
+		outputDir:   outputDir,
+		namespace:   namespace,
+		groupclient: userClient.UserV1(),
 		oc: &mockOC{
 			runFunc: func(arg ...string) error {
 				if arg[0] == "rsync" || arg[0] == "logs" {

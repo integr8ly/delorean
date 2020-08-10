@@ -1,9 +1,13 @@
 package utils
 
 import (
+	userv1 "github.com/openshift/api/user/v1"
+	fakeuser "github.com/openshift/client-go/user/clientset/versioned/fake"
+	userv1typedclient "github.com/openshift/client-go/user/clientset/versioned/typed/user/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 	"reflect"
@@ -182,6 +186,46 @@ func TestCreateClusterRoleBinding(t *testing.T) {
 			}
 			if roleBinding.RoleRef.Name != clusterRoleName {
 				t.Fatalf("roleRef name doesn't match. expected: %s, got: %s", clusterRoleName, roleBinding.RoleRef.Name)
+			}
+		})
+	}
+}
+
+func TestAddUsersToGroup(t *testing.T) {
+	cases := []struct {
+		description string
+		groupClient func() userv1typedclient.GroupsGetter
+		group       string
+	}{
+		{
+			description: "should add new user",
+			groupClient: func() userv1typedclient.GroupsGetter {
+				g := &userv1.Group{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test-group",
+					},
+					Users: []string{"user1"},
+				}
+				return fakeuser.NewSimpleClientset(g).UserV1()
+			},
+			group: "test-group",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.description, func(t *testing.T) {
+			users := []string{"user1", "user2"}
+			client := c.groupClient()
+			err := AddUsersToGroup(client, users, c.group)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			g, _ := client.Groups().Get(c.group, metav1.GetOptions{})
+			existingUsers := sets.NewString(g.Users...)
+			for _, u := range users {
+				if !existingUsers.Has(u) {
+					t.Fatalf("user %s doesn't exist in group %s", u, g.Name)
+				}
 			}
 		})
 	}
