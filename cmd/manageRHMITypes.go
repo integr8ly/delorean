@@ -54,7 +54,11 @@ func SetVersion(filepath string, product string, version string) error {
 	if err != nil {
 		return err
 	}
-	out := ParseVersion(bytes, product, version)
+	out, err := ParseVersion(bytes, product, version)
+	if err != nil {
+		fmt.Println(fmt.Sprintf("error: %s not writing to file", err))
+		return nil
+	}
 	fmt.Println(fmt.Sprintf("writing changes to rhmi_types file at %s ", filepath))
 	err = ioutil.WriteFile(filepath, []byte(out), 600)
 	if err != nil {
@@ -84,43 +88,36 @@ func PrepareProductName(product string) string {
 	return product
 }
 
-func ParseVersion(in []byte, product string, version string) string {
+func ParseVersion(in []byte, product string, version string) (string, error) {
 	// remove whitespace and "'s
 	version = strings.ReplaceAll(version, "\"", "")
 	version = strings.TrimSpace(version)
 
 	var ReOperatorVersion = regexp.MustCompile(`OperatorVersion` + product + `.*`)
-	var ReProductVersion = regexp.MustCompile(`Version` + product + `.*`)
 
 	operatorVersion := ReOperatorVersion.FindString(string(in))
-	productVersion := ReProductVersion.FindString(string(in))
 
 	// remove whitespace and "'s
 	ovs := strings.Split(operatorVersion, "=")[1]
 	ovs = strings.ReplaceAll(ovs, "\"", "")
 	ovs = strings.TrimSpace(ovs)
 
-	pvs := strings.Split(productVersion, "=")[1]
-
-	currentOperatorMajor := semver.Major("v" + ovs)
-	newOperatorMajor := semver.Major("v" + version)
+	currentOperatorMajor := semver.MajorMinor("v" + ovs)
+	newOperatorMajor := semver.MajorMinor("v" + version)
 
 	var out string
-	// we only want to set the Version<product> var to CHANGEME for minor releases
-	fmt.Println(fmt.Sprintf("current OperatorVersion: %s Found OperatorVersion: %s", currentOperatorMajor, newOperatorMajor))
+	fmt.Println(fmt.Sprintf("current OperatorVersion: %s Supplied OperatorVersion: %s", currentOperatorMajor, newOperatorMajor))
 	c := semver.Compare(currentOperatorMajor, newOperatorMajor)
 	// major versions are a match
-	if c == 0 {
-		out = strings.Replace(string(in), pvs, " \"CHANGEME\"", 1)
+	if c == 0 || c == -1 || currentOperatorMajor == "" && newOperatorMajor == "" {
 		r := strings.Replace(operatorVersion, ovs, version, 1)
-		out = strings.Replace(out, operatorVersion, r, 1)
+		out = strings.Replace(string(in), operatorVersion, r, 1)
+		return out, nil
 	}
 
-	// if it's not a minor release only change the OperatorVersion<product> var
-	// if the version is 0.x.x then semver returns empty string so account for it
-	if c != 0 || currentOperatorMajor == "" && newOperatorMajor == "" {
-		out = strings.Replace(string(in), ovs, version, 1)
+	if c == 1 {
+		return "", fmt.Errorf(fmt.Sprintf("current operator version %s is greater than supplied version %s", currentOperatorMajor, newOperatorMajor))
 	}
 
-	return out
+	return "", fmt.Errorf("unexpected operator version found")
 }
