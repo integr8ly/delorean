@@ -4,10 +4,10 @@
     "multi_az": false,
     "name": "my_cluster_name",
     "network": {
-      "machine_cidr": "10.11.128.0/23",
+      "machine_cidr": "10.11.128.0/25",
       "service_cidr": "10.11.0.0/18",
       "pod_cidr": "10.11.64.0/18",
-      "host_prefix": 23
+      "host_prefix": 26
     },
     "nodes" : {
       "compute" : 4,
