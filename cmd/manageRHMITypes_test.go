@@ -138,17 +138,11 @@ func verifyTypesFile(t *testing.T, filepath, product string, version string, maj
 		if ovs != version {
 			t.Errorf("error found incorrect version string, wanted = %s, got %s", ovs, version)
 		}
-		if pvs == "CHANGEME" {
-			t.Errorf("error found incorrect version string got %s", pvs)
-		}
 	}
 
 	if majmin == "minor" {
 		if ovs != version {
 			t.Errorf("error found incorrect version string, wanted = %s, got %s", ovs, version)
-		}
-		if pvs != "CHANGEME" {
-			t.Errorf("error found incorrect version string, wanted = CHANGEME got %s", pvs)
 		}
 	}
 
