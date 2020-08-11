@@ -23,6 +23,7 @@ readonly RHMI_OPERATOR_NAMESPACE="redhat-rhmi-operator"
 
 readonly ERROR_MISSING_AWS_ENV_VARS="ERROR: Not all required AWS environment are set. Please make sure you've exported all following env vars:"
 readonly ERROR_MISSING_CLUSTER_JSON="ERROR: ${CLUSTER_CONFIGURATION_FILE} file does not exist. Please run 'make ocm/cluster.json' first"
+readonly ERROR_CREATING_SECRET=" secret was not created. This could be caused by unstable connection between the client and OpenShift cluster"
 
 check_aws_credentials_exported() {
     if [[ -z "${AWS_ACCOUNT_ID:-}" || -z "${AWS_SECRET_ACCESS_KEY:-}" || -z "${AWS_ACCESS_KEY_ID:-}" ]]; then
@@ -135,24 +136,8 @@ install_rhmi() {
         oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" patch csv "${csv_name}" -n ${RHMI_OPERATOR_NAMESPACE} \
             --type=json -p "[{\"op\": \"replace\", \"path\": \"/spec/install/spec/deployments/0/spec/template/spec/containers/0/env/4/value\", \"value\": \"${ALERTING_EMAIL_ADDRESS}\" }]"
     fi
-    # Create a valid SMTP secret if SENDGRID_API_KEY variable is exported
-    if [[ -n "${SENDGRID_API_KEY:-}" ]]; then
-        infra_id=$(get_infra_id)
-        echo "Creating SMTP secret with Sendgrid API key with ID: ${infra_id}"
-        smtp-service create "${infra_id}" | oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" create -n "${RHMI_OPERATOR_NAMESPACE}" -f -
-    else
-        oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" create secret generic redhat-rhmi-smtp -n "${RHMI_OPERATOR_NAMESPACE}" \
-            --from-literal=host=smtp.example.com \
-            --from-literal=username=dummy \
-            --from-literal=password=dummy \
-            --from-literal=port=587 \
-            --from-literal=tls=true
-    fi
-    oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get secret redhat-rhmi-pagerduty -n ${RHMI_OPERATOR_NAMESPACE} \
-        || oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" create secret generic redhat-rhmi-pagerduty -n ${RHMI_OPERATOR_NAMESPACE} \
-        --from-literal=serviceKey=dummykey
-    oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" create secret generic redhat-rhmi-deadmanssnitch -n ${RHMI_OPERATOR_NAMESPACE} \
-        --from-literal=url=https://dms.example.com
+
+    create_secrets
 
     if [[ "${PATCH_CR_AWS_CM}" == true ]]; then
         echo "Patching Cloud Resources AWS Strategies Config Map"
@@ -290,6 +275,48 @@ update_configuration_with_openshift_version() {
 
     updated_configuration=$(jq ".version = {\"kind\": \"VersionLink\",\"id\": \"openshift-v${OPENSHIFT_VERSION}\", \"href\": \"/api/clusters_mgmt/v1/versions/openshift-v${OPENSHIFT_VERSION}\"}" < "${CLUSTER_CONFIGURATION_FILE}")
     printf "%s" "${updated_configuration}" > "${CLUSTER_CONFIGURATION_FILE}"
+}
+
+create_secrets() {
+    local secrets
+    secrets=$(oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get secrets -n "${RHMI_OPERATOR_NAMESPACE}" || true)
+
+    # If SMTP Secret is not present in RHMI operator namespace
+    if ! grep -q smtp <<< "${secrets}"; then
+        if [[ -n "${SENDGRID_API_KEY:-}" ]]; then
+            infra_id=$(get_infra_id)
+            echo "Creating SMTP secret with Sendgrid API key with ID: ${infra_id}"
+            smtp-service create "${infra_id}" | oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" create -n "${RHMI_OPERATOR_NAMESPACE}" -f - \
+            || echo "SMTP ${ERROR_CREATING_SECRET}"
+        else
+            oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" create secret generic redhat-rhmi-smtp -n "${RHMI_OPERATOR_NAMESPACE}" \
+                --from-literal=host=smtp.example.com \
+                --from-literal=username=dummy \
+                --from-literal=password=dummy \
+                --from-literal=port=587 \
+                --from-literal=tls=true \
+            || echo "SMTP ${ERROR_CREATING_SECRET}"
+        fi
+    fi
+
+    # Pagerduty secret
+    if ! grep -q pagerduty <<< "${secrets}"; then
+        oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" create secret generic redhat-rhmi-pagerduty -n ${RHMI_OPERATOR_NAMESPACE} \
+            --from-literal=serviceKey=dummykey \
+            || echo "Pagerduty ${ERROR_CREATING_SECRET}"
+    fi
+
+    # DMS secret
+    if ! grep -q deadmanssnitch <<< "${secrets}"; then
+        oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" create secret generic redhat-rhmi-deadmanssnitch -n ${RHMI_OPERATOR_NAMESPACE} \
+            --from-literal=url=https://dms.example.com \
+            || echo "DMS ${ERROR_CREATING_SECRET}"
+    fi
+
+    # Keep trying creating secrets until all of them are present in RHMI operator namespace
+    if [[ $(oc get secrets -n ${RHMI_OPERATOR_NAMESPACE} | grep -cE "redhat-rhmi-((.*smtp|.*pagerduty|.*deadmanssnitch))" || true) != 3 ]]; then
+        create_secrets
+    fi
 }
 
 display_help() {
