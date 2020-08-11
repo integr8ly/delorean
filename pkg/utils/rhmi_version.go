@@ -61,6 +61,11 @@ func (v *RHMIVersion) TagName() string {
 	return fmt.Sprintf("v%s", v.String())
 }
 
+// RCTagRef returns a git ref that can be used to search for all RC Tags for this version
+func (v *RHMIVersion) RCTagRef() string {
+	return fmt.Sprintf("v%s-", v.MajorMinorPatch())
+}
+
 func (v *RHMIVersion) Base() string {
 	return v.base
 }

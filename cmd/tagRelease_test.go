@@ -72,6 +72,7 @@ func TestDoTagRelease(t *testing.T) {
 	tagShaRC2 := "tagShaRC2"
 	tagRefRC3 := "refs/tags/2.0.0-rc3"
 	tagShaRC3 := "tagShaRC3"
+	tagRefFinal := "refs/tags/2.0.0"
 
 	testTagName := "test"
 	testTagDigest := "testdigest"
@@ -170,6 +171,12 @@ func TestDoTagRelease(t *testing.T) {
 								Ref: &tagRefRC1,
 								Object: &github.GitObject{
 									SHA: &tagShaRC1,
+								},
+							},
+							{
+								Ref: &tagRefFinal,
+								Object: &github.GitObject{
+									SHA: &masterSha,
 								},
 							},
 						}, nil, nil
