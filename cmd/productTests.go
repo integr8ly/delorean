@@ -27,6 +27,7 @@ const (
 	testJobBackoffLimit = 0
 	defaultNamespace    = "rhmi-product-tests"
 	serviceAccountName  = "cluster-admin-sa"
+	secretName          = "rh-integration-auth"
 )
 
 type TestContainer struct {
@@ -117,6 +118,14 @@ func (c *runTestsCmd) run(ctx context.Context) error {
 	var ns *v1.Namespace
 	var sa *v1.ServiceAccount
 	var err error
+	username, err := requireValue(RHIntegrationUsername)
+	if err != nil {
+		return err
+	}
+	password, err := requireValue(RHIntegrationPassword)
+	if err != nil {
+		return err
+	}
 	fmt.Println("[Prepare] Create namespace", c.namespace)
 	if ns, err = utils.CreateNamespace(c.clientset, c.namespace); err != nil {
 		return err
@@ -129,6 +138,10 @@ func (c *runTestsCmd) run(ctx context.Context) error {
 	gvk := schema.FromAPIVersionAndKind("v1", "namespace")
 	owner := metav1.NewControllerRef(ns, gvk)
 	if _, err = utils.CreateClusterRoleBinding(c.clientset, sa, "cluster-admin", *owner); err != nil {
+		return err
+	}
+	err = utils.CreateSecret(c.clientset, secretName, "quay.io", c.namespace, username, password)
+	if err != nil {
 		return err
 	}
 	var wg sync.WaitGroup
@@ -220,7 +233,6 @@ func getTestContainerJob(namespace string, t *TestContainer) *batchv1.Job {
 	// cli to retrieve the logs from the containers before the pod is destroyed
 	// from the job
 	var extendedTimeout = t.Timeout + 180
-
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      t.Name,
@@ -265,6 +277,10 @@ func getTestContainerJob(namespace string, t *TestContainer) *batchv1.Job {
 					},
 					RestartPolicy:      "Never",
 					ServiceAccountName: serviceAccountName,
+					ImagePullSecrets: []v1.LocalObjectReference{{
+						Name: secretName,
+					},
+					},
 				},
 			},
 		},

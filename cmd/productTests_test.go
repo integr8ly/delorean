@@ -3,12 +3,14 @@ package cmd
 import (
 	"context"
 	"errors"
+	"github.com/spf13/viper"
 	"io/ioutil"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -39,6 +41,14 @@ func TestRun(t *testing.T) {
 		t.Fatalf("Failed to create output dir: %v", err)
 	}
 	defer os.RemoveAll(outputDir)
+	// set env variables for secret creation
+	err = os.Setenv(strings.ToUpper(RHIntegrationUsername), "integrationUsername")
+	err = os.Setenv(strings.ToUpper(RHIntegrationPassword), "integrationsPassword")
+	viper.BindEnv(RHIntegrationUsername)
+	viper.BindEnv(RHIntegrationPassword)
+	if err != nil {
+		t.Fatalf("Failed to set env var: %v", err)
+	}
 	namespace := "test"
 	tests := []*TestContainer{
 		{

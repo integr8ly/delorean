@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -106,6 +107,32 @@ func CreateClusterRoleBinding(client kubernetes.Interface, sa *v1.ServiceAccount
 		return nil, err
 	}
 	return r, nil
+}
+
+func CreateSecret(client kubernetes.Interface, secretName string, registry string, namespace string, username string, password string) error {
+	type RegistryAuth struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
+	type DockerAuth map[string]RegistryAuth
+	r := RegistryAuth{
+		Username: username,
+		Password: password,
+	}
+	authstring, err := json.Marshal(DockerAuth{registry: r})
+	_, err = client.CoreV1().Secrets(namespace).Create(&v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: namespace,
+		},
+		Type:       v1.SecretTypeDockercfg,
+		StringData: map[string]string{".dockercfg": string(authstring)},
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func WaitForContainerToComplete(client kubernetes.Interface, namespace string, podSelector string, containerName string, timeout time.Duration, logPrefix string) (*v1.ContainerStateTerminated, error) {
