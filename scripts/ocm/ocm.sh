@@ -161,7 +161,7 @@ delete_cluster() {
     # infra_id would be empty if the cluster was not fully provisioned
     if [[ -n "${SENDGRID_API_KEY:-}" ]] && [[ -n "${infra_id:-}" ]]; then
         echo "Deleting Sendgrid sub user and API key with ID: ${infra_id}"
-        smtp-service delete "${infra_id}"
+        smtp-service delete "${infra_id}" || true
     fi
 
     echo "Deleting the cluster with ID: ${cluster_id}"
