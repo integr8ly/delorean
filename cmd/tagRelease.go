@@ -67,7 +67,7 @@ func DoTagRelease(ctx context.Context, ghClient services.GitService, gitRepoInfo
 		return err
 	}
 	fmt.Println("Fetch git ref:", fmt.Sprintf("refs/tags/%s", rv.TagName()))
-	existingTagRef, err := getGitRef(ctx, ghClient, gitRepoInfo, fmt.Sprintf("refs/tags/%s", rv.TagName()), true)
+	existingRCTagRef, err := getGitRef(ctx, ghClient, gitRepoInfo, fmt.Sprintf("refs/tags/%s", rv.RCTagRef()), true)
 	if err != nil {
 		return err
 	}
@@ -88,9 +88,9 @@ func DoTagRelease(ctx context.Context, ghClient services.GitService, gitRepoInfo
 		commitSHA := headRef.GetObject().GetSHA()
 
 		//If this is a final release and we have an existing tag (rc tag), promote the existing rc tag to the final release, otherwise continue as normal
-		if !rv.IsPreRelease() && existingTagRef != nil {
-			quaySrcTag = strings.Replace(existingTagRef.GetRef(), "refs/tags/", "", -1)
-			commitSHA = existingTagRef.GetObject().GetSHA()
+		if !rv.IsPreRelease() && existingRCTagRef != nil {
+			quaySrcTag = strings.Replace(existingRCTagRef.GetRef(), "refs/tags/", "", -1)
+			commitSHA = existingRCTagRef.GetObject().GetSHA()
 		}
 
 		ok := tryCreateQuayTag(ctx, quayClient, quayRepos, quaySrcTag, quayDstTag, commitSHA)
