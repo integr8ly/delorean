@@ -314,7 +314,7 @@ create_secrets() {
     fi
 
     # Keep trying creating secrets until all of them are present in RHMI operator namespace
-    if [[ $(oc get secrets -n ${RHMI_OPERATOR_NAMESPACE} | grep -cE "redhat-rhmi-((.*smtp|.*pagerduty|.*deadmanssnitch))" || true) != 3 ]]; then
+    if [[ $(oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get secrets -n ${RHMI_OPERATOR_NAMESPACE} | grep -cE "redhat-rhmi-((.*smtp|.*pagerduty|.*deadmanssnitch))" || true) != 3 ]]; then
         create_secrets
     fi
 }
