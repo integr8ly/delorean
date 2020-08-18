@@ -109,7 +109,7 @@ func CreateClusterRoleBinding(client kubernetes.Interface, sa *v1.ServiceAccount
 	return r, nil
 }
 
-func CreateSecret(client kubernetes.Interface, secretName string, registry string, namespace string, username string, password string) error {
+func CreateDockerSecret(client kubernetes.Interface, secretName string, registry string, namespace string, username string, password string) error {
 	type RegistryAuth struct {
 		Username string `json:"username"`
 		Password string `json:"password"`

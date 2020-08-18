@@ -140,7 +140,7 @@ func (c *runTestsCmd) run(ctx context.Context) error {
 	if _, err = utils.CreateClusterRoleBinding(c.clientset, sa, "cluster-admin", *owner); err != nil {
 		return err
 	}
-	err = utils.CreateSecret(c.clientset, secretName, "quay.io", c.namespace, username, password)
+	err = utils.CreateDockerSecret(c.clientset, secretName, "quay.io", c.namespace, username, password)
 	if err != nil {
 		return err
 	}
