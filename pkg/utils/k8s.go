@@ -118,7 +118,13 @@ func CreateDockerSecret(client kubernetes.Interface, secretName string, namespac
 	type DockerAuth map[string]RegistryAuth
 	r := RegistryAuth{}
 	err := json.Unmarshal([]byte(authstring), &r)
+	if err != nil {
+		return err
+	}
 	auth, err := json.Marshal(DockerAuth{r.Registry: r})
+	if err != nil {
+		return err
+	}
 	_, err = client.CoreV1().Secrets(namespace).Create(&v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      secretName,

@@ -133,9 +133,6 @@ func (c *runTestsCmd) run(ctx context.Context) error {
 	if _, err = utils.CreateClusterRoleBinding(c.clientset, sa, "cluster-admin", *owner); err != nil {
 		return err
 	}
-	if err != nil {
-		return err
-	}
 	var wg sync.WaitGroup
 	for _, testContainer := range c.tests {
 		if testContainer.ImagePullSecret != "" {
@@ -144,7 +141,7 @@ func (c *runTestsCmd) run(ctx context.Context) error {
 				continue
 			}
 			fmt.Println(fmt.Sprintf("[%s] Creating secret %s", testContainer.Name, testContainer.ImagePullSecret))
-			err = utils.CreateDockerSecret(c.clientset, strings.ToLower(strings.ReplaceAll(testContainer.ImagePullSecret, "_", "-")), c.namespace, os.Getenv(testContainer.ImagePullSecret))
+			err = utils.CreateDockerSecret(c.clientset, parseSecretName(testContainer.ImagePullSecret), c.namespace, os.Getenv(testContainer.ImagePullSecret))
 			if err != nil {
 				return err
 			}
@@ -281,7 +278,7 @@ func getTestContainerJob(namespace string, t *TestContainer) *batchv1.Job {
 					RestartPolicy:      "Never",
 					ServiceAccountName: serviceAccountName,
 					ImagePullSecrets: []v1.LocalObjectReference{{
-						Name: strings.ToLower(strings.ReplaceAll(t.ImagePullSecret, "_", "-")),
+						Name: parseSecretName(t.ImagePullSecret),
 					},
 					},
 				},
@@ -321,4 +318,8 @@ func (c *runTestsCmd) downloadLogs(pod v1.Pod, testName string) error {
 
 func (c *runTestsCmd) completeJob(pod v1.Pod) error {
 	return c.oc.Run("exec", pod.GetName(), "-c", "sidecar", "-n", c.namespace, "--", "touch", "/tmp/done")
+}
+
+func parseSecretName(pullSecret string) string {
+	return strings.ToLower(strings.ReplaceAll(pullSecret, "_", "-"))
 }
