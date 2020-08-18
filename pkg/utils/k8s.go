@@ -109,24 +109,23 @@ func CreateClusterRoleBinding(client kubernetes.Interface, sa *v1.ServiceAccount
 	return r, nil
 }
 
-func CreateDockerSecret(client kubernetes.Interface, secretName string, registry string, namespace string, username string, password string) error {
+func CreateDockerSecret(client kubernetes.Interface, secretName string, namespace string, authstring string) error {
 	type RegistryAuth struct {
 		Username string `json:"username"`
 		Password string `json:"password"`
+		Registry string `json:"registry"`
 	}
 	type DockerAuth map[string]RegistryAuth
-	r := RegistryAuth{
-		Username: username,
-		Password: password,
-	}
-	authstring, err := json.Marshal(DockerAuth{registry: r})
+	r := RegistryAuth{}
+	err := json.Unmarshal([]byte(authstring), &r)
+	auth, err := json.Marshal(DockerAuth{r.Registry: r})
 	_, err = client.CoreV1().Secrets(namespace).Create(&v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      secretName,
 			Namespace: namespace,
 		},
 		Type:       v1.SecretTypeDockercfg,
-		StringData: map[string]string{".dockercfg": string(authstring)},
+		StringData: map[string]string{".dockercfg": string(auth)},
 	})
 	if err != nil {
 		return err

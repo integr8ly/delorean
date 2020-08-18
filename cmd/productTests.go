@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strings"
 	"sync"
 	"time"
 
@@ -27,15 +28,15 @@ const (
 	testJobBackoffLimit = 0
 	defaultNamespace    = "rhmi-product-tests"
 	serviceAccountName  = "cluster-admin-sa"
-	secretName          = "rh-integration-auth"
 )
 
 type TestContainer struct {
-	Name    string      `json:"name"`
-	Image   string      `json:"image"`
-	Timeout int64       `json:"timeout,omitempty"`
-	EnvVars []v1.EnvVar `json:"envVars,omitempty"`
-	Success bool
+	Name            string      `json:"name"`
+	Image           string      `json:"image"`
+	Timeout         int64       `json:"timeout,omitempty"`
+	ImagePullSecret string      `json:"ImagePullSecretEnvVar,omitempty"`
+	EnvVars         []v1.EnvVar `json:"envVars,omitempty"`
+	Success         bool
 }
 
 type testContainerList struct {
@@ -118,14 +119,6 @@ func (c *runTestsCmd) run(ctx context.Context) error {
 	var ns *v1.Namespace
 	var sa *v1.ServiceAccount
 	var err error
-	username, err := requireValue(RHIntegrationUsername)
-	if err != nil {
-		return err
-	}
-	password, err := requireValue(RHIntegrationPassword)
-	if err != nil {
-		return err
-	}
 	fmt.Println("[Prepare] Create namespace", c.namespace)
 	if ns, err = utils.CreateNamespace(c.clientset, c.namespace); err != nil {
 		return err
@@ -140,13 +133,19 @@ func (c *runTestsCmd) run(ctx context.Context) error {
 	if _, err = utils.CreateClusterRoleBinding(c.clientset, sa, "cluster-admin", *owner); err != nil {
 		return err
 	}
-	err = utils.CreateDockerSecret(c.clientset, secretName, "quay.io", c.namespace, username, password)
 	if err != nil {
 		return err
 	}
 	var wg sync.WaitGroup
 	for _, testContainer := range c.tests {
 		wg.Add(1)
+		if testContainer.ImagePullSecret != "" {
+			fmt.Println(fmt.Sprintf("[%s] Creating secret %s", testContainer.Name, testContainer.ImagePullSecret))
+			err = utils.CreateDockerSecret(c.clientset, strings.ToLower(strings.ReplaceAll(testContainer.ImagePullSecret, "_", "-")), c.namespace, os.Getenv(testContainer.ImagePullSecret))
+			if err != nil {
+				return err
+			}
+		}
 		go func(t *TestContainer) {
 			defer wg.Done()
 			fmt.Println(fmt.Sprintf("[%s] Start test container", t.Name))
@@ -278,7 +277,7 @@ func getTestContainerJob(namespace string, t *TestContainer) *batchv1.Job {
 					RestartPolicy:      "Never",
 					ServiceAccountName: serviceAccountName,
 					ImagePullSecrets: []v1.LocalObjectReference{{
-						Name: secretName,
+						Name: strings.ToLower(strings.ReplaceAll(t.ImagePullSecret, "_", "-")),
 					},
 					},
 				},

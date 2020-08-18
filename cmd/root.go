@@ -114,12 +114,6 @@ func init() {
 	pipelineCmd.PersistentFlags().StringVar(&kubeconfigFile, "kubeconfig", defaultKubeconfigFilePath, fmt.Sprintf("Path to the kubeconfig file. Can be set via the %s env var", strings.ToUpper(KubeConfigKey)))
 	viper.BindPFlag(KubeConfigKey, pipelineCmd.PersistentFlags().Lookup("kubeconfig"))
 
-	// flags for 3scale quay access
-	pipelineCmd.PersistentFlags().String("rh-integration-username", "", fmt.Sprintf("Username for accessing 3scale test image. Can be set via the %s env var", strings.ToUpper(RHIntegrationUsername)))
-	viper.BindPFlag(RHIntegrationUsername, pipelineCmd.PersistentFlags().Lookup("rh-integration-username"))
-	pipelineCmd.PersistentFlags().String("rh-integration-password", "", fmt.Sprintf("Password for accessing 3scale test image. Can be set via the %s env var", strings.ToUpper(RHIntegrationPassword)))
-	viper.BindPFlag(RHIntegrationPassword, pipelineCmd.PersistentFlags().Lookup("rh-integration-password"))
-
 	// flags for the report command
 	reportCmd.Flags().String("polarion-username", "", "Polarion username")
 	viper.BindPFlag(PolarionUsernameKey, reportCmd.Flags().Lookup("polarion-username"))
