@@ -138,14 +138,18 @@ func (c *runTestsCmd) run(ctx context.Context) error {
 	}
 	var wg sync.WaitGroup
 	for _, testContainer := range c.tests {
-		wg.Add(1)
 		if testContainer.ImagePullSecret != "" {
+			if os.Getenv(testContainer.ImagePullSecret) == "" {
+				fmt.Println(fmt.Sprintf("[%s] ImagePullSecret %s defined in configuration but no value found", testContainer.Name, testContainer.ImagePullSecret))
+				continue
+			}
 			fmt.Println(fmt.Sprintf("[%s] Creating secret %s", testContainer.Name, testContainer.ImagePullSecret))
 			err = utils.CreateDockerSecret(c.clientset, strings.ToLower(strings.ReplaceAll(testContainer.ImagePullSecret, "_", "-")), c.namespace, os.Getenv(testContainer.ImagePullSecret))
 			if err != nil {
 				return err
 			}
 		}
+		wg.Add(1)
 		go func(t *TestContainer) {
 			defer wg.Done()
 			fmt.Println(fmt.Sprintf("[%s] Start test container", t.Name))
