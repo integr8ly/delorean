@@ -37,8 +37,6 @@ const (
 	AWSAccessKeyIDEnv                      = "delorean_aws_access_key_id"
 	AWSSecretAccessKeyEnv                  = "delorean_aws_secret_access_key"
 	AWSDefaultRegion                       = "eu-west-1"
-	RHIntegrationUsername                  = "rh_integration_username"
-	RHIntegrationPassword                  = "rh_integration_password"
 )
 
 type githubRepoInfo struct {
