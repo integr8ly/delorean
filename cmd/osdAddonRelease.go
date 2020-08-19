@@ -32,67 +32,70 @@ const (
 	// Base URL for the integreatly-opeartor repo
 	githubURL = "https://github.com"
 
-	// Directory in the integreatly-opeartor repo with the OLM maninfest files
-	sourceOLMManifestsDirectory = "deploy/olm-catalog/integreatly-operator/%s"
-
 	// The branch to target with the merge request
 	managedTenantsMasterBranch = "master"
 
 	// Info for the commit and merge request
-	branchNameTemplate              = "integreatly-operator-%s-v%s"
-	commitMessageTemplate           = "update integreatly-operator %s to %s"
+	branchNameTemplate              = "%s-%s-v%s"
+	commitMessageTemplate           = "update %s %s to %s"
 	commitAuthorName                = "Delorean"
 	commitAuthorEmail               = "cloud-services-delorean@redhat.com"
-	mergeRequestTitleTemplate       = "Update integreatly-operator %s to %s" // channel, version
-	rhmiOperatorDeploymentName      = "rhmi-operator"
-	rhmiOperatorContainerName       = "rhmi-operator"
+	mergeRequestTitleTemplate       = "Update %s %s to %s" // channel, version
 	envVarNameUseClusterStorage     = "USE_CLUSTER_STORAGE"
 	envVarNameAlerEmailAddress      = "ALERTING_EMAIL_ADDRESS"
 	envVarNameAlerEmailAddressValue = "{{ alertingEmailAddress }}"
 )
 
-// releaseChannel rappresents one of the three places (stage, edge, stable)
-// where to update the integreatly-operator
-type releaseChannel string
+type releaseChannel struct {
+	Name            string `json:"name"`
+	Directory       string `json:"directory"`
+	Environment     string `json:"environment"`
+	AllowPreRelease bool   `json:"allow_pre_release"`
+}
 
-const (
-	stageChannel  releaseChannel = "stage"
-	edgeChannel   releaseChannel = "edge"
-	stableChannel releaseChannel = "stable"
-)
+type addonCSVConfig struct {
+	Repo string `json:"repo"`
+	Path string `json:"path"`
+}
+
+type deploymentContainerEnvVar struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
+type deploymentContainer struct {
+	Name    string                      `json:"name"`
+	EnvVars []deploymentContainerEnvVar `json:"env_vars"`
+}
+
+type deployment struct {
+	Name      string              `json:"name"`
+	Container deploymentContainer `json:"container"`
+}
+
+type override struct {
+	Deployment deployment `json:"deployment"`
+}
+
+type addonConfig struct {
+	Name     string           `json:"name"`
+	CSV      addonCSVConfig   `json:"csv"`
+	Channels []releaseChannel `json:"channels"`
+	Override *override        `json:"override,omitempty"`
+}
+
+type addons struct {
+	Addons []addonConfig `json:"addons"`
+}
 
 // directory returns the relative path of the managed-teneants repo to the
-// integreatly-operator for the given channel
-func (c releaseChannel) bundlesDirectory() string {
-	return fmt.Sprintf("addons/%s/bundles", c.operatorName())
+// addon for the given channel
+func (c *releaseChannel) bundlesDirectory() string {
+	return fmt.Sprintf("addons/%s/bundles", c.Directory)
 }
 
-func (c releaseChannel) addonFile() string {
-	name := c.operatorName()
-	var template string
-	switch c {
-	case stageChannel:
-		template = "addons/%s/metadata/stage/addon.yaml"
-	case edgeChannel:
-		template = "addons/%s/metadata/production/addon.yaml"
-	case stableChannel:
-		template = "addons/%s/metadata/production/addon.yaml"
-	default:
-		panic(fmt.Sprintf("unsopported channel %s", c))
-	}
-	return fmt.Sprintf(template, name)
-}
-
-// OperatorName returns the name of the integreatly-operator depending on the channel
-func (c releaseChannel) operatorName() string {
-	switch c {
-	case stageChannel, stableChannel:
-		return "integreatly-operator"
-	case edgeChannel:
-		return "integreatly-operator-internal"
-	default:
-		panic(fmt.Sprintf("unsopported channel %s", c))
-	}
+func (c *releaseChannel) addonFile() string {
+	return fmt.Sprintf("addons/%s/metadata/%s/addon.yaml", c.Directory, c.Environment)
 }
 
 type osdAddonReleaseFlags struct {
@@ -101,19 +104,22 @@ type osdAddonReleaseFlags struct {
 	mergeRequestDescription string
 	managedTenantsOrigin    string
 	managedTenantsFork      string
+	addonName               string
+	addonsConfig            string
 }
 
 type osdAddonReleaseCmd struct {
-	flags                  *osdAddonReleaseFlags
-	gitlabToken            string
-	version                *utils.RHMIVersion
-	channel                releaseChannel
-	gitlabMergeRequests    services.GitLabMergeRequestsService
-	gitlabProjects         services.GitLabProjectsService
-	integreatlyOperatorDir string
-	managedTenantsDir      string
-	managedTenantsRepo     *git.Repository
-	gitPushService         services.GitPushService
+	flags               *osdAddonReleaseFlags
+	gitlabToken         string
+	version             *utils.RHMIVersion
+	gitlabMergeRequests services.GitLabMergeRequestsService
+	gitlabProjects      services.GitLabProjectsService
+	managedTenantsDir   string
+	managedTenantsRepo  *git.Repository
+	gitPushService      services.GitPushService
+	addonConfig         *addonConfig
+	currentChannel      *releaseChannel
+	addonDir            string
 }
 
 type addon struct {
@@ -121,7 +127,7 @@ type addon struct {
 }
 
 func (a *addon) setCurrentCSV(currentCSV string) {
-	r := regexp.MustCompile(`currentCSV: integreatly-operator\..*`)
+	r := regexp.MustCompile(`currentCSV: .*`)
 	s := r.ReplaceAllString(a.content, fmt.Sprintf("currentCSV: %s", currentCSV))
 	a.content = s
 }
@@ -140,7 +146,7 @@ func init() {
 
 	cmd := &cobra.Command{
 		Use:   "osd-addon",
-		Short: "Create the integreatly-operator MR to the managed-tenants repo",
+		Short: "Create a MR to the managed-tenants repo for the giving addon to update its version",
 		Run: func(cmd *cobra.Command, args []string) {
 
 			gitlabToken, err := requireValue(gitlabTokenKey)
@@ -163,15 +169,20 @@ func init() {
 	}
 
 	releaseCmd.AddCommand(cmd)
+	cmd.Flags().StringVar(&f.addonName, "name", "", "Name of the addon to update")
+	cmd.MarkFlagRequired("name")
 
 	cmd.Flags().StringVar(
 		&f.version, "version", "",
-		"The RHMI version to push to the managed-tenats repo (ex \"2.0.0\", \"2.0.0-er4\")")
+		"The version to push to the managed-tenats repo (ex \"2.0.0\", \"2.0.0-er4\")")
 	cmd.MarkFlagRequired("version")
 
+	cmd.Flags().StringVar(&f.addonsConfig, "addons-config", "", "Configuration files for the addons")
+	cmd.MarkFlagRequired("addons-config")
+
 	cmd.Flags().StringVar(
-		&f.channel, "channel", string(stageChannel),
-		fmt.Sprintf("The OSD channel to which push the RHMI release [%s|%s|%s]", stageChannel, edgeChannel, stableChannel),
+		&f.channel, "channel", "stage",
+		fmt.Sprintf("The OSD channel to which push the release. The channel values are defined in the addons-config file"),
 	)
 
 	cmd.Flags().String(
@@ -191,7 +202,7 @@ func init() {
 		&f.managedTenantsOrigin,
 		"managed-tenants-origin",
 		"service/managed-tenants",
-		"managed-tenants origin repository from where to frok the master branch")
+		"managed-tenants origin repository from where to fork the master branch")
 
 	cmd.Flags().StringVar(
 		&f.managedTenantsFork,
@@ -200,13 +211,51 @@ func init() {
 		"managed-tenants fork repository where to push the release files")
 }
 
-func newOSDAddonReleseCmd(flags *osdAddonReleaseFlags, gitlabToken string) (*osdAddonReleaseCmd, error) {
+func findAddon(config *addons, addonName string) *addonConfig {
+	var currentAddon *addonConfig
+	for _, a := range config.Addons {
+		v := a
+		if a.Name == addonName {
+			currentAddon = &v
+			break
+		}
+	}
+	return currentAddon
+}
 
+func findChannel(addon *addonConfig, channelName string) *releaseChannel {
+	var currentChannel *releaseChannel
+	for _, c := range addon.Channels {
+		v := c
+		if c.Name == channelName {
+			currentChannel = &v
+			break
+		}
+	}
+	return currentChannel
+}
+
+func newOSDAddonReleseCmd(flags *osdAddonReleaseFlags, gitlabToken string) (*osdAddonReleaseCmd, error) {
 	version, err := utils.NewRHMIVersion(flags.version)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("create osd addon release for RHMI v%s to the %s channel\n", version, flags.channel)
+	addonsConfig := &addons{}
+	if err := utils.PopulateObjectFromYAML(flags.addonsConfig, addonsConfig); err != nil {
+		return nil, err
+	}
+
+	currentAddon := findAddon(addonsConfig, flags.addonName)
+	if currentAddon == nil {
+		return nil, fmt.Errorf("can not find configuration for addon %s in config file %s", flags.addonName, flags.addonsConfig)
+	}
+
+	currentChannel := findChannel(currentAddon, flags.channel)
+	if currentChannel == nil {
+		return nil, fmt.Errorf("can not find channel %s for addon %s in config file %s", flags.channel, flags.addonName, flags.addonsConfig)
+	}
+
+	fmt.Printf("create osd addon release for %s v%s to the %s channel\n", flags.addonName, version, flags.channel)
 
 	// Prepare the GitLab Client
 	gitlabClient, err := gitlab.NewClient(
@@ -241,43 +290,38 @@ func newOSDAddonReleseCmd(flags *osdAddonReleaseFlags, gitlabToken string) (*osd
 	}
 	fmt.Print("added the fork remote to the managed-tenants repo\n")
 
-	// Clone the integreatly-operator
-	integreatlyOperatorDir, _, err := gitCloneService.CloneToTmpDir(
-		"integreatly-operator-",
-		fmt.Sprintf("%s/%s/%s", githubURL, integreatlyGHOrg, integreatlyOperatorRepo),
+	// Clone the repo to get the csv for the addon
+	csvDir, _, err := gitCloneService.CloneToTmpDir(
+		"addon-csv-",
+		currentAddon.CSV.Repo,
 		plumbing.NewTagReferenceName(fmt.Sprintf("v%s", version)),
 	)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("integreatly-operator cloned to %s\n", integreatlyOperatorDir)
+	fmt.Printf("addon cloned to %s\n", csvDir)
 
 	return &osdAddonReleaseCmd{
-		flags:                  flags,
-		gitlabToken:            gitlabToken,
-		version:                version,
-		channel:                releaseChannel(flags.channel),
-		gitlabMergeRequests:    gitlabClient.MergeRequests,
-		gitlabProjects:         gitlabClient.Projects,
-		integreatlyOperatorDir: integreatlyOperatorDir,
-		managedTenantsDir:      managedTenatsDir,
-		managedTenantsRepo:     managedTenantsRepo,
-		gitPushService:         &services.DefaultGitPushService{},
+		flags:               flags,
+		gitlabToken:         gitlabToken,
+		version:             version,
+		gitlabMergeRequests: gitlabClient.MergeRequests,
+		gitlabProjects:      gitlabClient.Projects,
+		managedTenantsDir:   managedTenatsDir,
+		managedTenantsRepo:  managedTenantsRepo,
+		gitPushService:      &services.DefaultGitPushService{},
+		currentChannel:      currentChannel,
+		addonConfig:         currentAddon,
+		addonDir:            csvDir,
 	}, nil
 }
 
 func (c *osdAddonReleaseCmd) run() error {
-
-	// verify that the passed version can be pushed to the passed channel
-	switch c.channel {
-	case stageChannel:
-		// noting
-	case stableChannel, edgeChannel:
-		if c.version.IsPreRelease() {
-			return fmt.Errorf("the prerelease version %s can't be pushed to the %s channel", c.version, c.channel)
-		}
-	default:
-		return fmt.Errorf("invalid channel %s, see the cmd help for the list of valid channels", c.channel)
+	if c.currentChannel == nil {
+		return fmt.Errorf("currentChannel is not valid: %v", c.currentChannel)
+	}
+	if c.version.IsPreRelease() && !c.currentChannel.AllowPreRelease {
+		return fmt.Errorf("the prerelease version %s can't be pushed to the %s channel", c.version, c.currentChannel.Name)
 	}
 
 	managedTenantsHead, err := c.managedTenantsRepo.Head()
@@ -296,7 +340,7 @@ func (c *osdAddonReleaseCmd) run() error {
 	}
 
 	// Create a new branch on the managed-tenants repo
-	managedTenantsBranch := fmt.Sprintf(branchNameTemplate, c.channel, c.version)
+	managedTenantsBranch := fmt.Sprintf(branchNameTemplate, c.addonConfig.Name, c.currentChannel.Name, c.version)
 	branchRef := plumbing.NewBranchReferenceName(managedTenantsBranch)
 
 	fmt.Printf("create the branch %s in the managed-tenants repo\n", managedTenantsBranch)
@@ -309,7 +353,7 @@ func (c *osdAddonReleaseCmd) run() error {
 	}
 
 	// Copy the OLM manifests from the integreatly-operator repo to the the managed-tenats repo
-	manifestsDirectory, err := c.copyTheOLMManifests(c.channel)
+	manifestsDirectory, err := c.copyTheOLMManifests()
 	if err != nil {
 		return err
 	}
@@ -321,7 +365,7 @@ func (c *osdAddonReleaseCmd) run() error {
 	}
 
 	// Update the addon.yaml file
-	addonFile, err := c.updateTheAddonFile(c.channel)
+	addonFile, err := c.updateTheAddonFile()
 	if err != nil {
 		return err
 	}
@@ -333,12 +377,12 @@ func (c *osdAddonReleaseCmd) run() error {
 	}
 
 	//Update the integreatly-operator.vx.x.x.clusterserviceversion.yaml
-	_, err = c.udpateTheCSVManifest(c.channel)
+	_, err = c.udpateTheCSVManifest()
 	if err != nil {
 		return err
 	}
 
-	csvTemplate, err := c.renameCSVFile(c.channel)
+	csvTemplate, err := c.renameCSVFile()
 	if err != nil {
 		return err
 	}
@@ -351,7 +395,7 @@ func (c *osdAddonReleaseCmd) run() error {
 	// Commit
 	fmt.Print("commit all changes in the managed-tenats repo\n")
 	_, err = managedTenantsTree.Commit(
-		fmt.Sprintf(commitMessageTemplate, c.channel, c.version),
+		fmt.Sprintf(commitMessageTemplate, c.addonConfig.Name, c.currentChannel.Name, c.version),
 		&git.CommitOptions{
 			All: true,
 			Author: &object.Signature{
@@ -396,7 +440,7 @@ func (c *osdAddonReleaseCmd) run() error {
 
 	fmt.Print("create the MR to the managed-tenants origin\n")
 	mr, _, err := c.gitlabMergeRequests.CreateMergeRequest(c.flags.managedTenantsFork, &gitlab.CreateMergeRequestOptions{
-		Title:              gitlab.String(fmt.Sprintf(mergeRequestTitleTemplate, c.channel, c.version)),
+		Title:              gitlab.String(fmt.Sprintf(mergeRequestTitleTemplate, c.addonConfig.Name, c.currentChannel.Name, c.version)),
 		Description:        gitlab.String(c.flags.mergeRequestDescription),
 		SourceBranch:       gitlab.String(managedTenantsBranch),
 		TargetBranch:       gitlab.String(managedTenantsMasterBranch),
@@ -407,7 +451,7 @@ func (c *osdAddonReleaseCmd) run() error {
 		return err
 	}
 
-	fmt.Printf("merge request for version %s and channel %s created successfully\n", c.version, c.channel)
+	fmt.Printf("merge request for version %s and channel %s created successfully\n", c.version, c.currentChannel.Name)
 	fmt.Printf("MR: %s\n", mr.WebURL)
 
 	// Reset the managed repostiroy to master
@@ -419,11 +463,11 @@ func (c *osdAddonReleaseCmd) run() error {
 	return nil
 }
 
-func (c *osdAddonReleaseCmd) copyTheOLMManifests(channel releaseChannel) (string, error) {
+func (c *osdAddonReleaseCmd) copyTheOLMManifests() (string, error) {
 
-	source := path.Join(c.integreatlyOperatorDir, fmt.Sprintf(sourceOLMManifestsDirectory, c.version.Base()))
+	source := path.Join(c.addonDir, fmt.Sprintf("%s/%s", c.addonConfig.CSV.Path, c.version.Base()))
 
-	relativeDestination := fmt.Sprintf("%s/%s", channel.bundlesDirectory(), c.version.Base())
+	relativeDestination := fmt.Sprintf("%s/%s", c.currentChannel.bundlesDirectory(), c.version.Base())
 	destination := path.Join(c.managedTenantsDir, relativeDestination)
 
 	fmt.Printf("copy files from %s to %s\n", source, destination)
@@ -435,8 +479,8 @@ func (c *osdAddonReleaseCmd) copyTheOLMManifests(channel releaseChannel) (string
 	return relativeDestination, nil
 }
 
-func (c *osdAddonReleaseCmd) updateTheAddonFile(channel releaseChannel) (string, error) {
-	relative := channel.addonFile()
+func (c *osdAddonReleaseCmd) updateTheAddonFile() (string, error) {
+	relative := c.currentChannel.addonFile()
 	addonFilePath := path.Join(c.managedTenantsDir, relative)
 
 	fmt.Printf("update the currentCSV value in addon file %s to %s\n", relative, c.version)
@@ -445,7 +489,7 @@ func (c *osdAddonReleaseCmd) updateTheAddonFile(channel releaseChannel) (string,
 		return "", err
 	}
 	// Set currentCSV value
-	addon.setCurrentCSV(fmt.Sprintf("integreatly-operator.v%s", c.version.Base()))
+	addon.setCurrentCSV(fmt.Sprintf("%s.v%s", c.addonConfig.Name, c.version.Base()))
 
 	err = ioutil.WriteFile(addonFilePath, []byte(addon.content), os.ModePerm)
 	if err != nil {
@@ -455,8 +499,8 @@ func (c *osdAddonReleaseCmd) updateTheAddonFile(channel releaseChannel) (string,
 	return relative, nil
 }
 
-func (c *osdAddonReleaseCmd) udpateTheCSVManifest(channel releaseChannel) (string, error) {
-	relative := fmt.Sprintf("%s/%s/%s.v%s.clusterserviceversion.yaml", channel.bundlesDirectory(), c.version.Base(), "integreatly-operator", c.version.Base())
+func (c *osdAddonReleaseCmd) udpateTheCSVManifest() (string, error) {
+	relative := fmt.Sprintf("%s/%s/%s.v%s.clusterserviceversion.yaml", c.currentChannel.bundlesDirectory(), c.version.Base(), c.addonConfig.Name, c.version.Base())
 	csvFile := path.Join(c.managedTenantsDir, relative)
 
 	fmt.Printf("update csv manifest file %s\n", relative)
@@ -466,16 +510,17 @@ func (c *osdAddonReleaseCmd) udpateTheCSVManifest(channel releaseChannel) (strin
 		return "", err
 	}
 
-	_, deployment := utils.FindDeploymentByName(csv.Spec.InstallStrategy.StrategySpec.DeploymentSpecs, rhmiOperatorDeploymentName)
-	if deployment != nil {
-		i, container := utils.FindContainerByName(deployment.Spec.Template.Spec.Containers, rhmiOperatorContainerName)
-		if container != nil {
-			// Update USE_CLUSTER_STORAGE env var to empty string
-			container.Env = utils.AddOrUpdateEnvVar(container.Env, envVarNameUseClusterStorage, "")
-			// Add ALERTING_EMAIL_ADDRESS env var
-			container.Env = utils.AddOrUpdateEnvVar(container.Env, envVarNameAlerEmailAddress, envVarNameAlerEmailAddressValue)
+	if c.addonConfig.Override != nil {
+		_, deployment := utils.FindDeploymentByName(csv.Spec.InstallStrategy.StrategySpec.DeploymentSpecs, c.addonConfig.Override.Deployment.Name)
+		if deployment != nil {
+			i, container := utils.FindContainerByName(deployment.Spec.Template.Spec.Containers, c.addonConfig.Override.Deployment.Container.Name)
+			if container != nil {
+				for _, envVar := range c.addonConfig.Override.Deployment.Container.EnvVars {
+					container.Env = utils.AddOrUpdateEnvVar(container.Env, envVar.Name, envVar.Value)
+				}
+			}
+			deployment.Spec.Template.Spec.Containers[i] = *container
 		}
-		deployment.Spec.Template.Spec.Containers[i] = *container
 	}
 
 	//Set SingleNamespace install mode to true
@@ -492,9 +537,9 @@ func (c *osdAddonReleaseCmd) udpateTheCSVManifest(channel releaseChannel) (strin
 	return relative, nil
 }
 
-func (c *osdAddonReleaseCmd) renameCSVFile(channel releaseChannel) (string, error) {
-	o := fmt.Sprintf("%s/%s/%s.v%s.clusterserviceversion.yaml", channel.bundlesDirectory(), c.version.Base(), "integreatly-operator", c.version.Base())
-	n := fmt.Sprintf("%s/%s/%s.v%s.clusterserviceversion.yaml.j2", channel.bundlesDirectory(), c.version.Base(), "integreatly-operator", c.version.Base())
+func (c *osdAddonReleaseCmd) renameCSVFile() (string, error) {
+	o := fmt.Sprintf("%s/%s/%s.v%s.clusterserviceversion.yaml", c.currentChannel.bundlesDirectory(), c.version.Base(), c.addonConfig.Name, c.version.Base())
+	n := fmt.Sprintf("%s/%s/%s.v%s.clusterserviceversion.yaml.j2", c.currentChannel.bundlesDirectory(), c.version.Base(), c.addonConfig.Name, c.version.Base())
 	fmt.Println(fmt.Sprintf("Rename file from %s to %s", o, n))
 	oldPath := path.Join(c.managedTenantsDir, o)
 	newPath := path.Join(c.managedTenantsDir, n)

@@ -132,16 +132,16 @@ func TestOSDAddonRelease(t *testing.T) {
 
 	cases := []struct {
 		version     string
-		channel     releaseChannel
+		channel     string
 		expectError bool
 	}{
-		{version: "2.1.0-rc1", channel: stageChannel, expectError: false},
-		{version: "2.1.0-rc1", channel: edgeChannel, expectError: true},
-		{version: "2.1.0-rc1", channel: stableChannel, expectError: true},
-		{version: "2.1.0-rc1", channel: releaseChannel("some"), expectError: true},
-		{version: "2.1.0", channel: stageChannel, expectError: false},
-		{version: "2.1.0", channel: edgeChannel, expectError: false},
-		{version: "2.1.0", channel: stableChannel, expectError: false},
+		{version: "2.1.0-rc1", channel: "stage", expectError: false},
+		{version: "2.1.0-rc1", channel: "edge", expectError: true},
+		{version: "2.1.0-rc1", channel: "stable", expectError: true},
+		{version: "2.1.0-rc1", channel: "some", expectError: true},
+		{version: "2.1.0", channel: "stable", expectError: false},
+		{version: "2.1.0", channel: "edge", expectError: false},
+		{version: "2.1.0", channel: "stable", expectError: false},
 	}
 
 	for _, c := range cases {
@@ -196,17 +196,26 @@ func TestOSDAddonRelease(t *testing.T) {
 				},
 			}
 
+			addonsConfig := &addons{}
+			if err := utils.PopulateObjectFromYAML("../configurations/managed-tenants-addons-config.yaml", addonsConfig); err != nil {
+				t.Fatalf("failed to load addon config file")
+			}
+
+			currentAddon := findAddon(addonsConfig, "integreatly-operator")
+			currentChannel := findChannel(currentAddon, c.channel)
+
 			// Create the osdAddonReleaseCmd object
 			cmd := &osdAddonReleaseCmd{
-				flags:                  flags,
-				version:                version,
-				channel:                releaseChannel(flags.channel),
-				gitlabMergeRequests:    gitlabMergeRequestMock,
-				gitlabProjects:         gitlabProjectsMock,
-				integreatlyOperatorDir: integreatlyOperatorDir,
-				managedTenantsDir:      managedTenantsDir,
-				managedTenantsRepo:     managedTenantsRepo,
-				gitPushService:         mockPushService,
+				flags:               flags,
+				version:             version,
+				currentChannel:      currentChannel,
+				gitlabMergeRequests: gitlabMergeRequestMock,
+				gitlabProjects:      gitlabProjectsMock,
+				addonDir:            integreatlyOperatorDir,
+				managedTenantsDir:   managedTenantsDir,
+				managedTenantsRepo:  managedTenantsRepo,
+				gitPushService:      mockPushService,
+				addonConfig:         currentAddon,
 			}
 
 			// Run the osdAddonReleaseCmd
@@ -255,9 +264,9 @@ func TestOSDAddonRelease(t *testing.T) {
 				t.Fatalf("expected 3 but found %d changed/added files", found)
 			}
 
-			addonFile := c.channel.addonFile()
-			clusterServiceVersion := fmt.Sprintf("%s/%s/integreatly-operator.v%s.clusterserviceversion.yaml.j2", c.channel.bundlesDirectory(), version.Base(), version.Base())
-			customResourceDefinition := fmt.Sprintf("%s/%s/integreatly.org_rhmis_crd.yaml", c.channel.bundlesDirectory(), version.Base())
+			addonFile := currentChannel.addonFile()
+			clusterServiceVersion := fmt.Sprintf("%s/%s/integreatly-operator.v%s.clusterserviceversion.yaml.j2", currentChannel.bundlesDirectory(), version.Base(), version.Base())
+			customResourceDefinition := fmt.Sprintf("%s/%s/integreatly.org_rhmis_crd.yaml", currentChannel.bundlesDirectory(), version.Base())
 
 			for _, p := range patches {
 				_, file := p.Files()

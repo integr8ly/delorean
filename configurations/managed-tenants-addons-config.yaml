@@ -1,0 +1,31 @@
+---
+addons:
+  - name: "integreatly-operator"
+    csv:
+      repo: "https://github.com/integr8ly/integreatly-operator.git"
+      path: "deploy/olm-catalog/integreatly-operator"
+    channels:
+      - name: "stage"
+        directory: "integreatly-operator"
+        environment: "stage"
+        allow_pre_release: true
+      - name: "edge"
+        directory: "integreatly-operator-internal"
+        environment: "production"
+        allow_pre_release: false
+      - name: "stable"
+        directory: "integreatly-operator"
+        environment: "production"
+        allow_pre_release: false
+    override:
+      deployment:
+        name: "rhmi-operator"
+        container:
+          name: "rhmi-operator"
+          env_vars:
+            - name: "USE_CLUSTER_STORAGE"
+              value: ""
+            - name: "ALERTING_EMAIL_ADDRESS"
+              value: "{{ alertingEmailAddress }}"
+
+
