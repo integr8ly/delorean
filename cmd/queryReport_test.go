@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager/s3manageriface"
 	"github.com/integr8ly/delorean/pkg/services"
 	"github.com/integr8ly/delorean/pkg/utils"
 	"github.com/prometheus/client_golang/api"
@@ -11,7 +13,7 @@ import (
 	"github.com/prometheus/common/model"
 	"io/ioutil"
 	"os"
-	"path"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -58,6 +60,7 @@ func TestQueryReportCmd(t *testing.T) {
 		description string
 		promAPI     services.PrometheusService
 		config      *queryReportConfig
+		uploader    s3manageriface.UploaderAPI
 		checkResult func(err error) error
 	}{
 		{
@@ -71,13 +74,21 @@ func TestQueryReportCmd(t *testing.T) {
 				Name:    "Test Report",
 				Queries: queries,
 			},
+			uploader: &utils.MockS3Uploader{
+				UploadFunc: func(input *s3manager.UploadInput) (*s3manager.UploadOutput, error) {
+					output := s3manager.UploadOutput{
+						Location: *input.Key,
+					}
+					return &output, nil
+				},
+			},
 			checkResult: func(err error) error {
 				if err != nil {
 					return err
 				}
-				outputFile := path.Join(outputDir, "test-report.yaml")
+				outputFiles, _ := filepath.Glob(outputDir + "/test-report-*.yaml")
 				results := queryResults{}
-				err = utils.PopulateObjectFromYAML(outputFile, &results)
+				err = utils.PopulateObjectFromYAML(outputFiles[0], &results)
 				if err != nil {
 					return err
 				}
@@ -104,6 +115,14 @@ func TestQueryReportCmd(t *testing.T) {
 				Name:    "test",
 				Queries: queries,
 			},
+			uploader: &utils.MockS3Uploader{
+				UploadFunc: func(input *s3manager.UploadInput) (*s3manager.UploadOutput, error) {
+					output := s3manager.UploadOutput{
+						Location: *input.Key,
+					}
+					return &output, nil
+				},
+			},
 			checkResult: func(err error) error {
 				if err == nil {
 					return errors.New("should have error but got nil")
@@ -120,6 +139,8 @@ func TestQueryReportCmd(t *testing.T) {
 				outputDir: outputDir,
 				promAPI:   c.promAPI,
 				config:    c.config,
+				bucket:    "test-bucket",
+				uploader:  c.uploader,
 			}
 			err := cmd.run(context.TODO())
 			if e := c.checkResult(err); e != nil {

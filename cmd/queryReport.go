@@ -4,6 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager/s3manageriface"
 	"github.com/integr8ly/delorean/pkg/services"
 	"github.com/integr8ly/delorean/pkg/utils"
 	routeclientv1 "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
@@ -12,6 +17,7 @@ import (
 	"github.com/prometheus/common/config"
 	"github.com/prometheus/common/model"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/clientcmd"
 	"math"
@@ -131,6 +137,8 @@ type queryReportCmd struct {
 	config     *queryReportConfig
 	queryRange queryRange
 	version    string
+	bucket     string
+	uploader   s3manageriface.UploaderAPI
 }
 
 type queryReportCmdFlags struct {
@@ -142,6 +150,7 @@ type queryReportCmdFlags struct {
 	end        int64
 	duration   time.Duration
 	version    string
+	s3bucket   string
 }
 
 func init() {
@@ -154,7 +163,25 @@ func init() {
 			if err != nil {
 				handleError(err)
 			}
-			c, err := newQueryReportCmd(kubeConfig, f)
+
+			var ses *session.Session = nil
+
+			if f.s3bucket != "" {
+				awsKeyId, err := requireValue(AWSAccessKeyIDEnv)
+				if err != nil {
+					handleError(err)
+				}
+				awsSecretKey, err := requireValue(AWSSecretAccessKeyEnv)
+				if err != nil {
+					handleError(err)
+				}
+				ses = session.Must(session.NewSession(&aws.Config{
+					Region:      aws.String(AWSDefaultRegion),
+					Credentials: credentials.NewStaticCredentials(awsKeyId, awsSecretKey, ""),
+				}))
+			}
+
+			c, err := newQueryReportCmd(kubeConfig, f, ses)
 			if err != nil {
 				handleError(err)
 			}
@@ -174,9 +201,16 @@ func init() {
 	cmd.Flags().Int64Var(&f.start, "start-time", 0, "Start time for queryRange type of queries. Only either start-time or duration should be specified")
 	cmd.Flags().DurationVar(&f.duration, "duration", time.Duration(2*time.Hour), "Duration for queryRange type of queries. Only either start-time or duration should be specified")
 	cmd.Flags().StringVarP(&f.version, "version", "v", "", "the RHMI version installed on the cluster")
+
+	cmd.Flags().StringVarP(&f.s3bucket, "s3-bucket", "b", "", "AWS s3 bucket name")
+
+	cmd.Flags().String("aws-key-id", "", fmt.Sprintf("The AWS key id to use. Can be set via the %s env var", strings.ToUpper(AWSAccessKeyIDEnv)))
+	viper.BindPFlag(AWSAccessKeyIDEnv, cmd.Flags().Lookup("aws-key-id"))
+	cmd.Flags().String("aws-secret-key", "", fmt.Sprintf("The AWS secret key to use. Can be set via the %s env var", strings.ToUpper(AWSSecretAccessKeyEnv)))
+	viper.BindPFlag(AWSSecretAccessKeyEnv, cmd.Flags().Lookup("aws-secret-key"))
 }
 
-func newQueryReportCmd(kubeconfig string, f *queryReportCmdFlags) (*queryReportCmd, error) {
+func newQueryReportCmd(kubeconfig string, f *queryReportCmdFlags, session *session.Session) (*queryReportCmd, error) {
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
 		return nil, err
@@ -202,6 +236,11 @@ func newQueryReportCmd(kubeconfig string, f *queryReportCmdFlags) (*queryReportC
 
 	queryRange := parseQueryRange(f)
 
+	var uploader s3manageriface.UploaderAPI = nil
+	if session != nil {
+		uploader = s3manager.NewUploader(session)
+	}
+
 	return &queryReportCmd{
 		namespace:  f.namespace,
 		outputDir:  f.outputDir,
@@ -210,6 +249,8 @@ func newQueryReportCmd(kubeconfig string, f *queryReportCmdFlags) (*queryReportC
 		config:     qrConfig,
 		queryRange: queryRange,
 		version:    f.version,
+		bucket:     f.s3bucket,
+		uploader:   uploader,
 	}, nil
 }
 
@@ -238,14 +279,26 @@ func (c *queryReportCmd) run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	n := strings.ToLower(c.config.Name)
-	n = strings.ReplaceAll(n, " ", "-")
-	outputFile := path.Join(c.outputDir, fmt.Sprintf("%s.yaml", n))
+	fileName := strings.ToLower(c.config.Name)
+	fileName = strings.ReplaceAll(fileName, " ", "-")
+	fileName = fmt.Sprintf("%s-%s.yaml", fileName, time.Now().Format("2006-01-02-03-04-05"))
+	outputFile := path.Join(c.outputDir, fileName)
 	r := &queryResults{Name: c.config.Name, Results: results, Version: c.version}
 	if err := utils.WriteObjectToYAML(r, outputFile); err != nil {
 		return err
 	}
 	fmt.Println("Report is generated:", outputFile)
+
+	if c.uploader != nil {
+		// export the file
+		fmt.Println("Exporting... " + outputFile)
+		location, err := utils.UploadFileToS3(ctx, c.uploader, c.bucket, c.outputDir+"/", fileName)
+		if err != nil {
+			return err
+		}
+		fmt.Println("Exported: " + location)
+	}
+
 	return nil
 }
 
