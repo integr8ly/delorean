@@ -157,13 +157,6 @@ delete_cluster() {
     cluster_id=$(get_cluster_id)
     infra_id=$(get_infra_id)
 
-    # Delete SMTP API key if SENDGRID_API_KEY is defined and infra_id is not empty
-    # infra_id would be empty if the cluster was not fully provisioned
-    if [[ -n "${SENDGRID_API_KEY:-}" ]] && [[ -n "${infra_id:-}" ]]; then
-        echo "Deleting Sendgrid sub user and API key with ID: ${infra_id}"
-        smtp-service delete "${infra_id}" || true
-    fi
-
     echo "Deleting the cluster with ID: ${cluster_id}"
     ocm delete "/api/clusters_mgmt/v1/clusters/${cluster_id}"
 
@@ -281,24 +274,6 @@ create_secrets() {
     local secrets
     secrets=$(oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get secrets -n "${RHMI_OPERATOR_NAMESPACE}" || true)
 
-    # If SMTP Secret is not present in RHMI operator namespace
-    if ! grep -q smtp <<< "${secrets}"; then
-        if [[ -n "${SENDGRID_API_KEY:-}" ]]; then
-            infra_id=$(get_infra_id)
-            echo "Creating SMTP secret with Sendgrid API key with ID: ${infra_id}"
-            smtp-service create "${infra_id}" | oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" create -n "${RHMI_OPERATOR_NAMESPACE}" -f - \
-            || echo "SMTP ${ERROR_CREATING_SECRET}"
-        else
-            oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" create secret generic redhat-rhmi-smtp -n "${RHMI_OPERATOR_NAMESPACE}" \
-                --from-literal=host=smtp.example.com \
-                --from-literal=username=dummy \
-                --from-literal=password=dummy \
-                --from-literal=port=587 \
-                --from-literal=tls=true \
-            || echo "SMTP ${ERROR_CREATING_SECRET}"
-        fi
-    fi
-
     # Pagerduty secret
     if ! grep -q pagerduty <<< "${secrets}"; then
         oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" create secret generic redhat-rhmi-pagerduty -n ${RHMI_OPERATOR_NAMESPACE} \
@@ -314,6 +289,8 @@ create_secrets() {
     fi
 
     # Keep trying creating secrets until all of them are present in RHMI operator namespace
+    # SMTP Secret should be automatically created (and deleted) by a Sendgrid Service
+    # https://gitlab.cee.redhat.com/service/ocm-sendgrid-service
     if [[ $(oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get secrets -n ${RHMI_OPERATOR_NAMESPACE} | grep -cE "redhat-rhmi-((.*smtp|.*pagerduty|.*deadmanssnitch))" || true) != 3 ]]; then
         create_secrets
     fi
@@ -341,7 +318,6 @@ install_rhmi                      - install RHMI using addon-type installation
 ------------------------------------------------------------------------------------------
 Optional exported variables:
 - USE_CLUSTER_STORAGE               true/false - use OpenShift/AWS storage (default: true)
-- SENDGRID_API_KEY                  a token for creating SMTP secret
 - ALERTING_EMAIL_ADDRESS            email address for receiving alert notifications
 - SELF_SIGNED_CERTS                 true/false - cluster certificate can be invalid
 ==========================================================================================
@@ -349,7 +325,6 @@ upgrade_cluster                   - upgrade OSD cluster to latest version (if av
 ==========================================================================================
 delete_cluster                    - delete RHMI product & OSD cluster
 Optional exported variables:
-- SENDGRID_API_KEY                  a token for creating SMTP secret
 - AWS_ACCOUNT_ID
 - AWS_ACCESS_KEY_ID
 - AWS_SECRET_ACCESS_KEY
