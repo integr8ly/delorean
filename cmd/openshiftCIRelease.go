@@ -31,10 +31,12 @@ type openshiftCIReleaseCmdFlags struct {
 	openshiftCIRepo        string
 	openshiftCIOrgUpstream string
 	openshiftCIOrgOrigin   string
+	baseBranch             string
 }
 
 type openshiftCIReleaseCmd struct {
 	version                 *utils.RHMIVersion
+	baseBranch              plumbing.ReferenceName
 	intlyRepoInfo           *githubRepoInfo
 	releaseRepoInfoOrigin   *githubRepoInfo
 	releaseRepoInfoUpstream *githubRepoInfo
@@ -53,10 +55,9 @@ type openshiftCIReleaseCmd struct {
 //3. Push the branch
 */
 func (c *openshiftCIReleaseCmd) DoIntlyOperatorUpdate(ctx context.Context) (string, error) {
-	//Clone the integreatly operator repo to a temp directory
-	initialReleaseTag := plumbing.NewTagReferenceName(c.version.InitialPointReleaseTag())
-	fmt.Println(fmt.Sprintf("Clone repo from %s/%s/%s.git (%s) to a temporary directory", githubURL, c.intlyRepoInfo.owner, c.intlyRepoInfo.repo, initialReleaseTag.String()))
-	repoDir, gitRepo, err := c.gitCloneService.CloneToTmpDir("integreatly-operator", fmt.Sprintf("%s/%s/%s.git", githubURL, c.intlyRepoInfo.owner, c.intlyRepoInfo.repo), initialReleaseTag)
+	//Clone integreatly operator repo to a temp directory using the base branch
+	fmt.Println(fmt.Sprintf("Clone repo from %s/%s/%s.git (%s) to a temporary directory", githubURL, c.intlyRepoInfo.owner, c.intlyRepoInfo.repo, c.baseBranch.String()))
+	repoDir, gitRepo, err := c.gitCloneService.CloneToTmpDir("integreatly-operator", fmt.Sprintf("%s/%s/%s.git", githubURL, c.intlyRepoInfo.owner, c.intlyRepoInfo.repo), c.baseBranch)
 	if err != nil {
 		return "", err
 	}
@@ -371,6 +372,7 @@ func init() {
 	}
 
 	releaseCmd.AddCommand(cmd)
+	cmd.Flags().StringVarP(&f.baseBranch, "branch", "b", "master", "Base branch of the release PR")
 	cmd.Flags().StringVar(&f.openshiftCIOrgUpstream, "ci-org-upstream", DefaultOpenshiftCIOrgUpstream, "OpenShift CI Release GitHub org (Upstream)")
 	cmd.Flags().StringVar(&f.openshiftCIOrgOrigin, "ci-org-origin", DefaultOpenshiftCIOrgOrigin, "OpenShift CI Release GitHub org (Origin)")
 	cmd.Flags().StringVar(&f.openshiftCIRepo, "ci-repo", DefaultOpenshiftCIRepo, "OpenShift CI Release GitHub repo")
@@ -391,8 +393,10 @@ func newOpenshiftCIReleaseCmd(f *openshiftCIReleaseCmdFlags) (*openshiftCIReleas
 	if err != nil {
 		return nil, err
 	}
+	baseBranch := plumbing.NewBranchReferenceName(f.baseBranch)
 	return &openshiftCIReleaseCmd{
 		version:                 version,
+		baseBranch:              baseBranch,
 		releaseRepoInfoUpstream: &githubRepoInfo{owner: f.openshiftCIOrgUpstream, repo: f.openshiftCIRepo},
 		releaseRepoInfoOrigin:   &githubRepoInfo{owner: f.openshiftCIOrgOrigin, repo: f.openshiftCIRepo},
 		intlyRepoInfo:           &githubRepoInfo{owner: integreatlyGHOrg, repo: integreatlyOperatorRepo},
