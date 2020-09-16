@@ -57,6 +57,7 @@ create_cluster_configuration_file() {
     : "${BYOC:=false}"
     : "${OPENSHIFT_VERSION:=}"
     : "${PRIVATE:=false}"
+    : "${MULTI_AZ:=false}"
 
     timestamp=$(get_expiration_timestamp "${OCM_CLUSTER_LIFESPAN}")
 
@@ -70,12 +71,18 @@ create_cluster_configuration_file() {
 	
     if [ "${BYOC}" = true ]; then
         check_aws_credentials_exported
-        update_configuration_with_aws_credentials
+        update_configuration "aws"
     fi
 
     if [[ -n "${OPENSHIFT_VERSION}" ]]; then
-        update_configuration_with_openshift_version
+        update_configuration "openshift_version"
     fi
+
+    if [[ "${MULTI_AZ}" = true ]]; then
+        update_configuration "multi_az"
+    fi
+
+
     cat "${CLUSTER_CONFIGURATION_FILE}"
 }
 
@@ -256,17 +263,30 @@ get_expiration_timestamp() {
     fi
 }
 
-update_configuration_with_aws_credentials() {
+update_configuration() {
+    local param="${1}"
     local updated_configuration
 
-    updated_configuration=$(jq ".byoc = true | .aws.access_key_id = \"${AWS_ACCESS_KEY_ID}\" | .aws.secret_access_key = \"${AWS_SECRET_ACCESS_KEY}\" | .aws.account_id = \"${AWS_ACCOUNT_ID}\"" < "${CLUSTER_CONFIGURATION_FILE}")
-    printf "%s" "${updated_configuration}" > "${CLUSTER_CONFIGURATION_FILE}"
-}
+    case $param in
 
-update_configuration_with_openshift_version() {
-    local updated_configuration
+    aws)
+        updated_configuration=$(jq ".byoc = true | .aws.access_key_id = \"${AWS_ACCESS_KEY_ID}\" | .aws.secret_access_key = \"${AWS_SECRET_ACCESS_KEY}\" | .aws.account_id = \"${AWS_ACCOUNT_ID}\"" < "${CLUSTER_CONFIGURATION_FILE}")
+        ;;
 
-    updated_configuration=$(jq ".version = {\"kind\": \"VersionLink\",\"id\": \"openshift-v${OPENSHIFT_VERSION}\", \"href\": \"/api/clusters_mgmt/v1/versions/openshift-v${OPENSHIFT_VERSION}\"}" < "${CLUSTER_CONFIGURATION_FILE}")
+    openshift_version)
+        updated_configuration=$(jq ".version = {\"kind\": \"VersionLink\",\"id\": \"openshift-v${OPENSHIFT_VERSION}\", \"href\": \"/api/clusters_mgmt/v1/versions/openshift-v${OPENSHIFT_VERSION}\"}" < "${CLUSTER_CONFIGURATION_FILE}")
+        ;;
+
+    multi_az)
+        updated_configuration=$(jq ".multi_az = true | .nodes.compute = 9 | .nodes.compute_machine_type.id = \"r5.xlarge\"" < "${CLUSTER_CONFIGURATION_FILE}")
+        ;;
+
+    *)
+        echo "Error: Invalid parameter: '${param}' passed to a function '${FUNCNAME[0]}'" >&2
+        exit 1
+        ;;
+    esac
+
     printf "%s" "${updated_configuration}" > "${CLUSTER_CONFIGURATION_FILE}"
 }
 
@@ -311,6 +331,7 @@ Optional exported variables:
 - BYOC                              true/false (default: false)
 - OPENSHIFT_VERSION                 to get OpenShift versions, run: ocm cluster versions
 - PRIVATE                           Cluster's API and router will be private
+- MULTI_AZ                          true/false (default: false)
 ==========================================================================================
 create_cluster                    - spin up OSD cluster
 ==========================================================================================
