@@ -36,6 +36,14 @@ export AWS_SECRET_ACCESS_KEY=<REPLACE_ME>
 export BYOC=true
 ```
 
+**Multiple AZ**
+
+If you want your BYOC cluster to span multiple availability zones then set the `MULTI_AZ` environment variable:
+
+```
+export MULTI_AZ=true
+```
+
 4. Create cluster template: `make ocm/cluster.json`
 
 This command will generate `ocm/cluster.json` file with generated cluster name. This file will be used as a template to create your cluster via OCM CLI.
@@ -45,6 +53,10 @@ By default, it will set the expiration timestamp for a cluster for 4 hours, mean
 
 If you exported AWS credentials (like described in the previous step), your cluster configuration will also include the AWS credentials and `byoc` field
 set to `true`.
+
+**/Multiple AZ**
+
+If you set `MULTI_AZ` to `true`, your cluster configuration will include the `multi_az` field set to true and the `nodes.compute_machine_type.id` field will be set to `r5.xlarge`. 
 
 5. Create the cluster: `make ocm/cluster/create`
 
