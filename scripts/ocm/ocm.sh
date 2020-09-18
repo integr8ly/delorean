@@ -110,17 +110,22 @@ create_cluster() {
     printf "Log in to the OSD cluster using oc:\noc login --server=%s --username=kubeadmin --password=%s\n" "$(jq -r .api.url < "${CLUSTER_DETAILS_FILE}")" "$(jq -r .password < "${CLUSTER_CREDENTIALS_FILE}")"
 }
 
-install_rhmi() {
+install_addon() {
     local cluster_id
     local rhmi_name
     local infra_id
     local csv_name
+    local addon_id
+    local completion_phase
+
+    addon_id="${1}"
+    completion_phase="${2}"
 
     : "${USE_CLUSTER_STORAGE:=true}"
     cluster_id=$(get_cluster_id)
 
     echo "Applying RHMI Addon on a cluster with ID: ${cluster_id}"
-    echo '{"addon":{"id":"rhmi"}}' | ocm post "/api/clusters_mgmt/v1/clusters/${cluster_id}/addons"
+    echo "{\"addon\":{\"id\":\"${addon_id}\"}}" | ocm post "/api/clusters_mgmt/v1/clusters/${cluster_id}/addons"
 
     wait_for "oc --kubeconfig ${CLUSTER_KUBECONFIG_FILE} get rhmi -n ${RHMI_OPERATOR_NAMESPACE} | grep -q NAME" "rhmi installation CR to be created" "15m" "30"
 
@@ -152,9 +157,18 @@ install_rhmi() {
         oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" patch configMap cloud-resources-aws-strategies -n "${RHMI_OPERATOR_NAMESPACE}" --type='json' -p '[{"op": "add", "path": "/data/_network", "value":"{ \"production\": { \"createStrategy\": { \"CidrBlock\": \"'10.1.0.0/23'\" } } }"}]'
     fi
 
-    wait_for "oc --kubeconfig ${CLUSTER_KUBECONFIG_FILE} get rhmi ${rhmi_name} -n ${RHMI_OPERATOR_NAMESPACE} -o json | jq -r .status.stages.\\\"solution-explorer\\\".phase | grep -q completed" "rhmi installation" "90m" "300"
+    wait_for "oc --kubeconfig ${CLUSTER_KUBECONFIG_FILE} get rhmi ${rhmi_name} -n ${RHMI_OPERATOR_NAMESPACE} -o json | jq -r ${completion_phase} | grep -q completed" "rhmi installation" "90m" "300"
     oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get rhmi "${rhmi_name}" -n ${RHMI_OPERATOR_NAMESPACE} -o json | jq -r '.status.stages'
 }
+
+install_rhmi() {
+    install_addon "rhmi" ".status.stages.\\\"solution-explorer\\\".phase"
+}
+
+install_managed_api() {
+    install_addon "managed-api-service" ".status.stages.products.phase"
+}
+
 
 delete_cluster() {
     local cluster_id
@@ -311,7 +325,7 @@ create_secrets() {
     # Keep trying creating secrets until all of them are present in RHMI operator namespace
     # SMTP Secret should be automatically created (and deleted) by a Sendgrid Service
     # https://gitlab.cee.redhat.com/service/ocm-sendgrid-service
-    if [[ $(oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get secrets -n ${RHMI_OPERATOR_NAMESPACE} | grep -cE "redhat-rhmi-((.*smtp|.*pagerduty|.*deadmanssnitch))" || true) != 3 ]]; then
+    if [[ $(oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get secrets -n ${RHMI_OPERATOR_NAMESPACE} | grep -cE "redhat-rhmi-((.*pagerduty|.*deadmanssnitch))" || true) != 2 ]]; then
         create_secrets
     fi
 }
@@ -336,6 +350,8 @@ Optional exported variables:
 create_cluster                    - spin up OSD cluster
 ==========================================================================================
 install_rhmi                      - install RHMI using addon-type installation
+==========================================================================================
+install_managed_api               - install Managed API Service using addon-type installation
 ------------------------------------------------------------------------------------------
 Optional exported variables:
 - USE_CLUSTER_STORAGE               true/false - use OpenShift/AWS storage (default: true)
@@ -372,6 +388,10 @@ main() {
             ;;
         install_rhmi)
             install_rhmi
+            exit 0
+            ;;
+        install_managed_api)
+            install_managed_api
             exit 0
             ;;
         delete_cluster)

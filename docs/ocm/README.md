@@ -1,4 +1,4 @@
-## Using `ocm` for installation of RHMI
+## Using `ocm` for installation of RHMI or Managed API Service
 
 If you want to test your changes on a cluster, the easiest solution would be to spin up OSD 4 cluster using `ocm`. If you want to spin up a cluster using BYOC (your own AWS credentials), follow the additional steps marked as **BYOC**.
 
@@ -68,8 +68,11 @@ This command will send a request to [Red Hat OpenShift Cluster Manager](https://
 oc --config ocm/cluster.kubeconfig projects
 ```
 
-7. If you want to install the latest released RHMI, you can trigger it by applying an RHMI addon.
-Run `make ocm/install/rhmi-addon` to trigger the installation. Once the installation is completed, the installation CR with RHMI components info will be printed to the console.
+7. If you want to install the latest release, you can trigger it by applying an addon
+    1. For **RHMI**: Run `make ocm/install/rhmi-addon` to trigger the installation
+    2. For **Managed API Service**: Run `make ocm/install/managed-api-addon` to trigger the installaion
+  
+    Once the installation is completed, the installation CR with RHMI components info will be printed to the console
 
 8. If you want to delete your cluster, run `make ocm/cluster/delete`
 
