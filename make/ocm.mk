@@ -40,6 +40,10 @@ ocm/cluster/create:
 ocm/install/rhmi-addon:
 	@${OCM_SH} install_rhmi
 
+.PHONY: ocm/install/managed-api-addon
+ocm/install/managed-api-addon:
+	@${OCM_SH} install_managed_api
+
 .PHONY: ocm/cluster/delete
 ocm/cluster/delete:
 	@${OCM_SH} delete_cluster
