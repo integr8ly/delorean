@@ -114,7 +114,6 @@ install_addon() {
     local cluster_id
     local rhmi_name
     local infra_id
-    local csv_name
     local addon_id
     local completion_phase
 
@@ -122,6 +121,7 @@ install_addon() {
     completion_phase="${2}"
 
     : "${USE_CLUSTER_STORAGE:=true}"
+    : "${PATCH_CR_AWS_CM:=true}"
     cluster_id=$(get_cluster_id)
 
     echo "Applying RHMI Addon on a cluster with ID: ${cluster_id}"
@@ -144,9 +144,8 @@ install_addon() {
     # Change alerting email address is ALERTING_EMAIL_ADDRESS variable is set
     if [[ -n "${ALERTING_EMAIL_ADDRESS:-}" ]]; then
         echo "Changing alerting email address to: ${ALERTING_EMAIL_ADDRESS}"
-        csv_name=$(oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get csv -n ${RHMI_OPERATOR_NAMESPACE} | grep integreatly-operator | awk '{print $1}')
-        oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" patch csv "${csv_name}" -n ${RHMI_OPERATOR_NAMESPACE} \
-            --type=json -p "[{\"op\": \"replace\", \"path\": \"/spec/install/spec/deployments/0/spec/template/spec/containers/0/env/4/value\", \"value\": \"${ALERTING_EMAIL_ADDRESS}\" }]"
+        oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" patch rhmi "${rhmi_name}" -n ${RHMI_OPERATOR_NAMESPACE} \
+            --type=merge -p "{\"spec\":{ \"alertingEmailAddress\": \"${ALERTING_EMAIL_ADDRESS}\"}}"
     fi
 
     create_secrets
