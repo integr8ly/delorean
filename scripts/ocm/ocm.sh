@@ -231,7 +231,7 @@ get_cluster_region() {
 }
 
 is_byoc_cluster() {
-    jq -r .byoc < "${CLUSTER_DETAILS_FILE}"
+    jq -r .ccs.enabled < "${CLUSTER_DETAILS_FILE}"
 }
 
 get_rhmi_name() {
@@ -296,7 +296,7 @@ update_configuration() {
     case $param in
 
     aws)
-        updated_configuration=$(jq ".byoc = true | .aws.access_key_id = \"${AWS_ACCESS_KEY_ID}\" | .aws.secret_access_key = \"${AWS_SECRET_ACCESS_KEY}\" | .aws.account_id = \"${AWS_ACCOUNT_ID}\"" < "${CLUSTER_CONFIGURATION_FILE}")
+        updated_configuration=$(jq ".ccs.enabled = true | .aws.access_key_id = \"${AWS_ACCESS_KEY_ID}\" | .aws.secret_access_key = \"${AWS_SECRET_ACCESS_KEY}\" | .aws.account_id = \"${AWS_ACCOUNT_ID}\"" < "${CLUSTER_CONFIGURATION_FILE}")
         ;;
 
     openshift_version)
@@ -354,7 +354,7 @@ Optional exported variables:
 - OCM_CLUSTER_LIFESPAN              How many hours should cluster stay until it's deleted?
 - OCM_CLUSTER_NAME                  e.g. my-cluster (lowercase, numbers, hyphens)
 - OCM_CLUSTER_REGION                e.g. eu-west-1
-- BYOC                              true/false (default: false)
+- BYOC                              Cloud Customer Subscription: true/false (default: false)
 - OPENSHIFT_VERSION                 to get OpenShift versions, run: ocm cluster versions
 - PRIVATE                           Cluster's API and router will be private
 - MULTI_AZ                          true/false (default: false)
