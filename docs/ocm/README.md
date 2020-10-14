@@ -22,7 +22,7 @@ Due to this change the use of integreatly-operator <= v2.4.0 on Openshift >= v4.
 make ocm/login
 ```
 
-**BYOC**
+**BYOC/CCS**
 
 If you want to setup a BYOC (CCS) cluster, you will need an AWS root account with no OSD cluster running in it. The AWS account needs an IAM user named `osdCcsAdmin` and this user needs the AdministratorAccess permission.
 
