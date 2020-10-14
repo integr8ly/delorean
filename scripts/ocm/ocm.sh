@@ -50,6 +50,8 @@ get_latest_generated_access_key_id() {
 create_cluster_configuration_file() {
     local timestamp
     local listening="external"
+    local cluster_display_name
+    local cluster_name_length
 
     : "${OCM_CLUSTER_LIFESPAN:=4}"
     : "${OCM_CLUSTER_NAME:=rhmi-$(date +"%y%m%d-%H%M")}"
@@ -65,7 +67,18 @@ create_cluster_configuration_file() {
         listening="internal"
     fi
 
-    jq ".expiration_timestamp = \"${timestamp}\" | .name = \"${OCM_CLUSTER_NAME}\" | .region.id = \"${OCM_CLUSTER_REGION}\" | .api.listening = \"${listening}\"" \
+    # Set cluster display name (a name that's visible in OCM UI)
+    cluster_display_name="${OCM_CLUSTER_NAME}"
+    cluster_name_length=$(echo -n "${OCM_CLUSTER_NAME}" | wc -c | xargs)
+
+    # Limit for a cluster name is 15 characters - shorten it if it's longer
+    if [ "${cluster_name_length}" -gt 15 ]; then
+        OCM_CLUSTER_NAME="${OCM_CLUSTER_NAME:0:15}"
+        # Remove the last character from a cluster name if it's "-"
+        OCM_CLUSTER_NAME="${OCM_CLUSTER_NAME%-}"
+    fi
+
+    jq ".expiration_timestamp = \"${timestamp}\" | .name = \"${OCM_CLUSTER_NAME}\" | .display_name = \"${cluster_display_name}\" | .region.id = \"${OCM_CLUSTER_REGION}\" | .api.listening = \"${listening}\"" \
         < "${CLUSTER_TEMPLATE_FILE}" \
         > "${CLUSTER_CONFIGURATION_FILE}"
 	

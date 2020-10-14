@@ -1,5 +1,6 @@
 {
     "byoc": false,
+    "display_name": "long_cluster_name",
     "managed": true,
     "multi_az": false,
     "name": "my_cluster_name",
