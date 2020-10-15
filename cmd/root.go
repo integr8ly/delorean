@@ -20,6 +20,7 @@ var cfgFile string
 var integreatlyGHOrg string
 var integreatlyOperatorRepo string
 var releaseVersion string
+var olmType string
 
 var kubeconfigFile string
 
@@ -104,6 +105,7 @@ func init() {
 	releaseCmd.PersistentFlags().StringVarP(&integreatlyOperatorRepo, "repo", "r", DefaultIntegreatlyOperatorRepo, "Github repository")
 	releaseCmd.PersistentFlags().String("quayToken", "", fmt.Sprintf("Access token for quay. Can be set via the %s env var", strings.ToUpper(QuayTokenKey)))
 	viper.BindPFlag(QuayTokenKey, releaseCmd.PersistentFlags().Lookup("quayToken"))
+	releaseCmd.PersistentFlags().StringVarP(&olmType, "olmType", "", DefaultIntegreatlyOperatorRepo, "OLM type for the release. Valid inputs are \"integreatly-operator\" or \"managed-api-service\"")
 
 	defaultKubeconfigFilePath := ""
 	if home := homedir.HomeDir(); home != "" {

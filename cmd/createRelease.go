@@ -81,7 +81,7 @@ func newCreateReleaseCmd(f *createReleaseCmdFlags) (*createReleaseCmd, error) {
 	client := newGithubClient(token)
 	repoInfo := &githubRepoInfo{owner: integreatlyGHOrg, repo: integreatlyOperatorRepo}
 	baseBranch := plumbing.NewBranchReferenceName(f.baseBranch)
-	version, err := utils.NewRHMIVersion(releaseVersion)
+	version, err := utils.NewVersion(releaseVersion, olmType)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +111,6 @@ func (c *createReleaseCmd) run(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
-
 	releaseBranchName := c.version.PrepareReleaseBranchName()
 	fmt.Println(fmt.Sprintf("Checkout branch %s", releaseBranchName))
 	if err = checkoutBranchAndPullLatset(gitRepoTree, releaseBranchName); err != nil {
@@ -146,7 +145,7 @@ func (c *createReleaseCmd) runReleaseScript(repoDir string) error {
 	if err := os.Chmod(path.Join(repoDir, c.releaseScript), 0755); err != nil {
 		return err
 	}
-	envs := []string{fmt.Sprintf("SEMVER=%s", c.version.String())}
+	envs := []string{fmt.Sprintf("SEMVER=%s OLM_TYPE=%s", c.version.String(), c.version.OlmType())}
 	if !c.serviceAffecting {
 		envs = append(envs, "NON_SERVICE_AFFECTING=true")
 	}
@@ -159,7 +158,7 @@ func (c *createReleaseCmd) commitAndPushChanges(gitRepo *git.Repository, gitRepo
 	if err := gitRepoTree.AddGlob("."); err != nil {
 		return err
 	}
-	if _, err := gitRepoTree.Commit(fmt.Sprintf("prepare for release %v", c.version), &git.CommitOptions{
+	if _, err := gitRepoTree.Commit(fmt.Sprintf("prepare for release %s", c.version.TagName()), &git.CommitOptions{
 		All: true,
 		Author: &object.Signature{
 			Name:  commitAuthorName,
@@ -191,7 +190,7 @@ func (c *createReleaseCmd) createPRIfNotExists(ctx context.Context, releaseBranc
 	}
 	if pr == nil {
 		fmt.Println("Create PR for release")
-		t := fmt.Sprintf("release PR for version %s", c.version)
+		t := fmt.Sprintf("release PR for version %s", c.version.TagName())
 		b := c.baseBranch.String()
 		req := &github.NewPullRequest{
 			Title: &t,

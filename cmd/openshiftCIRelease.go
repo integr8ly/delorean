@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"github.com/integr8ly/delorean/pkg/types"
 	"os"
 	"os/exec"
 	"path"
@@ -302,11 +303,20 @@ func updateImageMirroringConfig(repoDir string, version *utils.RHMIVersion) erro
 		externalRegTemplate string
 	}
 
+	var operatorImage imageTemplate
+	operatorImage.internalRegTemplate = "%s/%s:integreatly-operator"
+
+	switch version.OlmType() {
+	case types.OlmTypeRhmi:
+		operatorImage.externalRegTemplate = "%s/integreatly-operator:%s"
+	case types.OlmTypeRhoam:
+		operatorImage.externalRegTemplate = "%s/managed-api-service:%s"
+	default:
+		operatorImage.externalRegTemplate = "%s/integreatly-operator:%s"
+	}
+
 	imageTemplates := []imageTemplate{
-		{
-			internalRegTemplate: "%s/%s:integreatly-operator",
-			externalRegTemplate: "%s/integreatly-operator:%s",
-		},
+		operatorImage,
 		{
 			internalRegTemplate: "%s/%s:integreatly-operator-test-harness",
 			externalRegTemplate: "%s/integreatly-operator-test-harness:%s",
@@ -389,7 +399,7 @@ func newOpenshiftCIReleaseCmd(f *openshiftCIReleaseCmdFlags) (*openshiftCIReleas
 		return nil, err
 	}
 	client := newGithubClient(token)
-	version, err := utils.NewRHMIVersion(releaseVersion)
+	version, err := utils.NewVersion(releaseVersion, olmType)
 	if err != nil {
 		return nil, err
 	}

@@ -236,7 +236,7 @@ func findChannel(addon *addonConfig, channelName string) *releaseChannel {
 }
 
 func newOSDAddonReleseCmd(flags *osdAddonReleaseFlags, gitlabToken string) (*osdAddonReleaseCmd, error) {
-	version, err := utils.NewRHMIVersion(flags.version)
+	version, err := utils.NewVersion(flags.version, olmType)
 	if err != nil {
 		return nil, err
 	}
@@ -255,7 +255,7 @@ func newOSDAddonReleseCmd(flags *osdAddonReleaseFlags, gitlabToken string) (*osd
 		return nil, fmt.Errorf("can not find channel %s for addon %s in config file %s", flags.channel, flags.addonName, flags.addonsConfig)
 	}
 
-	fmt.Printf("create osd addon release for %s v%s to the %s channel\n", flags.addonName, version, flags.channel)
+	fmt.Printf("create osd addon release for %s %s to the %s channel\n", flags.addonName, version.TagName(), flags.channel)
 
 	// Prepare the GitLab Client
 	gitlabClient, err := gitlab.NewClient(
@@ -294,7 +294,7 @@ func newOSDAddonReleseCmd(flags *osdAddonReleaseFlags, gitlabToken string) (*osd
 	csvDir, _, err := gitCloneService.CloneToTmpDir(
 		"addon-csv-",
 		currentAddon.CSV.Repo,
-		plumbing.NewTagReferenceName(fmt.Sprintf("v%s", version)),
+		plumbing.NewTagReferenceName(version.TagName()),
 	)
 	if err != nil {
 		return nil, err
@@ -464,7 +464,6 @@ func (c *osdAddonReleaseCmd) run() error {
 }
 
 func (c *osdAddonReleaseCmd) copyTheOLMManifests() (string, error) {
-
 	source := path.Join(c.addonDir, fmt.Sprintf("%s/%s", c.addonConfig.CSV.Path, c.version.Base()))
 
 	relativeDestination := fmt.Sprintf("%s/%s", c.currentChannel.bundlesDirectory(), c.version.Base())

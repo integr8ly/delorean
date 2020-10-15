@@ -55,7 +55,7 @@ func init() {
 }
 
 func runTagRepository(ctx context.Context, ghClient services.GitService, version string, flags *tagRepositoryFlags) error {
-	v, err := utils.NewRHMIVersion(version)
+	v, err := utils.NewVersion(version, olmType)
 	if err != nil {
 		return err
 	}

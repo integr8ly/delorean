@@ -57,7 +57,7 @@ var tagReleaseCmd = &cobra.Command{
 }
 
 func DoTagRelease(ctx context.Context, ghClient services.GitService, gitRepoInfo *githubRepoInfo, quayClient *quay.Client, cmdOpts *tagReleaseOptions) error {
-	rv, err := utils.NewRHMIVersion(cmdOpts.releaseVersion)
+	rv, err := utils.NewVersion(cmdOpts.releaseVersion, olmType)
 	if err != nil {
 		return err
 	}

@@ -1,0 +1,33 @@
+---
+addons:
+  - name: "rhoam-operator"
+    csv:
+      repo: "https://github.com/integr8ly/integreatly-operator.git"
+      path: "deploy/olm-catalog/managed-api-service"
+    channels:
+      - name: "stage"
+        directory: "rhoam-operator"
+        environment: "stage"
+        allow_pre_release: true
+      - name: "edge"
+        directory: "rhoam-operator-internal"
+        environment: "production"
+        allow_pre_release: false
+      - name: "stable"
+        directory: "rhoam-operator"
+        environment: "production"
+        allow_pre_release: false
+    override:
+      deployment:
+        name: "rhoam-operator"
+        container:
+          name: "rhoam-operator"
+          env_vars:
+            - name: "INSTALLATION_TYPE"
+              value: "managed-api"
+            - name: "USE_CLUSTER_STORAGE"
+              value: ""
+            - name: "ALERTING_EMAIL_ADDRESS"
+              value: "{{ alertingEmailAddress }}"
+
+
