@@ -61,6 +61,13 @@ var releaseCmd = &cobra.Command{
 	Long:  `Commands for creating a RHMI release`,
 }
 
+// openshifCICmd represents the openshift ci command
+var openshifCICmd = &cobra.Command{
+	Use:   "openshift-ci",
+	Short: "OpenShift CI commands",
+	Long:  `Commands for working with the OpenShift CI release repo`,
+}
+
 // ewsCmd represents the release command
 var ewsCmd = &cobra.Command{
 	Use:   "ews",
@@ -126,6 +133,7 @@ func init() {
 	rootCmd.AddCommand(ewsCmd)
 	rootCmd.AddCommand(pipelineCmd)
 	rootCmd.AddCommand(reportCmd)
+	rootCmd.AddCommand(openshifCICmd)
 }
 
 // initConfig reads in config file and ENV variables if set.
