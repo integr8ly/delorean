@@ -145,7 +145,7 @@ func (c *createReleaseCmd) runReleaseScript(repoDir string) error {
 	if err := os.Chmod(path.Join(repoDir, c.releaseScript), 0755); err != nil {
 		return err
 	}
-	envs := []string{fmt.Sprintf("SEMVER=%s OLM_TYPE=%s", c.version.String(), c.version.OlmType())}
+	envs := []string{fmt.Sprintf("SEMVER=%s", c.version.String()), fmt.Sprintf("OLM_TYPE=%s", c.version.OlmType())}
 	if !c.serviceAffecting {
 		envs = append(envs, "NON_SERVICE_AFFECTING=true")
 	}
