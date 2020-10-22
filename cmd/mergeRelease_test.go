@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/google/go-github/v30/github"
 	"github.com/integr8ly/delorean/pkg/services"
+	"github.com/integr8ly/delorean/pkg/types"
 	"net/http"
 	"testing"
 )
@@ -85,7 +86,7 @@ func TestDoMergeRelease(t *testing.T) {
 					}, responseWithCode(http.StatusOK), nil
 				},
 			},
-			opts:        &mergeReleaseOptions{baseBranch: "master", releaseVersion: "2.0.0-rc1"},
+			opts:        &mergeReleaseOptions{baseBranch: "master", releaseVersion: "2.0.0-rc1", olmType: types.OlmTypeRhmi},
 			expectError: false,
 		},
 		{
@@ -97,7 +98,7 @@ func TestDoMergeRelease(t *testing.T) {
 				MergeFunc: nil,
 				GetFunc:   nil,
 			},
-			opts:        &mergeReleaseOptions{baseBranch: "master", releaseVersion: "2.0.0-rc1"},
+			opts:        &mergeReleaseOptions{baseBranch: "master", releaseVersion: "2.0.0-rc1", olmType: types.OlmTypeRhmi},
 			expectError: true,
 		},
 		{
@@ -116,7 +117,7 @@ func TestDoMergeRelease(t *testing.T) {
 					return nil, nil, errors.New("get error")
 				},
 			},
-			opts:        &mergeReleaseOptions{baseBranch: "master", releaseVersion: "2.0.0-rc1"},
+			opts:        &mergeReleaseOptions{baseBranch: "master", releaseVersion: "2.0.0-rc1", olmType: types.OlmTypeRhmi},
 			expectError: true,
 		},
 		{
@@ -146,7 +147,7 @@ func TestDoMergeRelease(t *testing.T) {
 					}, responseWithCode(http.StatusOK), nil
 				},
 			},
-			opts:        &mergeReleaseOptions{baseBranch: "master", releaseVersion: "2.0.0-rc1"},
+			opts:        &mergeReleaseOptions{baseBranch: "master", releaseVersion: "2.0.0-rc1", olmType: types.OlmTypeRhmi},
 			expectError: false,
 		},
 		{
@@ -176,7 +177,7 @@ func TestDoMergeRelease(t *testing.T) {
 					}, responseWithCode(http.StatusOK), nil
 				},
 			},
-			opts:        &mergeReleaseOptions{baseBranch: "master", releaseVersion: "2.0.0-rc1"},
+			opts:        &mergeReleaseOptions{baseBranch: "master", releaseVersion: "2.0.0-rc1", olmType: types.OlmTypeRhmi},
 			expectError: true,
 		},
 		{
@@ -206,7 +207,7 @@ func TestDoMergeRelease(t *testing.T) {
 					}, responseWithCode(http.StatusOK), nil
 				},
 			},
-			opts:        &mergeReleaseOptions{baseBranch: "master", releaseVersion: "2.0.0-rc1"},
+			opts:        &mergeReleaseOptions{baseBranch: "master", releaseVersion: "2.0.0-rc1", olmType: types.OlmTypeRhmi},
 			expectError: true,
 		},
 		{
@@ -238,7 +239,7 @@ func TestDoMergeRelease(t *testing.T) {
 					}, responseWithCode(http.StatusOK), nil
 				},
 			},
-			opts:        &mergeReleaseOptions{baseBranch: "master", releaseVersion: "2.0.0-rc1"},
+			opts:        &mergeReleaseOptions{baseBranch: "master", releaseVersion: "2.0.0-rc1", olmType: types.OlmTypeRhmi},
 			expectError: true,
 		},
 	}

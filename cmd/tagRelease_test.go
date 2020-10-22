@@ -6,6 +6,7 @@ import (
 	"github.com/google/go-github/v30/github"
 	"github.com/integr8ly/delorean/pkg/quay"
 	"github.com/integr8ly/delorean/pkg/services"
+	"github.com/integr8ly/delorean/pkg/types"
 	"net/http"
 	"net/url"
 	"strings"
@@ -139,7 +140,7 @@ func TestDoTagRelease(t *testing.T) {
 					}}}, nil, nil
 				}},
 			},
-			tagReleaseOptions: &tagReleaseOptions{releaseVersion: "2.0.0-rc1", branch: "master", wait: false, quayRepos: quayRepos},
+			tagReleaseOptions: &tagReleaseOptions{releaseVersion: "2.0.0-rc1", branch: "master", wait: false, quayRepos: quayRepos, olmType: types.OlmTypeRhmi},
 			expectError:       false,
 		},
 		{
@@ -223,7 +224,7 @@ func TestDoTagRelease(t *testing.T) {
 					}}}, nil, nil
 				}},
 			},
-			tagReleaseOptions: &tagReleaseOptions{releaseVersion: "2.0.0", branch: "master", wait: false, quayRepos: quayRepos},
+			tagReleaseOptions: &tagReleaseOptions{releaseVersion: "2.0.0", branch: "master", wait: false, quayRepos: quayRepos, olmType: types.OlmTypeRhmi},
 			expectError:       false,
 		},
 		{
@@ -280,7 +281,7 @@ func TestDoTagRelease(t *testing.T) {
 					}}}, nil, nil
 				}},
 			},
-			tagReleaseOptions: &tagReleaseOptions{releaseVersion: "2.0.0", branch: "master", wait: false, quayRepos: quayRepos},
+			tagReleaseOptions: &tagReleaseOptions{releaseVersion: "2.0.0", branch: "master", wait: false, quayRepos: quayRepos, olmType: types.OlmTypeRhmi},
 			expectError:       false,
 		},
 		{
@@ -338,7 +339,7 @@ func TestDoTagRelease(t *testing.T) {
 					}}}, nil, nil
 				}},
 			},
-			tagReleaseOptions: &tagReleaseOptions{releaseVersion: "2.0.1-rc1", branch: "release-v2.0", wait: false, quayRepos: quayRepos},
+			tagReleaseOptions: &tagReleaseOptions{releaseVersion: "2.0.1-rc1", branch: "release-v2.0", wait: false, quayRepos: quayRepos, olmType: types.OlmTypeRhmi},
 			expectError:       false,
 		},
 		{
@@ -371,7 +372,7 @@ func TestDoTagRelease(t *testing.T) {
 			quayClient: &quay.Client{
 				BaseURL: baseUrl,
 			},
-			tagReleaseOptions: &tagReleaseOptions{releaseVersion: "2.0.0-rc1", branch: "master", wait: false, quayRepos: quayRepos},
+			tagReleaseOptions: &tagReleaseOptions{releaseVersion: "2.0.0-rc1", branch: "master", wait: false, quayRepos: quayRepos, olmType: types.OlmTypeRhmi},
 			expectError:       true,
 		},
 		{
@@ -421,7 +422,7 @@ func TestDoTagRelease(t *testing.T) {
 					}}}, nil, nil
 				}},
 			},
-			tagReleaseOptions: &tagReleaseOptions{releaseVersion: "2.0.0-rc1", branch: "master", wait: false, quayRepos: quayRepos},
+			tagReleaseOptions: &tagReleaseOptions{releaseVersion: "2.0.0-rc1", branch: "master", wait: false, quayRepos: quayRepos, olmType: types.OlmTypeRhmi},
 			expectError:       true,
 		},
 		{
@@ -447,7 +448,7 @@ func TestDoTagRelease(t *testing.T) {
 					}, nil, nil
 				},
 			},
-			tagReleaseOptions: &tagReleaseOptions{releaseVersion: "2.0.0-rc1", branch: "master", wait: false, quayRepos: ""},
+			tagReleaseOptions: &tagReleaseOptions{releaseVersion: "2.0.0-rc1", branch: "master", wait: false, quayRepos: "", olmType: types.OlmTypeRhmi},
 			expectError:       false,
 		},
 	}

@@ -101,6 +101,7 @@ func TestRHMIVersion_InitialPointReleaseTag(t *testing.T) {
 		name    string
 		version string
 		want    string
+		olmType string
 	}{
 		{
 			name:    "test same point value",
@@ -138,6 +139,7 @@ func TestRHMIVersion_MajorMinor(t *testing.T) {
 		name    string
 		version string
 		want    string
+		olmType string
 	}{
 		{
 			name:    "test same point value",

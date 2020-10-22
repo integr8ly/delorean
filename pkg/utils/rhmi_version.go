@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"github.com/integr8ly/delorean/pkg/types"
 	"strings"
 )
 
@@ -10,11 +11,12 @@ const releaseBranchNameTemplate = "prepare-for-release-%s"
 // RHMIVersion rappresents an integreatly version composed by a base part (2.0.0, 2.0.1, ...)
 // and a build part (ER1, RC2, ..) if it's a prerelase version
 type RHMIVersion struct {
-	base  string
-	build string
-	major string
-	minor string
-	patch string
+	base    string
+	build   string
+	major   string
+	minor   string
+	patch   string
+	olmType string
 }
 
 // NewRHMIVersion parse the integreatly version as a string and returns a Version object
@@ -28,16 +30,43 @@ func NewRHMIVersion(version string) (*RHMIVersion, error) {
 	switch len(p) {
 	case 1:
 		parts := strings.Split(p[0], ".")
-		return &RHMIVersion{base: p[0], build: "", major: parts[0], minor: parts[1], patch: parts[2]}, nil
+		return &RHMIVersion{base: p[0], build: "", major: parts[0], minor: parts[1], patch: parts[2], olmType: types.OlmTypeRhmi}, nil
 	case 2:
 		if p[1] == "" {
 			return nil, fmt.Errorf("the build part of the version %s is empty", version)
 		}
 		parts := strings.Split(p[0], ".")
-		return &RHMIVersion{base: p[0], build: p[1], major: parts[0], minor: parts[1], patch: parts[2]}, nil
+		return &RHMIVersion{base: p[0], build: p[1], major: parts[0], minor: parts[1], patch: parts[2], olmType: types.OlmTypeRhmi}, nil
 	default:
 		return nil, fmt.Errorf("the version %s is invalid", version)
 	}
+}
+
+func stringInSlice(a string, list []string) bool {
+	for _, b := range list {
+		if b == a {
+			return true
+		}
+	}
+	return false
+}
+
+// NewVersion parse the version as a string based on olmType and returns a Version object
+func NewVersion(version string, olmType string) (*RHMIVersion, error) {
+
+	acceptedOlmTypes := []string{types.OlmTypeRhmi, types.OlmTypeRhoam}
+	if !stringInSlice(olmType, acceptedOlmTypes) {
+		return nil, fmt.Errorf("the olmType %s is invalid", olmType)
+	}
+
+	ver, err := NewRHMIVersion(version)
+	if err != nil {
+		return nil, err
+	}
+	if ver != nil {
+		ver.olmType = olmType
+	}
+	return ver, nil
 }
 
 func (v *RHMIVersion) String() string {
@@ -54,16 +83,37 @@ func (v *RHMIVersion) IsPreRelease() bool {
 }
 
 func (v *RHMIVersion) ReleaseBranchName() string {
-	return fmt.Sprintf("release-v%s", v.MajorMinor())
+	switch v.olmType {
+	case types.OlmTypeRhmi:
+		return fmt.Sprintf("release-v%s", v.MajorMinor())
+	case types.OlmTypeRhoam:
+		return fmt.Sprintf("rhoam-release-v%s", v.MajorMinor())
+	default:
+		return fmt.Sprintf("release-v%s", v.MajorMinor())
+	}
 }
 
 func (v *RHMIVersion) TagName() string {
-	return fmt.Sprintf("v%s", v.String())
+	switch v.olmType {
+	case types.OlmTypeRhmi:
+		return fmt.Sprintf("v%s", v.String())
+	case types.OlmTypeRhoam:
+		return fmt.Sprintf("rhoam-v%s", v.String())
+	default:
+		return fmt.Sprintf("v%s", v.String())
+	}
 }
 
 // RCTagRef returns a git ref that can be used to search for all RC Tags for this version
 func (v *RHMIVersion) RCTagRef() string {
-	return fmt.Sprintf("v%s-", v.MajorMinorPatch())
+	switch v.olmType {
+	case types.OlmTypeRhmi:
+		return fmt.Sprintf("v%s-", v.MajorMinorPatch())
+	case types.OlmTypeRhoam:
+		return fmt.Sprintf("rhoam-v%s-", v.MajorMinorPatch())
+	default:
+		return fmt.Sprintf("v%s-", v.MajorMinorPatch())
+	}
 }
 
 func (v *RHMIVersion) Base() string {
@@ -110,4 +160,8 @@ func (v *RHMIVersion) ReleaseBranchImageTag() string {
 	} else {
 		return "master"
 	}
+}
+
+func (v *RHMIVersion) OlmType() string {
+	return v.olmType
 }
