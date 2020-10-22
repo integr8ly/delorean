@@ -1,6 +1,6 @@
 package types
 
 const (
-	OlmTypeRhmi  = "integreaty-operator"
+	OlmTypeRhmi  = "integreatly-operator"
 	OlmTypeRhoam = "managed-api-service"
 )

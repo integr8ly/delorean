@@ -26,6 +26,7 @@ type tagReleaseOptions struct {
 	waitInterval   int64
 	waitMax        int64
 	quayRepos      string
+	olmType        string
 }
 
 var tagReleaseCmdOpts = &tagReleaseOptions{}
@@ -50,6 +51,7 @@ var tagReleaseCmd = &cobra.Command{
 		quayClient := newQuayClient(quayToken)
 		repoInfo := &githubRepoInfo{owner: integreatlyGHOrg, repo: integreatlyOperatorRepo}
 		tagReleaseCmdOpts.releaseVersion = releaseVersion
+		tagReleaseCmdOpts.olmType = olmType
 		if err = DoTagRelease(cmd.Context(), ghClient.Git, repoInfo, quayClient, tagReleaseCmdOpts); err != nil {
 			handleError(err)
 		}
@@ -57,7 +59,7 @@ var tagReleaseCmd = &cobra.Command{
 }
 
 func DoTagRelease(ctx context.Context, ghClient services.GitService, gitRepoInfo *githubRepoInfo, quayClient *quay.Client, cmdOpts *tagReleaseOptions) error {
-	rv, err := utils.NewVersion(cmdOpts.releaseVersion, olmType)
+	rv, err := utils.NewVersion(cmdOpts.releaseVersion, cmdOpts.olmType)
 	if err != nil {
 		return err
 	}

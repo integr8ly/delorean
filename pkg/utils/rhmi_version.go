@@ -42,8 +42,23 @@ func NewRHMIVersion(version string) (*RHMIVersion, error) {
 	}
 }
 
+func stringInSlice(a string, list []string) bool {
+	for _, b := range list {
+		if b == a {
+			return true
+		}
+	}
+	return false
+}
+
 // NewVersion parse the version as a string based on olmType and returns a Version object
 func NewVersion(version string, olmType string) (*RHMIVersion, error) {
+
+	acceptedOlmTypes := []string{types.OlmTypeRhmi, types.OlmTypeRhoam}
+	if !stringInSlice(olmType, acceptedOlmTypes) {
+		return nil, fmt.Errorf("the olmType %s is invalid", olmType)
+	}
+
 	ver, err := NewRHMIVersion(version)
 	if err != nil {
 		return nil, err

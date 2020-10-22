@@ -16,6 +16,7 @@ type tagRepositoryFlags struct {
 	repository     string
 	branch         string
 	skipPreRelease bool
+	olmType        string
 }
 
 func init() {
@@ -38,6 +39,7 @@ func init() {
 				handleError(errors.New("version is not defined"))
 			}
 
+			flags.olmType = olmType
 			if err := runTagRepository(cmd.Context(), ghClient.Git, version, flags); err != nil {
 				handleError(err)
 			}
@@ -55,7 +57,7 @@ func init() {
 }
 
 func runTagRepository(ctx context.Context, ghClient services.GitService, version string, flags *tagRepositoryFlags) error {
-	v, err := utils.NewVersion(version, olmType)
+	v, err := utils.NewVersion(version, flags.olmType)
 	if err != nil {
 		return err
 	}
