@@ -6,15 +6,15 @@ addons:
       path: "deploy/olm-catalog/managed-api-service"
     channels:
       - name: "stage"
-        directory: "rhoam-operator"
+        directory: "managed-api-service"
         environment: "stage"
         allow_pre_release: true
       - name: "edge"
-        directory: "rhoam-operator-internal"
+        directory: "managed-api-service-internal"
         environment: "production"
         allow_pre_release: false
       - name: "stable"
-        directory: "rhoam-operator"
+        directory: "managed-api-service"
         environment: "production"
         allow_pre_release: false
     override:
