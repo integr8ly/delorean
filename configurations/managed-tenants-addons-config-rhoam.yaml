@@ -19,9 +19,9 @@ addons:
         allow_pre_release: false
     override:
       deployment:
-        name: "rhoam-operator"
+        name: "rhmi-operator"
         container:
-          name: "rhoam-operator"
+          name: "rhmi-operator"
           env_vars:
             - name: "INSTALLATION_TYPE"
               value: "managed-api"
@@ -29,5 +29,7 @@ addons:
               value: ""
             - name: "ALERTING_EMAIL_ADDRESS"
               value: "{{ alertingEmailAddress }}"
+            - name: "BU_ALERTING_EMAIL_ADDRESS"
+              value: "{{ buAlertingEmailAddress }}"
 
 
