@@ -6,3 +6,7 @@ configs:
         value: true
       - key: rp
         value: true
+  - bucket: rhmi-test-data-storage-tf56
+    tags:
+      - key: datahub
+        value: true
