@@ -251,7 +251,7 @@ func (c *polarionImportCmd) importToPolarion(key string, metadata *testMetadata,
 			fmt.Printf("[%s] polarion job completed successfully\n", key)
 			exit = true
 		default:
-			panic(fmt.Errorf("unknown job status %s", status))
+			return fmt.Errorf("[%s] unknown job status %s", key, status)
 		}
 
 		if exit {
