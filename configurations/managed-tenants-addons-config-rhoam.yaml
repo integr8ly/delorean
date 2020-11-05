@@ -19,9 +19,9 @@ addons:
         allow_pre_release: false
     override:
       deployment:
-        name: "rhmi-operator"
+        name: "rhoam-operator"
         container:
-          name: "rhmi-operator"
+          name: "rhoam-operator"
           env_vars:
             - name: "INSTALLATION_TYPE"
               value: "managed-api"
