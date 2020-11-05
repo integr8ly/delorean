@@ -60,6 +60,7 @@ create_cluster_configuration_file() {
     : "${OPENSHIFT_VERSION:=}"
     : "${PRIVATE:=false}"
     : "${MULTI_AZ:=false}"
+    : "${COMPUTE_NODES_COUNT:=}"
 
     timestamp=$(get_expiration_timestamp "${OCM_CLUSTER_LIFESPAN}")
 
@@ -93,6 +94,10 @@ create_cluster_configuration_file() {
 
     if [[ "${MULTI_AZ}" = true ]]; then
         update_configuration "multi_az"
+    fi
+
+    if [[ -n "${COMPUTE_NODES_COUNT}" ]]; then
+        update_configuration "compute_nodes_count"
     fi
 
 
@@ -307,6 +312,10 @@ update_configuration() {
         updated_configuration=$(jq ".multi_az = true | .nodes.compute = 9 | .nodes.compute_machine_type.id = \"r5.xlarge\"" < "${CLUSTER_CONFIGURATION_FILE}")
         ;;
 
+    compute_nodes_count)
+        updated_configuration=$(jq ".nodes.compute = ${COMPUTE_NODES_COUNT}" < "${CLUSTER_CONFIGURATION_FILE}")
+        ;;
+
     *)
         echo "Error: Invalid parameter: '${param}' passed to a function '${FUNCNAME[0]}'" >&2
         exit 1
@@ -347,9 +356,9 @@ display_help() {
 "Usage: %s <command>
 
 Commands:
-==========================================================================================
+==========================================================================================================
 create_cluster_configuration_file - create cluster.json
-------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------
 Optional exported variables:
 - OCM_CLUSTER_LIFESPAN              How many hours should cluster stay until it's deleted?
 - OCM_CLUSTER_NAME                  e.g. my-cluster (lowercase, numbers, hyphens)
@@ -358,28 +367,29 @@ Optional exported variables:
 - OPENSHIFT_VERSION                 to get OpenShift versions, run: ocm cluster versions
 - PRIVATE                           Cluster's API and router will be private
 - MULTI_AZ                          true/false (default: false)
-==========================================================================================
+- COMPUTE_NODES_COUNT               number of cluster's compute nodes (default: single-az: 4, multi-az: 9)
+==========================================================================================================
 create_cluster                    - spin up OSD cluster
-==========================================================================================
+==========================================================================================================
 install_rhmi                      - install RHMI using addon-type installation
-==========================================================================================
+==========================================================================================================
 install_managed_api               - install Managed API Service using addon-type installation
-------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------
 Optional exported variables:
 - USE_CLUSTER_STORAGE               true/false - use OpenShift/AWS storage (default: true)
 - ALERTING_EMAIL_ADDRESS            email address for receiving alert notifications
 - SELF_SIGNED_CERTS                 true/false - cluster certificate can be invalid
-==========================================================================================
+==========================================================================================================
 upgrade_cluster                   - upgrade OSD cluster to latest version (if available)
-==========================================================================================
+==========================================================================================================
 delete_cluster                    - delete RHMI product & OSD cluster
 Optional exported variables:
 - AWS_ACCOUNT_ID
 - AWS_ACCESS_KEY_ID
 - AWS_SECRET_ACCESS_KEY
-==========================================================================================
+==========================================================================================================
 get_cluster_logs                  - get logs from hive and save them to ${CLUSTER_LOGS_FILE}
-==========================================================================================
+==========================================================================================================
 " "${0}"
 }
 
