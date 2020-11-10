@@ -149,7 +149,7 @@ install_addon() {
 
     if [[ "${USE_CLUSTER_STORAGE}" == false ]]; then
         echo "Creating cluster resource quotas and AWS backup strategies"
-        oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" create -f \
+        oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" -n "${OPERATOR_NAMESPACE}" create -f \
         "${CR_AWS_STRATEGIES_CONFIGMAP_FILE},${LB_CLUSTER_QUOTA_FILE},${CLUSTER_STORAGE_QUOTA_FILE}"
     fi
 
@@ -177,12 +177,14 @@ install_addon() {
 }
 
 install_rhmi() {
-    OPERATOR_NAMESPACE="redhat-rhmi-operator"
+    NS_PREFIX="redhat-rhmi"
+    OPERATOR_NAMESPACE="${NS_PREFIX}-operator"
     install_addon "rhmi" ".status.stages.\\\"solution-explorer\\\".phase"
 }
 
 install_managed_api() {
-    OPERATOR_NAMESPACE="redhat-rhoam-operator"
+    NS_PREFIX="redhat-rhoam"
+    OPERATOR_NAMESPACE="${NS_PREFIX}-operator"
     install_addon "managed-api-service" ".status.stages.products.phase"
 }
 
@@ -329,24 +331,17 @@ create_secrets() {
     local secrets
     secrets=$(oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get secrets -n "${OPERATOR_NAMESPACE}" || true)
 
-    # Pagerduty secret
-    if ! grep -q pagerduty <<< "${secrets}"; then
-        oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" create secret generic redhat-rhmi-pagerduty -n ${OPERATOR_NAMESPACE} \
-            --from-literal=serviceKey=dummykey \
-            || echo "Pagerduty ${ERROR_CREATING_SECRET}"
-    fi
-
-    # DMS secret
-    if ! grep -q deadmanssnitch <<< "${secrets}"; then
-        oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" create secret generic redhat-rhmi-deadmanssnitch -n ${OPERATOR_NAMESPACE} \
+    # Create DMS secret if it's not present in the "redhat-rhmi-operator" namespace
+    # This secret should be created only for RHMI (the creation of this secret is automated for RHOAM)
+    # The rest of the secrets (SMTP, Pagerduty) are also auto-created
+    if [[ $NS_PREFIX = "redhat-rhmi" ]] && ! grep -q deadmanssnitch <<< "${secrets}"; then
+        oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" create secret generic ${NS_PREFIX}-deadmanssnitch -n ${OPERATOR_NAMESPACE} \
             --from-literal=url=https://dms.example.com \
             || echo "DMS ${ERROR_CREATING_SECRET}"
     fi
 
-    # Keep trying creating secrets until all of them are present in RHMI operator namespace
-    # SMTP Secret should be automatically created (and deleted) by a Sendgrid Service
-    # https://gitlab.cee.redhat.com/service/ocm-sendgrid-service
-    if [[ $(oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get secrets -n ${OPERATOR_NAMESPACE} | grep -cE "redhat-rhmi-((.*pagerduty|.*deadmanssnitch))" || true) != 2 ]]; then
+    if [[ $(oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get secrets -n ${OPERATOR_NAMESPACE} | grep -cE "${NS_PREFIX}-((.*smtp|.*pagerduty|.*deadmanssnitch))" || true) != 3 ]]; then
+        printf "Waiting for DMS, Pagerduty and SMTP secrets to be created. Found the following secrets in %s namespace:\n%s\n" "${OPERATOR_NAMESPACE}" "${secrets}"
         create_secrets
     fi
 }
