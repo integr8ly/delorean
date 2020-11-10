@@ -155,7 +155,7 @@ install_addon() {
 
     echo "Patching RHMI CR"
     oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" patch rhmi "${rhmi_name}" -n "${OPERATOR_NAMESPACE}" \
-        --type=merge -p "{\"spec\":{\"useClusterStorage\": \"${USE_CLUSTER_STORAGE}\", \"selfSignedCerts\": ${SELF_SIGNED_CERTS:-true} }}"
+        --type=merge -p "{\"spec\":{\"useClusterStorage\": \"${USE_CLUSTER_STORAGE}\", \"selfSignedCerts\": ${SELF_SIGNED_CERTS:-false} }}"
 
     # Change alerting email address is ALERTING_EMAIL_ADDRESS variable is set
     if [[ -n "${ALERTING_EMAIL_ADDRESS:-}" ]]; then
@@ -182,7 +182,7 @@ install_rhmi() {
     install_addon "rhmi" ".status.stages.\\\"solution-explorer\\\".phase"
 }
 
-install_managed_api() {
+install_rhoam() {
     NS_PREFIX="redhat-rhoam"
     OPERATOR_NAMESPACE="${NS_PREFIX}-operator"
     install_addon "managed-api-service" ".status.stages.products.phase"
@@ -367,9 +367,8 @@ Optional exported variables:
 create_cluster                    - spin up OSD cluster
 ==========================================================================================================
 install_rhmi                      - install RHMI using addon-type installation
-==========================================================================================================
-install_managed_api               - install Managed API Service using addon-type installation
-----------------------------------------------------------------------------------------------------------
+install_rhoam                     - install RHOAM using addon-type installation
+------------------------------------------------------------------------------------------
 Optional exported variables:
 - USE_CLUSTER_STORAGE               true/false - use OpenShift/AWS storage (default: true)
 - ALERTING_EMAIL_ADDRESS            email address for receiving alert notifications
@@ -407,8 +406,8 @@ main() {
             install_rhmi
             exit 0
             ;;
-        install_managed_api)
-            install_managed_api
+        install_rhoam)
+            install_rhoam
             exit 0
             ;;
         delete_cluster)
