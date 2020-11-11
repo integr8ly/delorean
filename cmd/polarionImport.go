@@ -221,7 +221,9 @@ func (c *polarionImportCmd) importToPolarion(key string, metadata *testMetadata,
 	}
 
 	title := fmt.Sprintf("RHMI %s %s Automated Tests", version.String(), metadata.Name)
-	xunit, err := polarion.JUnitToPolarionXUnit(junit, polarionProjectID, title, version.PolarionMilestoneId())
+	// TODO
+	// Add support for importing RHOAM test results
+	xunit, err := polarion.JUnitToPolarionXUnit(junit, polarionProjectIDs["rhmi"], title, version.PolarionMilestoneId())
 	if err != nil {
 		return err
 	}
