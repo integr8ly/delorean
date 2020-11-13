@@ -8,25 +8,35 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const (
-	polarionProjectID = "RedHatManagedIntegration"
+var polarionProjectIDs = map[string]string{
+	"rhmi":  "RedHatManagedIntegration",
+	"rhoam": "OpenShiftAPIManagement",
+}
 
+const (
 	polarionServicesURL        = "https://polarion.engineering.redhat.com/polarion/ws/services"
 	polarionServicesStagingURL = "https://polarion.stage.engineering.redhat.com/polarion/ws/services"
 )
 
 type polarionReleaseFlags struct {
-	version string
-	stage   bool
-	debug   bool
+	productName string
+	version     string
+	stage       bool
+	debug       bool
 }
 
 type polarionReleaseCmd struct {
-	version  *utils.RHMIVersion
-	polarion polarion.PolarionSessionService
+	projectID string
+	version   *utils.RHMIVersion
+	polarion  polarion.PolarionSessionService
 }
 
 func newPolarionReleaseCmd(f *polarionReleaseFlags) (*polarionReleaseCmd, error) {
+
+	projectID := polarionProjectIDs[f.productName]
+	if projectID == "" {
+		return nil, fmt.Errorf("%s is not a valid productName. See the usage for supported product names", f.productName)
+	}
 
 	version, err := utils.NewRHMIVersion(f.version)
 	if err != nil {
@@ -56,8 +66,9 @@ func newPolarionReleaseCmd(f *polarionReleaseFlags) (*polarionReleaseCmd, error)
 	}
 
 	return &polarionReleaseCmd{
-		version:  version,
-		polarion: polarion,
+		projectID: projectID,
+		version:   version,
+		polarion:  polarion,
 	}, nil
 }
 
@@ -83,7 +94,9 @@ func init() {
 
 	reportCmd.AddCommand(cmd)
 
-	cmd.Flags().StringVar(&f.version, "version", "", "The RHMI version to create in Polarion (ex \"2.0.0\", \"2.0.0-er4\")")
+	cmd.Flags().StringVar(&f.productName, "product-name", "", "Name of the product. Valid inputs are: \"rhmi\", \"rhoam\"")
+	cmd.MarkFlagRequired("product-name")
+	cmd.Flags().StringVar(&f.version, "version", "", "The RHMI/RHOAM version to create in Polarion (ex \"2.0.0\", \"2.0.0-er4\")")
 	cmd.MarkFlagRequired("version")
 
 	cmd.Flags().BoolVar(&f.stage, "stage", false, "Create the release in the Polarion staging environment")
@@ -120,7 +133,7 @@ func (c *polarionReleaseCmd) creteRelease() error {
 
 	id := c.version.PolarionReleaseId()
 
-	plan, err := c.polarion.GetPlanByID(polarionProjectID, id)
+	plan, err := c.polarion.GetPlanByID(c.projectID, id)
 	if err != nil {
 		return err
 	}
@@ -131,7 +144,7 @@ func (c *polarionReleaseCmd) creteRelease() error {
 	}
 
 	err = c.polarion.CreatePlan(
-		polarionProjectID,
+		c.projectID,
 		c.version.MajorMinorPatch(),
 		id,
 		"",
@@ -149,7 +162,7 @@ func (c *polarionReleaseCmd) creteMilestone() error {
 
 	id := c.version.PolarionMilestoneId()
 
-	plan, err := c.polarion.GetPlanByID(polarionProjectID, id)
+	plan, err := c.polarion.GetPlanByID(c.projectID, id)
 	if err != nil {
 		return err
 	}
@@ -160,7 +173,7 @@ func (c *polarionReleaseCmd) creteMilestone() error {
 	}
 
 	err = c.polarion.CreatePlan(
-		polarionProjectID,
+		c.projectID,
 		c.version.String(),
 		id,
 		c.version.PolarionReleaseId(),
@@ -178,7 +191,7 @@ func (c *polarionReleaseCmd) createTestRunTemplate() error {
 
 	id := c.version.PolarionMilestoneId()
 
-	template, err := c.polarion.GetTestRunByID(polarionProjectID, id)
+	template, err := c.polarion.GetTestRunByID(c.projectID, id)
 	if err != nil {
 		return err
 	}
@@ -189,7 +202,7 @@ func (c *polarionReleaseCmd) createTestRunTemplate() error {
 	}
 
 	uri, err := c.polarion.CreateTestRun(
-		polarionProjectID,
+		c.projectID,
 		id,
 		"XUnit",
 	)
