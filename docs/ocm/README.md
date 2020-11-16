@@ -1,4 +1,4 @@
-## Using `ocm` for installation of RHMI or Managed API Service
+## Using `ocm` for installation of RHMI or Managed API Service (RHOAM)
 
 If you want to test your changes on a cluster, the easiest solution would be to spin up OSD 4 cluster using `ocm`. If you want to spin up a cluster using CCS (Cloud Customer Subscription, previously called "BYOC"), follow the additional steps marked as **BYOC**.
 
@@ -69,7 +69,7 @@ oc --config ocm/cluster.kubeconfig projects
 
 7. If you want to install the latest release, you can trigger it by applying an addon
     1. For **RHMI**: Run `make ocm/install/rhmi-addon` to trigger the installation
-    2. For **Managed API Service**: Run `make ocm/install/managed-api-addon` to trigger the installaion
+    2. For **Managed API Service (RHOAM)**: Run `make ocm/install/rhoam-addon` to trigger the installaion
   
     Once the installation is completed, the installation CR with RHMI components info will be printed to the console
 

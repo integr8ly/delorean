@@ -19,8 +19,6 @@ readonly CLUSTER_DETAILS_FILE="${OCM_DIR}/cluster-details.json"
 readonly CLUSTER_CREDENTIALS_FILE="${OCM_DIR}/cluster-credentials.json"
 readonly CLUSTER_LOGS_FILE="${OCM_DIR}/cluster.log"
 
-readonly RHMI_OPERATOR_NAMESPACE="redhat-rhmi-operator"
-
 readonly ERROR_MISSING_AWS_ENV_VARS="ERROR: Not all required AWS environment are set. Please make sure you've exported all following env vars:"
 readonly ERROR_MISSING_CLUSTER_JSON="ERROR: ${CLUSTER_CONFIGURATION_FILE} file does not exist. Please run 'make ocm/cluster.json' first"
 readonly ERROR_CREATING_SECRET=" secret was not created. This could be caused by unstable connection between the client and OpenShift cluster"
@@ -145,24 +143,24 @@ install_addon() {
     echo "Applying RHMI Addon on a cluster with ID: ${cluster_id}"
     echo "{\"addon\":{\"id\":\"${addon_id}\"}}" | ocm post "/api/clusters_mgmt/v1/clusters/${cluster_id}/addons"
 
-    wait_for "oc --kubeconfig ${CLUSTER_KUBECONFIG_FILE} get rhmi -n ${RHMI_OPERATOR_NAMESPACE} | grep -q NAME" "rhmi installation CR to be created" "15m" "30"
+    wait_for "oc --kubeconfig ${CLUSTER_KUBECONFIG_FILE} get rhmi -n ${OPERATOR_NAMESPACE} | grep -q NAME" "rhmi installation CR to be created" "15m" "30"
 
     rhmi_name=$(get_rhmi_name)
 
     if [[ "${USE_CLUSTER_STORAGE}" == false ]]; then
         echo "Creating cluster resource quotas and AWS backup strategies"
-        oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" create -f \
+        oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" -n "${OPERATOR_NAMESPACE}" create -f \
         "${CR_AWS_STRATEGIES_CONFIGMAP_FILE},${LB_CLUSTER_QUOTA_FILE},${CLUSTER_STORAGE_QUOTA_FILE}"
     fi
 
     echo "Patching RHMI CR"
-    oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" patch rhmi "${rhmi_name}" -n ${RHMI_OPERATOR_NAMESPACE} \
-        --type=merge -p "{\"spec\":{\"useClusterStorage\": \"${USE_CLUSTER_STORAGE}\", \"selfSignedCerts\": ${SELF_SIGNED_CERTS:-true} }}"
+    oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" patch rhmi "${rhmi_name}" -n "${OPERATOR_NAMESPACE}" \
+        --type=merge -p "{\"spec\":{\"useClusterStorage\": \"${USE_CLUSTER_STORAGE}\", \"selfSignedCerts\": ${SELF_SIGNED_CERTS:-false} }}"
 
     # Change alerting email address is ALERTING_EMAIL_ADDRESS variable is set
     if [[ -n "${ALERTING_EMAIL_ADDRESS:-}" ]]; then
         echo "Changing alerting email address to: ${ALERTING_EMAIL_ADDRESS}"
-        oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" patch rhmi "${rhmi_name}" -n ${RHMI_OPERATOR_NAMESPACE} \
+        oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" patch rhmi "${rhmi_name}" -n "${OPERATOR_NAMESPACE}" \
             --type=merge -p "{\"spec\":{ \"alertingEmailAddress\": \"${ALERTING_EMAIL_ADDRESS}\"}}"
     fi
 
@@ -170,19 +168,23 @@ install_addon() {
 
     if [[ "${PATCH_CR_AWS_CM}" == true ]]; then
         echo "Patching Cloud Resources AWS Strategies Config Map"
-        wait_for "oc --kubeconfig ${CLUSTER_KUBECONFIG_FILE} get configMap cloud-resources-aws-strategies -n ${RHMI_OPERATOR_NAMESPACE} | grep -q cloud-resources-aws-strategies" "cloud-resources-aws-strategies ready" "5m" "20"
-        oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" patch configMap cloud-resources-aws-strategies -n "${RHMI_OPERATOR_NAMESPACE}" --type='json' -p '[{"op": "add", "path": "/data/_network", "value":"{ \"production\": { \"createStrategy\": { \"CidrBlock\": \"'10.1.0.0/23'\" } } }"}]'
+        wait_for "oc --kubeconfig ${CLUSTER_KUBECONFIG_FILE} get configMap cloud-resources-aws-strategies -n ${OPERATOR_NAMESPACE} | grep -q cloud-resources-aws-strategies" "cloud-resources-aws-strategies ready" "5m" "20"
+        oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" patch configMap cloud-resources-aws-strategies -n "${OPERATOR_NAMESPACE}" --type='json' -p '[{"op": "add", "path": "/data/_network", "value":"{ \"production\": { \"createStrategy\": { \"CidrBlock\": \"'10.1.0.0/23'\" } } }"}]'
     fi
 
-    wait_for "oc --kubeconfig ${CLUSTER_KUBECONFIG_FILE} get rhmi ${rhmi_name} -n ${RHMI_OPERATOR_NAMESPACE} -o json | jq -r ${completion_phase} | grep -q completed" "rhmi installation" "90m" "300"
-    oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get rhmi "${rhmi_name}" -n ${RHMI_OPERATOR_NAMESPACE} -o json | jq -r '.status.stages'
+    wait_for "oc --kubeconfig ${CLUSTER_KUBECONFIG_FILE} get rhmi ${rhmi_name} -n ${OPERATOR_NAMESPACE} -o json | jq -r ${completion_phase} | grep -q completed" "rhmi installation" "90m" "300"
+    oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get rhmi "${rhmi_name}" -n "${OPERATOR_NAMESPACE}" -o json | jq -r '.status.stages'
 }
 
 install_rhmi() {
+    NS_PREFIX="redhat-rhmi"
+    OPERATOR_NAMESPACE="${NS_PREFIX}-operator"
     install_addon "rhmi" ".status.stages.\\\"solution-explorer\\\".phase"
 }
 
-install_managed_api() {
+install_rhoam() {
+    NS_PREFIX="redhat-rhoam"
+    OPERATOR_NAMESPACE="${NS_PREFIX}-operator"
     install_addon "managed-api-service" ".status.stages.products.phase"
 }
 
@@ -240,7 +242,7 @@ is_ccs_cluster() {
 }
 
 get_rhmi_name() {
-    oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get rhmi -n "${RHMI_OPERATOR_NAMESPACE}" -o jsonpath='{.items[*].metadata.name}'
+    oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get rhmi -n "${OPERATOR_NAMESPACE}" -o jsonpath='{.items[*].metadata.name}'
 }
 
 get_infra_id() {
@@ -327,26 +329,19 @@ update_configuration() {
 
 create_secrets() {
     local secrets
-    secrets=$(oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get secrets -n "${RHMI_OPERATOR_NAMESPACE}" || true)
+    secrets=$(oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get secrets -n "${OPERATOR_NAMESPACE}" || true)
 
-    # Pagerduty secret
-    if ! grep -q pagerduty <<< "${secrets}"; then
-        oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" create secret generic redhat-rhmi-pagerduty -n ${RHMI_OPERATOR_NAMESPACE} \
-            --from-literal=serviceKey=dummykey \
-            || echo "Pagerduty ${ERROR_CREATING_SECRET}"
-    fi
-
-    # DMS secret
-    if ! grep -q deadmanssnitch <<< "${secrets}"; then
-        oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" create secret generic redhat-rhmi-deadmanssnitch -n ${RHMI_OPERATOR_NAMESPACE} \
+    # Create DMS secret if it's not present in the "redhat-rhmi-operator" namespace
+    # This secret should be created only for RHMI (the creation of this secret is automated for RHOAM)
+    # The rest of the secrets (SMTP, Pagerduty) are also auto-created
+    if [[ $NS_PREFIX = "redhat-rhmi" ]] && ! grep -q deadmanssnitch <<< "${secrets}"; then
+        oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" create secret generic ${NS_PREFIX}-deadmanssnitch -n ${OPERATOR_NAMESPACE} \
             --from-literal=url=https://dms.example.com \
             || echo "DMS ${ERROR_CREATING_SECRET}"
     fi
 
-    # Keep trying creating secrets until all of them are present in RHMI operator namespace
-    # SMTP Secret should be automatically created (and deleted) by a Sendgrid Service
-    # https://gitlab.cee.redhat.com/service/ocm-sendgrid-service
-    if [[ $(oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get secrets -n ${RHMI_OPERATOR_NAMESPACE} | grep -cE "redhat-rhmi-((.*pagerduty|.*deadmanssnitch))" || true) != 2 ]]; then
+    if [[ $(oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get secrets -n ${OPERATOR_NAMESPACE} | grep -cE "${NS_PREFIX}-((.*smtp|.*pagerduty|.*deadmanssnitch))" || true) != 3 ]]; then
+        printf "Waiting for DMS, Pagerduty and SMTP secrets to be created. Found the following secrets in %s namespace:\n%s\n" "${OPERATOR_NAMESPACE}" "${secrets}"
         create_secrets
     fi
 }
@@ -372,9 +367,8 @@ Optional exported variables:
 create_cluster                    - spin up OSD cluster
 ==========================================================================================================
 install_rhmi                      - install RHMI using addon-type installation
-==========================================================================================================
-install_managed_api               - install Managed API Service using addon-type installation
-----------------------------------------------------------------------------------------------------------
+install_rhoam                     - install RHOAM using addon-type installation
+------------------------------------------------------------------------------------------
 Optional exported variables:
 - USE_CLUSTER_STORAGE               true/false - use OpenShift/AWS storage (default: true)
 - ALERTING_EMAIL_ADDRESS            email address for receiving alert notifications
@@ -412,8 +406,8 @@ main() {
             install_rhmi
             exit 0
             ;;
-        install_managed_api)
-            install_managed_api
+        install_rhoam)
+            install_rhoam
             exit 0
             ;;
         delete_cluster)
