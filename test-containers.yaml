@@ -1,5 +1,4 @@
 ---
-# This file is only for testing
 tests:
   - name: codeready-test
     image: quay.io/crw/osd-e2e
