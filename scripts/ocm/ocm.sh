@@ -311,7 +311,7 @@ update_configuration() {
         ;;
 
     multi_az)
-        updated_configuration=$(jq ".multi_az = true | .nodes.compute = 9 | .nodes.compute_machine_type.id = \"r5.xlarge\"" < "${CLUSTER_CONFIGURATION_FILE}")
+        updated_configuration=$(jq ".multi_az = true | .nodes.compute = 9 | .nodes.compute_machine_type.id = \"m5.xlarge\"" < "${CLUSTER_CONFIGURATION_FILE}")
         ;;
 
     compute_nodes_count)
