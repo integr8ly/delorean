@@ -148,7 +148,7 @@ install_addon() {
     rhmi_name=$(get_rhmi_name)
 
     # Apply cluster resource quotas and AWS backup strategies only in case of RHMI installation (with AWS cloud resources)
-    if [[ "${USE_CLUSTER_STORAGE}" == false && "${NS_PREFIX}" == "redhat-rhmi" ]]; then
+    if [[ "${USE_CLUSTER_STORAGE}" == false && "${NS_PREFIX}" == "redhat-rhmi-" ]]; then
         echo "Creating cluster resource quotas and AWS backup strategies"
         oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" -n "${OPERATOR_NAMESPACE}" create -f \
         "${CR_AWS_STRATEGIES_CONFIGMAP_FILE},${LB_CLUSTER_QUOTA_FILE},${CLUSTER_STORAGE_QUOTA_FILE}"
@@ -178,14 +178,14 @@ install_addon() {
 }
 
 install_rhmi() {
-    NS_PREFIX="redhat-rhmi"
-    OPERATOR_NAMESPACE="${NS_PREFIX}-operator"
+    NS_PREFIX="redhat-rhmi-"
+    OPERATOR_NAMESPACE="${NS_PREFIX}operator"
     install_addon "rhmi" ".status.stages.\\\"solution-explorer\\\".phase"
 }
 
 install_rhoam() {
-    NS_PREFIX="redhat-rhoam"
-    OPERATOR_NAMESPACE="${NS_PREFIX}-operator"
+    NS_PREFIX="redhat-rhoam-"
+    OPERATOR_NAMESPACE="${NS_PREFIX}operator"
     install_addon "managed-api-service" ".status.stages.products.phase"
 }
 
@@ -335,13 +335,13 @@ create_secrets() {
     # Create DMS secret if it's not present in the "redhat-rhmi-operator" namespace
     # This secret should be created only for RHMI (the creation of this secret is automated for RHOAM)
     # The rest of the secrets (SMTP, Pagerduty) are also auto-created
-    if [[ $NS_PREFIX = "redhat-rhmi" ]] && ! grep -q deadmanssnitch <<< "${secrets}"; then
-        oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" create secret generic ${NS_PREFIX}-deadmanssnitch -n ${OPERATOR_NAMESPACE} \
+    if [[ $NS_PREFIX = "redhat-rhmi-" ]] && ! grep -q deadmanssnitch <<< "${secrets}"; then
+        oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" create secret generic ${NS_PREFIX}deadmanssnitch -n ${OPERATOR_NAMESPACE} \
             --from-literal=url=https://dms.example.com \
             || echo "DMS ${ERROR_CREATING_SECRET}"
     fi
 
-    if [[ $(oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get secrets -n ${OPERATOR_NAMESPACE} | grep -cE "${NS_PREFIX}-((.*smtp|.*pagerduty|.*deadmanssnitch))" || true) != 3 ]]; then
+    if [[ $(oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get secrets -n ${OPERATOR_NAMESPACE} | grep -cE "${NS_PREFIX}((.*smtp|.*pagerduty|.*deadmanssnitch))" || true) != 3 ]]; then
         printf "Waiting for DMS, Pagerduty and SMTP secrets to be created. Found the following secrets in %s namespace:\n%s\n" "${OPERATOR_NAMESPACE}" "${secrets}"
         create_secrets
     fi
