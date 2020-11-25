@@ -147,7 +147,8 @@ install_addon() {
 
     rhmi_name=$(get_rhmi_name)
 
-    if [[ "${USE_CLUSTER_STORAGE}" == false ]]; then
+    # Apply cluster resource quotas and AWS backup strategies only in case of RHMI installation (with AWS cloud resources)
+    if [[ "${USE_CLUSTER_STORAGE}" == false && "${NS_PREFIX}" == "redhat-rhmi" ]]; then
         echo "Creating cluster resource quotas and AWS backup strategies"
         oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" -n "${OPERATOR_NAMESPACE}" create -f \
         "${CR_AWS_STRATEGIES_CONFIGMAP_FILE},${LB_CLUSTER_QUOTA_FILE},${CLUSTER_STORAGE_QUOTA_FILE}"
