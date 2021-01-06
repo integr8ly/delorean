@@ -205,6 +205,14 @@ func (c *polarionImportCmd) importToPolarion(key string, metadata *testMetadata,
 		return nil
 	}
 
+	var projectName string
+	if strings.HasPrefix(zipfile, "integreatly") {
+		// integreatly = RHMI
+		projectName = "rhmi"
+	} else {
+		// managedapi = RHOAM
+		projectName = "rhoam"
+	}
 	version, err := utils.NewRHMIVersion(metadata.RHMIVersion)
 	if err != nil {
 		return err
@@ -220,10 +228,8 @@ func (c *polarionImportCmd) importToPolarion(key string, metadata *testMetadata,
 		return err
 	}
 
-	title := fmt.Sprintf("RHMI %s %s Automated Tests", version.String(), metadata.Name)
-	// TODO
-	// Add support for importing RHOAM test results
-	xunit, err := polarion.JUnitToPolarionXUnit(junit, polarionProjectIDs["rhmi"], title, version.PolarionMilestoneId())
+	title := fmt.Sprintf("%s %s %s Automated Tests", strings.ToUpper(projectName), version.String(), metadata.Name)
+	xunit, err := polarion.JUnitToPolarionXUnit(junit, polarionProjectIDs[projectName], title, version.PolarionMilestoneId())
 	if err != nil {
 		return err
 	}
