@@ -206,12 +206,14 @@ func (c *polarionImportCmd) importToPolarion(key string, metadata *testMetadata,
 	}
 
 	var projectName string
-	if strings.HasPrefix(zipfile, "integreatly") {
+	if strings.Contains(metadata.Name, "rhmi") {
 		// integreatly = RHMI
 		projectName = "rhmi"
-	} else {
+	} else if strings.Contains(metadata.Name, "managed-api") {
 		// managedapi = RHOAM
 		projectName = "rhoam"
+	} else {
+		return fmt.Errorf("job name %s does not contain required substring 'rhmi' or 'managed-api'", metadata.Name)
 	}
 	version, err := utils.NewRHMIVersion(metadata.RHMIVersion)
 	if err != nil {
