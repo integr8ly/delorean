@@ -13,7 +13,7 @@
       "host_prefix": 23
     },
     "nodes" : {
-      "compute" : 4,
+      "compute" : 8,
       "compute_machine_type" : {"id" : "m5.xlarge" }
     },
     "region": {
