@@ -1,9 +1,12 @@
 package utils
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/blang/semver"
+	doctypes "github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
 	"github.com/integr8ly/delorean/pkg/types"
 	"io/ioutil"
 	"os"
@@ -24,7 +27,9 @@ type ImageDetails struct {
 	LineRegEx         *regexp.Regexp
 	GetCurrentVersion func(string, string, *regexp.Regexp) (*semver.Version, error)
 	ReplaceImage      func(string, string, *regexp.Regexp, string) error
+	GetOriginImage    func(string, string) (string, error)
 	MirrorRepo        string
+	OriginRepo        string
 }
 
 var validImages = []string{envoyProxy, rateLimiting}
@@ -39,10 +44,12 @@ var ImageSubs = map[string]*ImageDetails{
 	},
 	rateLimiting: {
 		FileLocation:      getRateLimitingFileLocation,
-		LineRegEx:         regexp.MustCompile(`quay.io/integreatly/ratelimit` + `.*`),
+		LineRegEx:         regexp.MustCompile(`quay.io/integreatly/` + `.*` + `ratelimit` + `.*`),
 		GetCurrentVersion: getCurrentRateLimitingVersion,
 		ReplaceImage:      replaceRateLimitingImage,
 		MirrorRepo:        "quay.io/integreatly/ews-ratelimiting",
+		OriginRepo:        "docker.io/envoyproxy/ratelimit",
+		GetOriginImage:    GetRateLimitingOriginImage,
 	},
 	rhsso: {
 		FileLocation:      getRHSSOFileLocation,
@@ -51,6 +58,22 @@ var ImageSubs = map[string]*ImageDetails{
 		ReplaceImage:      replaceRHSSOImage,
 		MirrorRepo:        "quay.io/integreatly/ews-rhsso",
 	},
+}
+
+func GetRateLimitingOriginImage(repo string, imageTag string) (string, error) {
+	ctx := context.Background()
+	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	if err != nil {
+		fmt.Println("Error getting docker client: ", err)
+		return "", err
+	}
+	image := repo + ":" + imageTag
+	_, err = cli.ImagePull(ctx, image, doctypes.ImagePullOptions{})
+	if err != nil {
+		fmt.Println("Error pulling image: ", err)
+		return "", err
+	}
+	return image, nil
 }
 
 func GetNewVersion(newImage string) (*semver.Version, error) {
@@ -182,7 +205,6 @@ func replaceRateLimitingImage(opDir string, fileLocation string, lineRegEx *rege
 	if err != nil {
 		return err
 	}
-
 	fmt.Println("Found rate limiting image to replace: ", currentImage)
 	out := strings.Replace(string(file), currentImage, newImage, 1)
 	err = ioutil.WriteFile(opDir+fileLocation, []byte(out), 600)
@@ -207,13 +229,13 @@ func GetCurrentRateLimitingImage(opDir string, fileLocation string, lineRegEx *r
 	return currentImage, file, nil
 }
 
-func CreateMirrorMap(directory string, imageType string, newImage string) error {
-	newVersion, err := GetNewVersion(newImage)
+func CreateMirrorMap(directory string, imageType string, originImage string) error {
+	newVersion, err := GetNewVersion(originImage)
 	if err != nil {
 		return err
 	}
 	dest := ImageSubs[imageType].MirrorRepo + ":" + newVersion.String()
-	return WriteToFile(path.Join(directory, MappingFile), []string{fmt.Sprintf("%s %s", newImage, dest)})
+	return WriteToFile(path.Join(directory, MappingFile), []string{fmt.Sprintf("%s %s", originImage, dest)})
 }
 
 func getRHSSOFileLocation(opDir string) string {

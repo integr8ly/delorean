@@ -9,9 +9,9 @@ import (
 )
 
 type mirrorImageFlags struct {
-	imageType string
-	newImage  string
-	directory string
+	imageType   string
+	originImage string
+	directory   string
 }
 
 func init() {
@@ -30,11 +30,11 @@ func init() {
 
 	ewsCmd.AddCommand(cmd)
 
-	cmd.Flags().StringVar(&flags.imageType, "imageType", "", "the type of image to mpa")
+	cmd.Flags().StringVar(&flags.imageType, "imageType", "", "the type of image to map")
 	cmd.MarkFlagRequired("imageType")
 
-	cmd.Flags().StringVar(&flags.newImage, "newImage", "", "the new image to map")
-	cmd.MarkFlagRequired("newImage")
+	cmd.Flags().StringVar(&flags.originImage, "originImage", "", "the new image to map")
+	cmd.MarkFlagRequired("originImage")
 
 	cmd.Flags().StringVar(&flags.directory, "directory", "", "directory to write mapping file")
 	cmd.MarkFlagRequired("directory")
@@ -42,12 +42,12 @@ func init() {
 
 func generateMirrorMapping(flags *mirrorImageFlags) error {
 	imageType := flags.imageType
-	newImage := flags.newImage
+	originImage := flags.originImage
 	directory := flags.directory
 
 	if !utils.IsValidType(imageType) {
 		return errors.New(fmt.Sprintf("Invalid image type %s", imageType))
 	}
 
-	return utils.CreateMirrorMap(directory, imageType, newImage)
+	return utils.CreateMirrorMap(directory, imageType, originImage)
 }

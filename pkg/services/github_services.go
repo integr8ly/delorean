@@ -26,13 +26,12 @@ type GitService interface {
 }
 
 type GithubReleaseService interface {
-	GetLatestRelease(owner string, repo string) (error, string)
+	GetLatestRelease(owner string, repo string, client *github.Client) (error, string)
 }
 
 type DefaultGithubReleaseService struct{}
 
-func (s *DefaultGithubReleaseService) GetLatestRelease(owner string, repo string) (error, string) {
-	client := github.NewClient(nil)
+func (s *DefaultGithubReleaseService) GetLatestRelease(owner string, repo string, client *github.Client) (error, string) {
 	releases, _, err := client.Repositories.ListReleases(context.TODO(), owner, repo, &github.ListOptions{})
 	if err != nil {
 		return errors.New(fmt.Sprintf("Error attempting to get release from github, owner: %s, repo: %s. Error: %v", repo, owner, err.Error())), ""

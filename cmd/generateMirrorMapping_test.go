@@ -13,27 +13,27 @@ func TestMirrorImages(t *testing.T) {
 		{
 			name: "test error on invalid image type",
 			flags: &mirrorImageFlags{
-				imageType: "invalidImage",
-				newImage:  "",
-				directory: "",
+				imageType:   "invalidImage",
+				originImage: "",
+				directory:   "",
 			},
 			wantErr: true,
 		},
 		{
 			name: "test error in invalid image format",
 			flags: &mirrorImageFlags{
-				imageType: "envoyProxy",
-				newImage:  "invalidImage",
-				directory: "",
+				imageType:   "envoyProxy",
+				originImage: "invalidImage",
+				directory:   "",
 			},
 			wantErr: true,
 		},
 		{
 			name: "test error on invalid directory to write to",
 			flags: &mirrorImageFlags{
-				imageType: "envoyProxy",
-				newImage:  "validImage:1.1.1",
-				directory: "invalidDirectory",
+				imageType:   "envoyProxy",
+				originImage: "validImage:1.1.1",
+				directory:   "invalidDirectory",
 			},
 			wantErr: true,
 		},
