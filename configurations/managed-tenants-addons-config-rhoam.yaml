@@ -31,4 +31,5 @@ addons:
               value: "{{ alertingEmailAddress }}"
             - name: "BU_ALERTING_EMAIL_ADDRESS"
               value: "{{ buAlertingEmailAddress }}"
-
+            - name: "ALERT_SMTP_FROM"
+              value: "{{ alertSMTPFrom }}"
