@@ -2,6 +2,8 @@ package services
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"github.com/google/go-github/v30/github"
 )
 
@@ -21,4 +23,23 @@ type PullRequestsService interface {
 type GitService interface {
 	GetRefs(ctx context.Context, owner string, repo string, ref string) ([]*github.Reference, *github.Response, error)
 	CreateRef(ctx context.Context, owner string, repo string, ref *github.Reference) (*github.Reference, *github.Response, error)
+}
+
+type GithubReleaseService interface {
+	GetLatestRelease(owner string, repo string) (error, string)
+}
+
+type DefaultGithubReleaseService struct{}
+
+func (s *DefaultGithubReleaseService) GetLatestRelease(owner string, repo string) (error, string) {
+	client := github.NewClient(nil)
+	releases, _, err := client.Repositories.ListReleases(context.TODO(), owner, repo, &github.ListOptions{})
+	if err != nil {
+		return errors.New(fmt.Sprintf("Error attempting to get release from github, owner: %s, repo: %s. Error: %v", repo, owner, err.Error())), ""
+	}
+
+	if len(releases) > 0 {
+		return nil, *releases[0].Name
+	}
+	return errors.New(fmt.Sprintf("No release found on github, owner: %s, repo: %s", repo, owner)), ""
 }
