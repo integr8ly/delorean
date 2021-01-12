@@ -256,7 +256,7 @@ func getCurrentRHSSOVersion(opDir string, fileLocation string, lineRegEx *regexp
 	// value: registry.redhat.io/rh-sso-7/sso74-openshift-rhel8:7.4-8.1604567634
 	// function should return 7.4-8.1604567634
 
-	imageStr, _, err := GetRHSSOProductImageFromCSV(opDir, fileLocation)
+	imageStr, _, err := GetRHSSOProductImageFromCSV(fileLocation)
 	if err != nil {
 		fmt.Println(err)
 		return nil, err
@@ -270,14 +270,14 @@ func getCurrentRHSSOVersion(opDir string, fileLocation string, lineRegEx *regexp
 }
 
 func replaceRHSSOImage(opDir string, fileLocation string, lineRegEx *regexp.Regexp, newImage string) error {
-	currentImage, file, err := GetRHSSOProductImageFromCSV(opDir, fileLocation)
+	currentImage, file, err := GetRHSSOProductImageFromCSV(fileLocation)
 	if err != nil {
 		return err
 	}
 
 	fmt.Println("Found RHSSO image to replace: ", currentImage)
 	out := strings.Replace(string(file), currentImage, newImage, 1)
-	err = ioutil.WriteFile(opDir+fileLocation, []byte(out), 600)
+	err = ioutil.WriteFile(fileLocation, []byte(out), 600)
 	if err != nil {
 		return err
 	}
@@ -285,13 +285,12 @@ func replaceRHSSOImage(opDir string, fileLocation string, lineRegEx *regexp.Rege
 	return nil
 }
 
-func GetRHSSOProductImageFromCSV(opDir string, location string) (string, []byte, error) {
-	filePath := opDir + location
+func GetRHSSOProductImageFromCSV(location string) (string, []byte, error) {
 	var manifest types.RhssoManifest
 
-	raw, err := ioutil.ReadFile(filePath)
+	raw, err := ioutil.ReadFile(location)
 	if err != nil {
-		fmt.Println("Unable to locate manifest file.")
+		fmt.Printf("Unable to locate manifest file: %s\n", location)
 		os.Exit(1)
 	}
 
@@ -306,7 +305,7 @@ func GetRHSSOProductImageFromCSV(opDir string, location string) (string, []byte,
 			for _, envs := range manifest.Spec.Install.Spec.Deployments[index].Spec.Template.Spec.Containers[0].Env {
 				if envs.Name == "RELATED_IMAGE_RHSSO_OPENJDK" {
 					image := envs.Value
-					fileBytes, err := FileAsBytes(filePath)
+					fileBytes, err := FileAsBytes(location)
 					if err != nil {
 						return "", nil, err
 					}
