@@ -27,7 +27,7 @@ type ImageDetails struct {
 	MirrorRepo        string
 }
 
-var validImages = []string{envoyProxy, rateLimiting}
+var validImages = []string{envoyProxy, rateLimiting, rhsso}
 
 var ImageSubs = map[string]*ImageDetails{
 	envoyProxy: {
