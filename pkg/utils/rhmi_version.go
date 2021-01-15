@@ -6,7 +6,11 @@ import (
 	"strings"
 )
 
-const releaseBranchNameTemplate = "prepare-for-release-%s"
+const (
+	releaseBranchNameTemplate = "prepare-for-release-%s"
+	rhoamManifestNameTemplate = "rhoam-manifest-for-release-%s"
+	rhmiManifestNameTemplate  = "rhmi-manifest-for-release-%s"
+)
 
 // RHMIVersion rappresents an integreatly version composed by a base part (2.0.0, 2.0.1, ...)
 // and a build part (ER1, RC2, ..) if it's a prerelase version
@@ -148,6 +152,17 @@ func (v *RHMIVersion) PrepareReleaseBranchName() string {
 	return fmt.Sprintf(releaseBranchNameTemplate, v.TagName())
 }
 
+func (v *RHMIVersion) PrepareProdsecManifestBranchName() string {
+	switch v.olmType {
+	case types.OlmTypeRhmi:
+		return fmt.Sprintf(rhmiManifestNameTemplate, v.TagName())
+	case types.OlmTypeRhoam:
+		return fmt.Sprintf(rhoamManifestNameTemplate, v.TagName())
+	default:
+		return fmt.Sprintf(rhmiManifestNameTemplate, v.TagName())
+	}
+}
+
 func (v *RHMIVersion) IsPatchRelease() bool {
 	return v.patch != "0"
 }
@@ -164,4 +179,15 @@ func (v *RHMIVersion) ReleaseBranchImageTag() string {
 
 func (v *RHMIVersion) OlmType() string {
 	return v.olmType
+}
+
+func (v *RHMIVersion) NameByOlmType() string {
+	switch v.olmType {
+	case types.OlmTypeRhmi:
+		return "rhmi"
+	case types.OlmTypeRhoam:
+		return "rhoam"
+	default:
+		return "rhmi"
+	}
 }
