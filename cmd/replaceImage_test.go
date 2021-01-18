@@ -23,9 +23,9 @@ func TestReplaceImage(t *testing.T) {
 		{
 			name: "test replace image success",
 			flags: &replaceImageFlags{
-				opDir:     "",
-				imageType: "envoyProxy",
-				newImage:  "",
+				opDir:       "",
+				imageType:   "envoyProxy",
+				newImageTag: "",
 			},
 			wantErr:          false,
 			replaceImageMock: getReplaceImageMock(nil),
@@ -33,9 +33,9 @@ func TestReplaceImage(t *testing.T) {
 		{
 			name: "test replace image failure",
 			flags: &replaceImageFlags{
-				opDir:     "",
-				imageType: "envoyProxy",
-				newImage:  "",
+				opDir:       "",
+				imageType:   "envoyProxy",
+				newImageTag: "",
 			},
 			wantErr:          true,
 			replaceImageMock: getReplaceImageMock(errors.New("Error replacing image")),
@@ -43,9 +43,9 @@ func TestReplaceImage(t *testing.T) {
 		{
 			name: "test passing invalid image type",
 			flags: &replaceImageFlags{
-				opDir:     "",
-				imageType: "invalidType",
-				newImage:  "",
+				opDir:       "",
+				imageType:   "invalidType",
+				newImageTag: "",
 			},
 			wantErr:          true,
 			replaceImageMock: getReplaceImageMock(errors.New("Error replacing image")),

@@ -6,6 +6,7 @@ require (
 	github.com/aws/aws-sdk-go v1.32.5
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/bugsnag/bugsnag-go v1.5.3 // indirect
+	github.com/docker/docker v1.4.2-0.20200203170920-46ec8731fbce
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-git/go-git/v5 v5.0.0
 	github.com/google/go-cmp v0.4.0

@@ -137,9 +137,9 @@ func TestReplaceRateLimitingImage(t *testing.T) {
 
 func TestGetRHSSOProductImageFromCSV(t *testing.T) {
 	rhssoDlts.FileLocation = func(string) string {
-		return "/manifests/integreatly-rhsso/11.0.3/keycloak-operator.v11.0.3.clusterserviceversion.yaml"
+		return opDir + "/manifests/integreatly-rhsso/11.0.3/keycloak-operator.v11.0.3.clusterserviceversion.yaml"
 	}
-	image, _, _ := GetRHSSOProductImageFromCSV(opDir, rhssoDlts.FileLocation(opDir))
+	image, _, _ := GetRHSSOProductImageFromCSV(rhssoDlts.FileLocation(opDir))
 	if image != "registry.redhat.io/rh-sso-7/sso74-openshift-rhel8:7.4-8.1604567634" {
 		t.Fatal("Original RHSSO image string was not found")
 	}
@@ -148,7 +148,7 @@ func TestGetRHSSOProductImageFromCSV(t *testing.T) {
 func TestGetCurrentRHSSOVersion(t *testing.T) {
 
 	rhssoDlts.FileLocation = func(string) string {
-		return "/manifests/integreatly-rhsso/11.0.3/keycloak-operator.v11.0.3.clusterserviceversion.yaml"
+		return opDir + "/manifests/integreatly-rhsso/11.0.3/keycloak-operator.v11.0.3.clusterserviceversion.yaml"
 	}
 
 	currentVersion, err := rhssoDlts.GetCurrentVersion(opDir, rhssoDlts.FileLocation(opDir), rhssoDlts.LineRegEx)
@@ -160,7 +160,7 @@ func TestGetCurrentRHSSOVersion(t *testing.T) {
 
 	// Test2: Should throw error as image string invalid
 	rhssoDlts.FileLocation = func(string) string {
-		return "/manifests/integreatly-rhsso/11.0.3/keycloak-operator.v11.0.3.fake.clusterserviceversion.yaml"
+		return opDir + "/manifests/integreatly-rhsso/11.0.3/keycloak-operator.v11.0.3.fake.clusterserviceversion.yaml"
 	}
 	currentVersion, err = rhssoDlts.GetCurrentVersion(opDir, rhssoDlts.FileLocation(opDir), rhssoDlts.LineRegEx)
 	if err == nil {
@@ -178,7 +178,7 @@ func TestGetRHSSOFileLocation(t *testing.T) {
 
 func TestReplaceRHSSOImage(t *testing.T) {
 	rhssoDlts.FileLocation = func(string) string {
-		return "/manifests/integreatly-rhsso/11.0.3/keycloak-operator.v11.0.3.clusterserviceversion.yaml"
+		return opDir + "/manifests/integreatly-rhsso/11.0.3/keycloak-operator.v11.0.3.clusterserviceversion.yaml"
 	}
 	// Set new image
 	err := rhssoDlts.ReplaceImage(opDir, rhssoDlts.FileLocation(opDir), rhssoDlts.LineRegEx, "newImage:10.10.10")
@@ -186,7 +186,7 @@ func TestReplaceRHSSOImage(t *testing.T) {
 		t.Fatal("error during replace image. err: ", err)
 	}
 	// Confirm new Image
-	image, _, _ := GetRHSSOProductImageFromCSV(opDir, rhssoDlts.FileLocation(opDir))
+	image, _, _ := GetRHSSOProductImageFromCSV(rhssoDlts.FileLocation(opDir))
 	if image != "newImage:10.10.10" {
 		t.Fatal("New image was not replaced, Expected: newImage:10.10.10, Actual: ", image)
 	}
@@ -196,7 +196,7 @@ func TestReplaceRHSSOImage(t *testing.T) {
 		t.Fatal("error during replace image. err: ", err)
 	}
 	// Confirm original Image replaced
-	image, _, _ = GetRHSSOProductImageFromCSV(opDir, rhssoDlts.FileLocation(opDir))
+	image, _, _ = GetRHSSOProductImageFromCSV(rhssoDlts.FileLocation(opDir))
 	if image != "registry.redhat.io/rh-sso-7/sso74-openshift-rhel8:7.4-8.1604567634" {
 		t.Fatal("Original RHSSO image string was not found")
 	}

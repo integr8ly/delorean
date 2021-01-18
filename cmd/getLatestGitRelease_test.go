@@ -2,12 +2,13 @@ package cmd
 
 import (
 	"errors"
+	"github.com/google/go-github/v30/github"
 	"testing"
 )
 
 type MockGithubReleaseService struct{}
 
-func (s *MockGithubReleaseService) GetLatestRelease(owner string, repo string) (error, string) {
+func (s *MockGithubReleaseService) GetLatestRelease(owner string, repo string, client *github.Client) (error, string) {
 	if owner == "invalid" {
 		return errors.New("Invalid Repo"), ""
 	} else {
@@ -43,8 +44,8 @@ func TestGetLatestGitRelease(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
-			if err, v := getLatestGitRelease(tt.flags); ((err != nil) != tt.wantErr) || ((err == nil) && v == "") {
+			client := github.NewClient(nil)
+			if err, v := getLatestGitRelease(tt.flags, client); ((err != nil) != tt.wantErr) || ((err == nil) && v == "") {
 				t.Errorf("getLatestGitRelease() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
