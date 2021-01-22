@@ -8,8 +8,8 @@ import (
 
 const releaseBranchNameTemplate = "prepare-for-release-%s"
 
-// RHMIVersion rappresents an integreatly version composed by a base part (2.0.0, 2.0.1, ...)
-// and a build part (ER1, RC2, ..) if it's a prerelase version
+// RHMIVersion represents an integreatly version composed by a base part (2.0.0, 2.0.1, ...)
+// and a build part (ER1, RC2, ..) if it's a prerelease version
 type RHMIVersion struct {
 	base    string
 	build   string
@@ -20,6 +20,8 @@ type RHMIVersion struct {
 }
 
 // NewRHMIVersion parse the integreatly version as a string and returns a Version object
+// Deprecated
+// In the future we should use NewVersion and make this function internal when possible
 func NewRHMIVersion(version string) (*RHMIVersion, error) {
 
 	if version == "" {

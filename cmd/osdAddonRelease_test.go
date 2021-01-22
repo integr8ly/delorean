@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/integr8ly/delorean/pkg/types"
 	"io/ioutil"
 	"os"
 	"path"
@@ -131,17 +132,22 @@ func TestOSDAddonRelease(t *testing.T) {
 	}
 
 	cases := []struct {
-		version     string
-		channel     string
-		expectError bool
+		version                     string
+		olmType                     string
+		channel                     string
+		shouldHaveUseClusterStorage bool
+		expectError                 bool
 	}{
-		{version: "2.1.0-rc1", channel: "stage", expectError: false},
-		{version: "2.1.0-rc1", channel: "edge", expectError: true},
-		{version: "2.1.0-rc1", channel: "stable", expectError: true},
-		{version: "2.1.0-rc1", channel: "some", expectError: true},
-		{version: "2.1.0", channel: "stable", expectError: false},
-		{version: "2.1.0", channel: "edge", expectError: false},
-		{version: "2.1.0", channel: "stable", expectError: false},
+		{version: "2.1.0-rc1", olmType: "integreatly-operator", channel: "stage", shouldHaveUseClusterStorage: false, expectError: false},
+		{version: "2.1.0-rc1", olmType: "integreatly-operator", channel: "edge", shouldHaveUseClusterStorage: false, expectError: true},
+		{version: "2.1.0-rc1", olmType: "integreatly-operator", channel: "stable", shouldHaveUseClusterStorage: false, expectError: true},
+		{version: "2.1.0-rc1", olmType: "integreatly-operator", channel: "some", shouldHaveUseClusterStorage: false, expectError: true},
+		{version: "2.1.0", olmType: "integreatly-operator", channel: "stable", shouldHaveUseClusterStorage: false, expectError: false},
+		{version: "2.1.0", olmType: "integreatly-operator", channel: "edge", shouldHaveUseClusterStorage: false, expectError: false},
+		{version: "2.1.0", olmType: "integreatly-operator", channel: "stable", shouldHaveUseClusterStorage: false, expectError: false},
+		{version: "1.1.0-rc1", olmType: "managed-api-service", channel: "stage", shouldHaveUseClusterStorage: true, expectError: false},
+		{version: "1.1.0-rc1", olmType: "managed-api-service", channel: "some", shouldHaveUseClusterStorage: true, expectError: true},
+		{version: "1.1.0", olmType: "managed-api-service", channel: "stable", shouldHaveUseClusterStorage: true, expectError: false},
 	}
 
 	for _, c := range cases {
@@ -152,10 +158,10 @@ func TestOSDAddonRelease(t *testing.T) {
 
 			var managedTenantsPatch *object.Patch
 
-			flags := &osdAddonReleaseFlags{version: c.version, channel: string(c.channel)}
+			flags := &osdAddonReleaseFlags{version: c.version, channel: c.channel, addonName: c.olmType}
 
 			// Prepare the version
-			version, err := utils.NewRHMIVersion(flags.version)
+			version, err := utils.NewVersion(flags.version, c.olmType)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -197,11 +203,18 @@ func TestOSDAddonRelease(t *testing.T) {
 			}
 
 			addonsConfig := &addons{}
-			if err := utils.PopulateObjectFromYAML("../configurations/managed-tenants-addons-config.yaml", addonsConfig); err != nil {
+			var configFile string
+			switch c.olmType {
+			case types.OlmTypeRhmi:
+				configFile = "managed-tenants-addons-config.yaml"
+			case types.OlmTypeRhoam:
+				configFile = "managed-tenants-addons-config-rhoam.yaml"
+			}
+			if err := utils.PopulateObjectFromYAML(fmt.Sprintf("../configurations/%s", configFile), addonsConfig); err != nil {
 				t.Fatalf("failed to load addon config file")
 			}
 
-			currentAddon := findAddon(addonsConfig, "integreatly-operator")
+			currentAddon := findAddon(addonsConfig, c.olmType)
 			currentChannel := findChannel(currentAddon, c.channel)
 
 			// Create the osdAddonReleaseCmd object
@@ -257,15 +270,22 @@ func TestOSDAddonRelease(t *testing.T) {
 				t.Fatalf("the managed-tenants repo is not clean: %s", s)
 			}
 
-			// Verify the commited changes
+			// Verify the committed changes
 			patches := managedTenantsPatch.FilePatches()
 
-			if found := len(patches); found != 3 {
-				t.Fatalf("expected 3 but found %d changed/added files", found)
+			switch c.olmType {
+			case types.OlmTypeRhmi:
+				if found := len(patches); found != 3 {
+					t.Fatalf("expected 3 but found %d changed/added files", found)
+				}
+			case types.OlmTypeRhoam:
+				if found := len(patches); found != 2 {
+					t.Fatalf("expected 2 but found %d changed/added files", found)
+				}
 			}
 
 			addonFile := currentChannel.addonFile()
-			clusterServiceVersion := fmt.Sprintf("%s/%s/integreatly-operator.v%s.clusterserviceversion.yaml.j2", currentChannel.bundlesDirectory(), version.Base(), version.Base())
+			clusterServiceVersion := fmt.Sprintf("%s/%s/%s.v%s.clusterserviceversion.yaml.j2", currentChannel.bundlesDirectory(), version.Base(), c.olmType, version.Base())
 			customResourceDefinition := fmt.Sprintf("%s/%s/integreatly.org_rhmis_crd.yaml", currentChannel.bundlesDirectory(), version.Base())
 
 			for _, p := range patches {
@@ -316,15 +336,15 @@ func TestOSDAddonRelease(t *testing.T) {
 						if env.Name == envVarNameUseClusterStorage && env.Value == "" {
 							storageEnvVarChecked = true
 						}
-						if env.Name == envVarNameAlerEmailAddress && env.Value == envVarNameAlerEmailAddressValue {
+						if env.Name == envVarNameAlertEmailAddress && env.Value == envVarNameAlertEmailAddressValue {
 							alertEnvVarChecked = true
 						}
 					}
-					if !storageEnvVarChecked {
+					if !storageEnvVarChecked && !c.shouldHaveUseClusterStorage {
 						t.Fatalf("%s env var should be empty in csv file:\n%s", envVarNameUseClusterStorage, content)
 					}
 					if !alertEnvVarChecked {
-						t.Fatalf("%s env var should be set to %s in csv file:\n%s", envVarNameAlerEmailAddress, "integreatly-notifications@redhat.com", content)
+						t.Fatalf("%s env var should be set to %s in csv file:\n%s", envVarNameAlertEmailAddress, "integreatly-notifications@redhat.com", content)
 					}
 					_, installMode := utils.FindInstallMode(csv.Spec.InstallModes, olmapiv1alpha1.InstallModeTypeSingleNamespace)
 					if !installMode.Supported {

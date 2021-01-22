@@ -37,7 +37,7 @@ images:
           - registry.svc.ci.openshift.org/openshift/release:golang-1.13
     to: integreatly-operator-test-harness
 promotion:
-  name: integreatly-operator
+  name: "1.1"
   namespace: integr8ly
 resources:
   '*':
@@ -49,7 +49,7 @@ resources:
       cpu: 200m
       memory: 2Gi
 tag_specification:
-  name: "4.6"
+  name: "4.4"
   namespace: ocp
 tests:
   - artifact_dir: /tmp/artifacts
@@ -72,21 +72,6 @@ tests:
     commands: make test-cases/lint
     container:
       from: src
-  - artifact_dir: /tmp/artifacts
-    as: e2e
-    steps:
-      cluster_profile: aws
-      env:
-        COMPUTE_NODE_TYPE: m4.xlarge
-      test:
-        - as: test
-          cli: latest
-          commands: make test/e2e/prow
-          from: src
-          resources:
-            requests:
-              cpu: 100m
-      workflow: ipi-aws
   - artifact_dir: /tmp/artifacts
     as: rhoam-e2e
     steps:
@@ -113,6 +98,6 @@ tests:
     container:
       from: src
 zz_generated_metadata:
-  branch: master
+  branch: rhoam-release-v1.1
   org: integr8ly
   repo: integreatly-operator

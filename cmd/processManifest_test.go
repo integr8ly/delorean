@@ -73,7 +73,7 @@ func TestDoProcessManifest(t *testing.T) {
 				tt.args.manifestDir = tstDir
 			}
 
-			if err := DoProcessManifest(tt.args.ctx, tt.args.manifestDir); (err != nil) != tt.wantErr {
+			if err := DoProcessManifest(tt.args.manifestDir); (err != nil) != tt.wantErr {
 				t.Errorf("DoProcessManifest() error = %v, wantErr %v", err, tt.wantErr)
 			}
 

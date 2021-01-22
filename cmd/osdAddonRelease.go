@@ -36,14 +36,14 @@ const (
 	managedTenantsMasterBranch = "master"
 
 	// Info for the commit and merge request
-	branchNameTemplate              = "%s-%s-v%s"
-	commitMessageTemplate           = "update %s %s to %s"
-	commitAuthorName                = "Delorean"
-	commitAuthorEmail               = "cloud-services-delorean@redhat.com"
-	mergeRequestTitleTemplate       = "Update %s %s to %s" // channel, version
-	envVarNameUseClusterStorage     = "USE_CLUSTER_STORAGE"
-	envVarNameAlerEmailAddress      = "ALERTING_EMAIL_ADDRESS"
-	envVarNameAlerEmailAddressValue = "{{ alertingEmailAddress }}"
+	branchNameTemplate               = "%s-%s-v%s"
+	commitMessageTemplate            = "update %s %s to %s"
+	commitAuthorName                 = "Delorean"
+	commitAuthorEmail                = "cloud-services-delorean@redhat.com"
+	mergeRequestTitleTemplate        = "Update %s %s to %s" // channel, version
+	envVarNameUseClusterStorage      = "USE_CLUSTER_STORAGE"
+	envVarNameAlertEmailAddress      = "ALERTING_EMAIL_ADDRESS"
+	envVarNameAlertEmailAddressValue = "{{ alertingEmailAddress }}"
 )
 
 type releaseChannel struct {
@@ -155,7 +155,7 @@ func init() {
 			}
 
 			// Prepare
-			c, err := newOSDAddonReleseCmd(f, gitlabToken)
+			c, err := newOSDAddonReleaseCmd(f, gitlabToken)
 			if err != nil {
 				handleError(err)
 			}
@@ -235,7 +235,7 @@ func findChannel(addon *addonConfig, channelName string) *releaseChannel {
 	return currentChannel
 }
 
-func newOSDAddonReleseCmd(flags *osdAddonReleaseFlags, gitlabToken string) (*osdAddonReleaseCmd, error) {
+func newOSDAddonReleaseCmd(flags *osdAddonReleaseFlags, gitlabToken string) (*osdAddonReleaseCmd, error) {
 	version, err := utils.NewVersion(flags.version, olmType)
 	if err != nil {
 		return nil, err
@@ -269,8 +269,8 @@ func newOSDAddonReleseCmd(flags *osdAddonReleaseFlags, gitlabToken string) (*osd
 
 	gitCloneService := &services.DefaultGitCloneService{}
 	// Clone the managed tenants
-	// TODO: Move the clone functions inise the run() method to improve the test covered code
-	managedTenatsDir, managedTenantsRepo, err := gitCloneService.CloneToTmpDir(
+	// TODO: Move the clone functions inside the run() method to improve the test covered code
+	managedTenantsDir, managedTenantsRepo, err := gitCloneService.CloneToTmpDir(
 		"managed-tenants-",
 		fmt.Sprintf("%s/%s", gitlabURL, flags.managedTenantsOrigin),
 		plumbing.NewBranchReferenceName(managedTenantsMasterBranch),
@@ -278,7 +278,7 @@ func newOSDAddonReleseCmd(flags *osdAddonReleaseFlags, gitlabToken string) (*osd
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("managed-tenants repo cloned to %s\n", managedTenatsDir)
+	fmt.Printf("managed-tenants repo cloned to %s\n", managedTenantsDir)
 
 	// Add the fork remote to the managed-tenats repo
 	_, err = managedTenantsRepo.CreateRemote(&config.RemoteConfig{
@@ -307,7 +307,7 @@ func newOSDAddonReleseCmd(flags *osdAddonReleaseFlags, gitlabToken string) (*osd
 		version:             version,
 		gitlabMergeRequests: gitlabClient.MergeRequests,
 		gitlabProjects:      gitlabClient.Projects,
-		managedTenantsDir:   managedTenatsDir,
+		managedTenantsDir:   managedTenantsDir,
 		managedTenantsRepo:  managedTenantsRepo,
 		gitPushService:      &services.DefaultGitPushService{},
 		currentChannel:      currentChannel,
@@ -377,7 +377,7 @@ func (c *osdAddonReleaseCmd) run() error {
 	}
 
 	//Update the integreatly-operator.vx.x.x.clusterserviceversion.yaml
-	_, err = c.udpateTheCSVManifest()
+	_, err = c.updateTheCSVManifest()
 	if err != nil {
 		return err
 	}
@@ -498,7 +498,7 @@ func (c *osdAddonReleaseCmd) updateTheAddonFile() (string, error) {
 	return relative, nil
 }
 
-func (c *osdAddonReleaseCmd) udpateTheCSVManifest() (string, error) {
+func (c *osdAddonReleaseCmd) updateTheCSVManifest() (string, error) {
 	relative := fmt.Sprintf("%s/%s/%s.v%s.clusterserviceversion.yaml", c.currentChannel.bundlesDirectory(), c.version.Base(), c.addonConfig.Name, c.version.Base())
 	csvFile := path.Join(c.managedTenantsDir, relative)
 
