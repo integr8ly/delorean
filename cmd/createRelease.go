@@ -3,6 +3,12 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
+	"os/exec"
+	"path"
+	"strings"
+	"time"
+
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
@@ -11,11 +17,6 @@ import (
 	"github.com/integr8ly/delorean/pkg/services"
 	"github.com/integr8ly/delorean/pkg/utils"
 	"github.com/spf13/cobra"
-	"os"
-	"os/exec"
-	"path"
-	"strings"
-	"time"
 )
 
 type createReleaseCmdFlags struct {
@@ -146,8 +147,10 @@ func (c *createReleaseCmd) runReleaseScript(repoDir string) error {
 		return err
 	}
 	envs := []string{fmt.Sprintf("SEMVER=%s", c.version.String()), fmt.Sprintf("OLM_TYPE=%s", c.version.OlmType())}
-	if !c.serviceAffecting {
-		envs = append(envs, "NON_SERVICE_AFFECTING=true")
+	if c.serviceAffecting {
+		envs = append(envs, "SERVICE_AFFECTING=true")
+	} else {
+		envs = append(envs, "SERVICE_AFFECTING=false")
 	}
 	releaseScript := &exec.Cmd{Dir: repoDir, Env: envs, Path: c.releaseScript, Stdout: os.Stdout, Stderr: os.Stderr}
 	return releaseScript.Run()
