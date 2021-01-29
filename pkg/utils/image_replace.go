@@ -1,14 +1,12 @@
 package utils
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"github.com/blang/semver"
-	doctypes "github.com/docker/docker/api/types"
-	"github.com/docker/docker/client"
 	"github.com/integr8ly/delorean/pkg/types"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path"
 	"regexp"
@@ -61,19 +59,29 @@ var ImageSubs = map[string]*ImageDetails{
 }
 
 func GetRateLimitingOriginImage(repo string, imageTag string) (string, error) {
-	ctx := context.Background()
-	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+
+	// Verify that the image exists in image repo
+
+	httpClient := &http.Client{}
+	url := "https://index.docker.io/v1/repositories/envoyproxy/ratelimit/tags/" + imageTag
+
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		fmt.Println("Error getting docker client: ", err)
+		fmt.Println("Error getting request: ", err)
 		return "", err
 	}
-	image := repo + ":" + imageTag
-	_, err = cli.ImagePull(ctx, image, doctypes.ImagePullOptions{})
+
+	resp, err := httpClient.Do(req)
 	if err != nil {
-		fmt.Println("Error pulling image: ", err)
+		fmt.Println("Error making http call: ", err)
 		return "", err
 	}
-	return image, nil
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", errors.New(fmt.Sprintf("Image tag does not exist: %s http Status %s", url, resp.Status))
+	}
+
+	return repo + ":" + imageTag, nil
 }
 
 func GetNewVersion(newImage string) (*semver.Version, error) {
