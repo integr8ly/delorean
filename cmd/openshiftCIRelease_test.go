@@ -148,13 +148,17 @@ func Test_updateCIOperatorConfig(t *testing.T) {
 			args: args{
 				repoDir: "./testdata",
 				olmType: types.OlmTypeRhmi,
+				version: "1.2.3",
 			},
 			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			version, _ := utils.NewVersion(tt.args.version, tt.args.olmType)
+			version, err := utils.NewVersion(tt.args.version, tt.args.olmType)
+			if err != nil {
+				t.Errorf("updateCIOperatorConfig() utls.NewVersion error = %v", err)
+			}
 			c := &openshiftCIReleaseCmd{
 				version:       version,
 				intlyRepoInfo: &githubRepoInfo{owner: "test", repo: "test"},
@@ -261,7 +265,7 @@ func Test_updateImageMirroringConfig(t *testing.T) {
 			args: args{
 				repoDir: "./testdata",
 				olmType: types.OlmTypeRhmi,
-				version: "1.2.3",
+				version: "2.2.2",
 			},
 			wantErr: true,
 		},
@@ -269,6 +273,9 @@ func Test_updateImageMirroringConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			version, _ := utils.NewVersion(tt.args.version, tt.args.olmType)
+			if err != nil {
+				t.Errorf("updateImageMirroringConfig() utls.NewVersion error = %v", err)
+			}
 
 			if err := updateImageMirroringConfig(tt.args.repoDir, version); (err != nil) != tt.wantErr {
 				t.Errorf("updateImageMirroringConfig() error = %v, wantErr %v", err, tt.wantErr)

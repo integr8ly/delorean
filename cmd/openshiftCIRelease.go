@@ -257,14 +257,14 @@ func (c *openshiftCIReleaseCmd) updateCIOperatorConfig(repoDir string) error {
 	// all config files can be found here -> https://github.com/openshift/release/tree/master/ci-operator/config/integr8ly/integreatly-operator
 	switch olmType {
 	case types.OlmTypeRhmi:
-		configFile = "ci-operator/config/integr8ly/integreatly-operator/integr8ly-integreatly-operator-release-v2.0.yaml"
+		configFile = ProwConfigSourceRHMI
 	case types.OlmTypeRhoam:
-		configFile = "ci-operator/config/integr8ly/integreatly-operator/integr8ly-integreatly-operator-rhoam-release-v1.1.yaml"
+		configFile = ProwConfigSourceRHOAM
 	default:
-		configFile = "ci-operator/config/integr8ly/integreatly-operator/integr8ly-integreatly-operator-master.yaml"
+		configFile = ProwConfigSourceMaster
 	}
 	masterConfig := path.Join(repoDir, configFile)
-	releaseConfig := path.Join(repoDir, fmt.Sprintf("ci-operator/config/integr8ly/integreatly-operator/integr8ly-integreatly-operator-%s.yaml", c.baseBranch))
+	releaseConfig := path.Join(repoDir, fmt.Sprintf("ci-operator/config/integr8ly/integreatly-operator/integr8ly-integreatly-operator-%s.yaml", c.version.ReleaseBranchName()))
 
 	y, err := utils.LoadUnstructYaml(masterConfig)
 	if err != nil {
@@ -310,7 +310,7 @@ func (c *openshiftCIReleaseCmd) updateCIOperatorConfig(repoDir string) error {
 func updateImageMirroringConfig(repoDir string, version *utils.RHMIVersion) error {
 	mappingFile := path.Join(repoDir, fmt.Sprintf("core-services/image-mirroring/integr8ly/mapping_integr8ly_operator_%s", strings.ReplaceAll(version.MajorMinor(), ".", "_")))
 
-	internalReg := "registry.ci.openshift.org/integr8ly"
+	internalReg := ProwInternalRegistry
 	publicReg := "quay.io/integreatly"
 
 	type imageTemplate struct {

@@ -23,7 +23,6 @@ type RHMIVersion struct {
 // Deprecated
 // In the future we should use NewVersion and make this function internal when possible
 func NewRHMIVersion(version string) (*RHMIVersion, error) {
-
 	if version == "" {
 		return nil, fmt.Errorf("the version can not be empty")
 	}

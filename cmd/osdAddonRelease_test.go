@@ -138,16 +138,16 @@ func TestOSDAddonRelease(t *testing.T) {
 		shouldHaveUseClusterStorage bool
 		expectError                 bool
 	}{
-		{version: "2.1.0-rc1", olmType: "integreatly-operator", channel: "stage", shouldHaveUseClusterStorage: false, expectError: false},
-		{version: "2.1.0-rc1", olmType: "integreatly-operator", channel: "edge", shouldHaveUseClusterStorage: false, expectError: true},
-		{version: "2.1.0-rc1", olmType: "integreatly-operator", channel: "stable", shouldHaveUseClusterStorage: false, expectError: true},
-		{version: "2.1.0-rc1", olmType: "integreatly-operator", channel: "some", shouldHaveUseClusterStorage: false, expectError: true},
-		{version: "2.1.0", olmType: "integreatly-operator", channel: "stable", shouldHaveUseClusterStorage: false, expectError: false},
-		{version: "2.1.0", olmType: "integreatly-operator", channel: "edge", shouldHaveUseClusterStorage: false, expectError: false},
-		{version: "2.1.0", olmType: "integreatly-operator", channel: "stable", shouldHaveUseClusterStorage: false, expectError: false},
-		{version: "1.1.0-rc1", olmType: "managed-api-service", channel: "stage", shouldHaveUseClusterStorage: true, expectError: false},
-		{version: "1.1.0-rc1", olmType: "managed-api-service", channel: "some", shouldHaveUseClusterStorage: true, expectError: true},
-		{version: "1.1.0", olmType: "managed-api-service", channel: "stable", shouldHaveUseClusterStorage: true, expectError: false},
+		{version: "2.1.0-rc1", olmType: "integreatly-operator", channel: "stage", expectError: false},
+		{version: "2.1.0-rc1", olmType: "integreatly-operator", channel: "edge", expectError: true},
+		{version: "2.1.0-rc1", olmType: "integreatly-operator", channel: "stable", expectError: true},
+		{version: "2.1.0-rc1", olmType: "integreatly-operator", channel: "some", expectError: true},
+		{version: "2.1.0", olmType: "integreatly-operator", channel: "stable", expectError: false},
+		{version: "2.1.0", olmType: "integreatly-operator", channel: "edge", expectError: false},
+		{version: "2.1.0", olmType: "integreatly-operator", channel: "stable", expectError: false},
+		{version: "1.1.0-rc1", olmType: "managed-api-service", channel: "stage", expectError: false},
+		{version: "1.1.0-rc1", olmType: "managed-api-service", channel: "some", expectError: true},
+		{version: "1.1.0", olmType: "managed-api-service", channel: "stable", expectError: false},
 	}
 
 	for _, c := range cases {
@@ -331,16 +331,16 @@ func TestOSDAddonRelease(t *testing.T) {
 					if container == nil {
 						t.Fatalf("can not find rhmi-operator container spec in csv file:\n%s", content)
 					}
-					storageEnvVarChecked, alertEnvVarChecked := false, false
+					storageEnvVarValueEmpty, alertEnvVarChecked := false, false
 					for _, env := range container.Env {
 						if env.Name == envVarNameUseClusterStorage && env.Value == "" {
-							storageEnvVarChecked = true
+							storageEnvVarValueEmpty = true
 						}
 						if env.Name == envVarNameAlertEmailAddress && env.Value == envVarNameAlertEmailAddressValue {
 							alertEnvVarChecked = true
 						}
 					}
-					if !storageEnvVarChecked && !c.shouldHaveUseClusterStorage {
+					if !storageEnvVarValueEmpty && c.olmType == types.OlmTypeRhmi {
 						t.Fatalf("%s env var should be empty in csv file:\n%s", envVarNameUseClusterStorage, content)
 					}
 					if !alertEnvVarChecked {
