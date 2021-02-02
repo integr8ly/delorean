@@ -3,7 +3,6 @@ package cmd
 import (
 	"bufio"
 	"fmt"
-	"github.com/integr8ly/delorean/pkg/types"
 	"github.com/integr8ly/delorean/pkg/utils"
 	"github.com/spf13/cobra"
 	"os"
@@ -48,22 +47,7 @@ func (c *openshiftCIAddBranchCmd) DoOpenShiftReleaseAddBranch() error {
 }
 
 func (c *openshiftCIAddBranchCmd) updateCIOperatorConfig() error {
-	var configFile string
-	// olmType controls the prow config which is copied
-	// in the case of RHOAM we don't need to run e2e tests for release branch as it will only be used for a rhoam patch
-	// release and for RHMI we don't need to run rhoam-e2e tests
-	// using the earliest version of each RHOAM and RHMI release (1.1 and 2.0 respectively)
-	// if neither RHOAM or RHMI types are found use the master config as a default
-	// all config files can be found here -> https://github.com/openshift/release/tree/master/ci-operator/config/integr8ly/integreatly-operator
-	switch olmType {
-	case types.OlmTypeRhmi:
-		configFile = ProwConfigSourceRHMI
-	case types.OlmTypeRhoam:
-		configFile = ProwConfigSourceRHOAM
-	default:
-		configFile = ProwConfigSourceMaster
-	}
-	masterConfig := path.Join(c.repoDir, configFile)
+	masterConfig := path.Join(c.repoDir, ProwConfigSourceMaster)
 	releaseConfig := path.Join(c.repoDir, fmt.Sprintf("ci-operator/config/integr8ly/integreatly-operator/integr8ly-integreatly-operator-%s.yaml", c.branch))
 
 	y, err := utils.LoadUnstructYaml(masterConfig)
@@ -172,8 +156,6 @@ func init() {
 	cmd.MarkFlagRequired("branch")
 	cmd.Flags().StringVar(&f.repoDir, "repo-dir", "", "Repo Dir")
 	cmd.MarkFlagRequired("repo-dir")
-	cmd.Flags().StringVar(&f.olmType, "olmType", "", "OLM type for the release. Valid inputs are \"integreatly-operator\" or \"managed-api-service\"")
-	cmd.MarkFlagRequired("olmType")
 }
 
 func newOpenshiftCIAddBranchCmd(f *openshiftCIAddBranchCmdFlags) (*openshiftCIAddBranchCmd, error) {
