@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"github.com/integr8ly/delorean/pkg/types"
 	"io/ioutil"
 	"os"
 	"path"
@@ -69,7 +70,6 @@ func verifyRepo(repoDir, expectedBranch string) (*git.Repository, error) {
 
 func Test_updateCIOperatorConfig(t *testing.T) {
 
-	version, _ := utils.NewRHMIVersion("2.0.0-rc1")
 	validReleaseDir := "./testdata/release"
 	validReleaseDirTmp, err := ioutil.TempDir(os.TempDir(), "test-")
 	if err != nil {
@@ -84,7 +84,8 @@ func Test_updateCIOperatorConfig(t *testing.T) {
 
 	type args struct {
 		repoDir string
-		version *utils.RHMIVersion
+		version string
+		olmType string
 	}
 	tests := []struct {
 		name    string
@@ -93,10 +94,11 @@ func Test_updateCIOperatorConfig(t *testing.T) {
 		verify  func(releaseDir string) error
 	}{
 		{
-			name: "valid directory",
+			name: "valid directory for integreatly-operator olmtype",
 			args: args{
 				repoDir: validReleaseDirTmp,
-				version: version,
+				olmType: types.OlmTypeRhmi,
+				version: "2.0.0-rc1",
 			},
 			verify: func(repoDir string) error {
 				content, err := ioutil.ReadFile(path.Join(repoDir, "ci-operator/config/integr8ly/integreatly-operator/integr8ly-integreatly-operator-release-v2.0.yaml"))
@@ -117,17 +119,61 @@ func Test_updateCIOperatorConfig(t *testing.T) {
 			},
 		},
 		{
+			name: "valid directory for managed-api-service olmtype",
+			args: args{
+				repoDir: validReleaseDirTmp,
+				olmType: types.OlmTypeRhoam,
+				version: "1.1.0-rc1",
+			},
+			verify: func(repoDir string) error {
+				content, err := ioutil.ReadFile(path.Join(repoDir, "ci-operator/config/integr8ly/integreatly-operator/integr8ly-integreatly-operator-rhoam-release-v1.1.yaml"))
+				if err != nil {
+					return err
+				}
+				promotionStr := "promotion:\n  name: \"1.1\""
+				if strings.Index(string(content), promotionStr) < 0 {
+					return fmt.Errorf("missing content: %s", promotionStr)
+				}
+
+				branchStr := "zz_generated_metadata:\n  branch: rhoam-release-v1.1"
+				if strings.Index(string(content), branchStr) < 0 {
+					return fmt.Errorf("missing content: %s", branchStr)
+				}
+
+				return nil
+			},
+		},
+		{
 			name: "invalid directory",
 			args: args{
 				repoDir: "./testdata",
-				version: version,
+				olmType: types.OlmTypeRhmi,
+				version: "1.2.3",
 			},
 			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := updateCIOperatorConfig(tt.args.repoDir, tt.args.version); (err != nil) != tt.wantErr {
+			version, err := utils.NewVersion(tt.args.version, tt.args.olmType)
+			if err != nil {
+				t.Errorf("updateCIOperatorConfig() utls.NewVersion error = %v", err)
+			}
+			c := &openshiftCIReleaseCmd{
+				version:       version,
+				intlyRepoInfo: &githubRepoInfo{owner: "test", repo: "test"},
+				gitCloneService: &mockGitCloneService{cloneToTmpDirFunc: func(prefix string, url string, reference plumbing.ReferenceName) (s string, repository *git.Repository, err error) {
+					currentDir, err := os.Getwd()
+					if err != nil {
+						return "", nil, err
+					}
+					return initRepoFromTestDir("test-openshift-ci-release-", path.Join(currentDir, "testdata/createReleaseTest"))
+				}},
+				gitPushService: &mockGitPushService{pushFunc: func(gitRepo *git.Repository, opts *git.PushOptions) error {
+					return nil
+				}},
+			}
+			if err := c.updateCIOperatorConfig(tt.args.repoDir); (err != nil) != tt.wantErr {
 				t.Errorf("updateCIOperatorConfig() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if tt.verify != nil {
@@ -141,7 +187,6 @@ func Test_updateCIOperatorConfig(t *testing.T) {
 
 func Test_updateImageMirroringConfig(t *testing.T) {
 
-	version, _ := utils.NewRHMIVersion("2.0.0-rc1")
 	validReleaseDir := "./testdata/release"
 	validReleaseDirTmp, err := ioutil.TempDir(os.TempDir(), "test-")
 	if err != nil {
@@ -156,7 +201,8 @@ func Test_updateImageMirroringConfig(t *testing.T) {
 
 	type args struct {
 		repoDir string
-		version *utils.RHMIVersion
+		olmType string
+		version string
 	}
 	tests := []struct {
 		name    string
@@ -165,10 +211,11 @@ func Test_updateImageMirroringConfig(t *testing.T) {
 		verify  func(releaseDir string) error
 	}{
 		{
-			name: "valid directory",
+			name: "valid directory and mappings for integreatly-operator",
 			args: args{
 				repoDir: validReleaseDirTmp,
-				version: version,
+				olmType: types.OlmTypeRhmi,
+				version: "2.0.0",
 			},
 			verify: func(repoDir string) error {
 				content, err := ioutil.ReadFile(path.Join(repoDir, "core-services/image-mirroring/integr8ly/mapping_integr8ly_operator_2_0"))
@@ -177,10 +224,35 @@ func Test_updateImageMirroringConfig(t *testing.T) {
 				}
 
 				expectedMappings := "" +
-					"registry.svc.ci.openshift.org/integr8ly/2.0:integreatly-operator " +
+					"registry.ci.openshift.org/integr8ly/2.0:integreatly-operator " +
 					"quay.io/integreatly/integreatly-operator:2.0\n" +
-					"registry.svc.ci.openshift.org/integr8ly/2.0:integreatly-operator-test-harness " +
+					"registry.ci.openshift.org/integr8ly/2.0:integreatly-operator-test-harness " +
 					"quay.io/integreatly/integreatly-operator-test-harness:2.0"
+				if strings.Index(string(content), expectedMappings) < 0 {
+					return fmt.Errorf("expected: %s, got: %s", expectedMappings, string(content))
+				}
+
+				return nil
+			},
+		},
+		{
+			name: "valid directory and mappings for managed-api",
+			args: args{
+				repoDir: validReleaseDirTmp,
+				olmType: types.OlmTypeRhoam,
+				version: "1.1.0",
+			},
+			verify: func(repoDir string) error {
+				content, err := ioutil.ReadFile(path.Join(repoDir, "core-services/image-mirroring/integr8ly/mapping_integr8ly_operator_1_1"))
+				if err != nil {
+					return err
+				}
+
+				expectedMappings := "" +
+					"registry.ci.openshift.org/integr8ly/1.1:integreatly-operator " +
+					"quay.io/integreatly/managed-api-service:1.1\n" +
+					"registry.ci.openshift.org/integr8ly/1.1:integreatly-operator-test-harness " +
+					"quay.io/integreatly/integreatly-operator-test-harness:1.1"
 				if strings.Index(string(content), expectedMappings) < 0 {
 					return fmt.Errorf("expected: %s, got: %s", expectedMappings, string(content))
 				}
@@ -192,14 +264,20 @@ func Test_updateImageMirroringConfig(t *testing.T) {
 			name: "invalid directory",
 			args: args{
 				repoDir: "./testdata",
-				version: version,
+				olmType: types.OlmTypeRhmi,
+				version: "2.2.2",
 			},
 			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := updateImageMirroringConfig(tt.args.repoDir, tt.args.version); (err != nil) != tt.wantErr {
+			version, _ := utils.NewVersion(tt.args.version, tt.args.olmType)
+			if err != nil {
+				t.Errorf("updateImageMirroringConfig() utls.NewVersion error = %v", err)
+			}
+
+			if err := updateImageMirroringConfig(tt.args.repoDir, version); (err != nil) != tt.wantErr {
 				t.Errorf("updateImageMirroringConfig() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if tt.verify != nil {
@@ -304,13 +382,10 @@ func Test_openshiftCIReleaseCmd_createPRIfNotExists(t *testing.T) {
 
 func Test_openshiftCIReleaseCmd_DoIntlyOperatorUpdate(t *testing.T) {
 
-	type args struct {
-		ctx context.Context
-	}
 	tests := []struct {
 		name       string
 		version    string
-		args       args
+		olmType    string
 		wantBranch string
 		wantErr    bool
 		verify     func(repoDir, expectedBranch string) (*git.Repository, error)
@@ -318,6 +393,7 @@ func Test_openshiftCIReleaseCmd_DoIntlyOperatorUpdate(t *testing.T) {
 		{
 			name:       "test success 2.0.0-rc1",
 			version:    "2.0.0-rc1",
+			olmType:    types.OlmTypeRhmi,
 			wantBranch: "release-v2.0",
 			verify: func(repoDir, expectedBranch string) (*git.Repository, error) {
 				return verifyRepo(repoDir, expectedBranch)
@@ -326,6 +402,7 @@ func Test_openshiftCIReleaseCmd_DoIntlyOperatorUpdate(t *testing.T) {
 		{
 			name:       "test success 2.0.0",
 			version:    "2.0.0",
+			olmType:    types.OlmTypeRhmi,
 			wantBranch: "release-v2.0",
 			verify: func(repoDir, expectedBranch string) (*git.Repository, error) {
 				return verifyRepo(repoDir, expectedBranch)
@@ -334,6 +411,7 @@ func Test_openshiftCIReleaseCmd_DoIntlyOperatorUpdate(t *testing.T) {
 		{
 			name:       "test success 2.0.1-rc1",
 			version:    "2.0.1-rc1",
+			olmType:    types.OlmTypeRhmi,
 			wantBranch: "release-v2.0",
 			verify: func(repoDir, expectedBranch string) (*git.Repository, error) {
 				return verifyRepo(repoDir, expectedBranch)
@@ -342,7 +420,35 @@ func Test_openshiftCIReleaseCmd_DoIntlyOperatorUpdate(t *testing.T) {
 		{
 			name:       "test success 2.1.0-er1",
 			version:    "2.1.0-er1",
+			olmType:    types.OlmTypeRhmi,
 			wantBranch: "release-v2.1",
+			verify: func(repoDir, expectedBranch string) (*git.Repository, error) {
+				return verifyRepo(repoDir, expectedBranch)
+			},
+		},
+		{
+			name:       "test success 1.1.0-rc1",
+			version:    "1.1.0",
+			olmType:    types.OlmTypeRhoam,
+			wantBranch: "rhoam-release-v1.1",
+			verify: func(repoDir, expectedBranch string) (*git.Repository, error) {
+				return verifyRepo(repoDir, expectedBranch)
+			},
+		},
+		{
+			name:       "test success 1.1.0-er1",
+			version:    "1.1.0",
+			olmType:    types.OlmTypeRhoam,
+			wantBranch: "rhoam-release-v1.1",
+			verify: func(repoDir, expectedBranch string) (*git.Repository, error) {
+				return verifyRepo(repoDir, expectedBranch)
+			},
+		},
+		{
+			name:       "test success 1.1.0",
+			version:    "1.1.0",
+			olmType:    types.OlmTypeRhoam,
+			wantBranch: "rhoam-release-v1.1",
 			verify: func(repoDir, expectedBranch string) (*git.Repository, error) {
 				return verifyRepo(repoDir, expectedBranch)
 			},
@@ -350,7 +456,7 @@ func Test_openshiftCIReleaseCmd_DoIntlyOperatorUpdate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			version, _ := utils.NewRHMIVersion(tt.version)
+			version, _ := utils.NewVersion(tt.version, tt.olmType)
 			c := &openshiftCIReleaseCmd{
 				version:       version,
 				intlyRepoInfo: &githubRepoInfo{owner: "test", repo: "test"},
@@ -365,7 +471,7 @@ func Test_openshiftCIReleaseCmd_DoIntlyOperatorUpdate(t *testing.T) {
 					return nil
 				}},
 			}
-			repoDir, err := c.DoIntlyOperatorUpdate(tt.args.ctx)
+			repoDir, err := c.DoIntlyOperatorUpdate()
 			if repoDir != "" {
 				defer os.RemoveAll(repoDir)
 			}
@@ -396,6 +502,7 @@ func Test_openshiftCIReleaseCmd_DoOpenShiftReleaseUpdate(t *testing.T) {
 	tests := []struct {
 		name       string
 		version    string
+		olmType    string
 		args       args
 		wantBranch string
 		wantErr    bool
@@ -404,6 +511,7 @@ func Test_openshiftCIReleaseCmd_DoOpenShiftReleaseUpdate(t *testing.T) {
 		{
 			name:       "test success 2.0.0-rc1",
 			version:    "2.0.0-rc1",
+			olmType:    types.OlmTypeRhmi,
 			wantBranch: "release-v2.0",
 			verify: func(repoDir, expectedBranch string) (*git.Repository, error) {
 				return verifyRepo(repoDir, expectedBranch)
@@ -412,6 +520,7 @@ func Test_openshiftCIReleaseCmd_DoOpenShiftReleaseUpdate(t *testing.T) {
 		{
 			name:       "test success 2.0.0",
 			version:    "2.0.0",
+			olmType:    types.OlmTypeRhmi,
 			wantBranch: "release-v2.0",
 			verify: func(repoDir, expectedBranch string) (*git.Repository, error) {
 				return verifyRepo(repoDir, expectedBranch)
@@ -420,6 +529,7 @@ func Test_openshiftCIReleaseCmd_DoOpenShiftReleaseUpdate(t *testing.T) {
 		{
 			name:       "test success 2.0.1-rc1",
 			version:    "2.0.1-rc1",
+			olmType:    types.OlmTypeRhmi,
 			wantBranch: "release-v2.0",
 			verify: func(repoDir, expectedBranch string) (*git.Repository, error) {
 				return verifyRepo(repoDir, expectedBranch)
@@ -428,7 +538,35 @@ func Test_openshiftCIReleaseCmd_DoOpenShiftReleaseUpdate(t *testing.T) {
 		{
 			name:       "test success 2.1.0-er1",
 			version:    "2.1.0-er1",
+			olmType:    types.OlmTypeRhmi,
 			wantBranch: "release-v2.1",
+			verify: func(repoDir, expectedBranch string) (*git.Repository, error) {
+				return verifyRepo(repoDir, expectedBranch)
+			},
+		},
+		{
+			name:       "test success 1.1.0-rc1",
+			version:    "1.1.0-rc1",
+			olmType:    types.OlmTypeRhoam,
+			wantBranch: "rhoam-release-v1.1",
+			verify: func(repoDir, expectedBranch string) (*git.Repository, error) {
+				return verifyRepo(repoDir, expectedBranch)
+			},
+		},
+		{
+			name:       "test success 1.1.0-er1",
+			version:    "1.1.0-er1",
+			olmType:    types.OlmTypeRhoam,
+			wantBranch: "rhoam-release-v1.1",
+			verify: func(repoDir, expectedBranch string) (*git.Repository, error) {
+				return verifyRepo(repoDir, expectedBranch)
+			},
+		},
+		{
+			name:       "test success 1.1.0",
+			version:    "1.1.0",
+			olmType:    types.OlmTypeRhoam,
+			wantBranch: "rhoam-release-v1.1",
 			verify: func(repoDir, expectedBranch string) (*git.Repository, error) {
 				return verifyRepo(repoDir, expectedBranch)
 			},
@@ -437,7 +575,7 @@ func Test_openshiftCIReleaseCmd_DoOpenShiftReleaseUpdate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			version, _ := utils.NewRHMIVersion(tt.version)
+			version, _ := utils.NewVersion(tt.version, tt.olmType)
 
 			c := &openshiftCIReleaseCmd{
 				version:                 version,

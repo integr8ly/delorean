@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"bufio"
-	"context"
 	"fmt"
 	"github.com/integr8ly/delorean/pkg/utils"
 	"github.com/spf13/cobra"
@@ -12,47 +11,56 @@ import (
 	"strings"
 )
 
+const (
+	ProwConfigSourceRHMI   = "ci-operator/config/integr8ly/integreatly-operator/integr8ly-integreatly-operator-release-v2.0.yaml"
+	ProwConfigSourceRHOAM  = "ci-operator/config/integr8ly/integreatly-operator/integr8ly-integreatly-operator-rhoam-release-v1.1.yaml"
+	ProwConfigSourceMaster = "ci-operator/config/integr8ly/integreatly-operator/integr8ly-integreatly-operator-master.yaml"
+	ProwInternalRegistry   = "registry.ci.openshift.org/integr8ly"
+)
+
 type openshiftCIAddBranchCmdFlags struct {
 	branch  string
 	repoDir string
+	olmType string
 }
 
 type openshiftCIAddBranchCmd struct {
 	branch  string
 	repoDir string
+	olmType string
 }
 
-func (c *openshiftCIAddBranchCmd) DoOpenShiftReleaseAddBranch(ctx context.Context) error {
+func (c *openshiftCIAddBranchCmd) DoOpenShiftReleaseAddBranch() error {
 
 	//Update CI Operator Config
-	err := c.updateCIOperatorConfig(c.repoDir, c.branch)
+	err := c.updateCIOperatorConfig()
 	if err != nil {
 		return err
 	}
 
 	//Update Image Mirror Mapping Config
-	err = c.updateImageMirroringConfig(c.repoDir, c.branch)
+	err = c.updateImageMirroringConfig()
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (c *openshiftCIAddBranchCmd) updateCIOperatorConfig(repoDir string, branch string) error {
-	masterConfig := path.Join(repoDir, "ci-operator/config/integr8ly/integreatly-operator/integr8ly-integreatly-operator-master.yaml")
-	releaseConfig := path.Join(repoDir, fmt.Sprintf("ci-operator/config/integr8ly/integreatly-operator/integr8ly-integreatly-operator-%s.yaml", branch))
+func (c *openshiftCIAddBranchCmd) updateCIOperatorConfig() error {
+	masterConfig := path.Join(c.repoDir, ProwConfigSourceMaster)
+	releaseConfig := path.Join(c.repoDir, fmt.Sprintf("ci-operator/config/integr8ly/integreatly-operator/integr8ly-integreatly-operator-%s.yaml", c.branch))
 
 	y, err := utils.LoadUnstructYaml(masterConfig)
 	if err != nil {
 		return err
 	}
 
-	err = y.Set("promotion.name", branch)
+	err = y.Set("promotion.name", c.branch)
 	if err != nil {
 		return err
 	}
 
-	err = y.Set("zz_generated_metadata.branch", branch)
+	err = y.Set("zz_generated_metadata.branch", c.branch)
 	if err != nil {
 		return err
 	}
@@ -68,7 +76,7 @@ func (c *openshiftCIAddBranchCmd) updateCIOperatorConfig(repoDir string, branch 
 	}
 
 	makeJobCmd := &exec.Cmd{
-		Dir:    repoDir,
+		Dir:    c.repoDir,
 		Path:   makeExecutable,
 		Args:   []string{makeExecutable, "jobs"},
 		Stdout: os.Stdout,
@@ -83,10 +91,10 @@ func (c *openshiftCIAddBranchCmd) updateCIOperatorConfig(repoDir string, branch 
 	return nil
 }
 
-func (c *openshiftCIAddBranchCmd) updateImageMirroringConfig(repoDir string, branch string) error {
-	mappingFile := path.Join(repoDir, fmt.Sprintf("core-services/image-mirroring/integr8ly/mapping_integr8ly_operator_%s", strings.ReplaceAll(branch, ".", "_")))
+func (c *openshiftCIAddBranchCmd) updateImageMirroringConfig() error {
+	mappingFile := path.Join(c.repoDir, fmt.Sprintf("core-services/image-mirroring/integr8ly/mapping_integr8ly_operator_%s", strings.ReplaceAll(c.branch, ".", "_")))
 
-	internalReg := "registry.svc.ci.openshift.org/integr8ly"
+	internalReg := ProwInternalRegistry
 	publicReg := "quay.io/integreatly"
 
 	type imageTemplate struct {
@@ -114,8 +122,8 @@ func (c *openshiftCIAddBranchCmd) updateImageMirroringConfig(repoDir string, bra
 	w := bufio.NewWriter(file)
 
 	for _, t := range imageTemplates {
-		internalImage := fmt.Sprintf(t.internalRegTemplate, internalReg, branch)
-		publicImage := fmt.Sprintf(t.externalRegTemplate, publicReg, branch)
+		internalImage := fmt.Sprintf(t.internalRegTemplate, internalReg, c.branch)
+		publicImage := fmt.Sprintf(t.externalRegTemplate, publicReg, c.branch)
 		mapping := fmt.Sprintf("%s %s\n", internalImage, publicImage)
 		w.WriteString(mapping)
 	}
@@ -136,7 +144,7 @@ func init() {
 			if err != nil {
 				handleError(err)
 			}
-			err = c.DoOpenShiftReleaseAddBranch(cmd.Context())
+			err = c.DoOpenShiftReleaseAddBranch()
 			if err != nil {
 				handleError(err)
 			}
@@ -154,5 +162,6 @@ func newOpenshiftCIAddBranchCmd(f *openshiftCIAddBranchCmdFlags) (*openshiftCIAd
 	return &openshiftCIAddBranchCmd{
 		branch:  f.branch,
 		repoDir: f.repoDir,
+		olmType: f.olmType,
 	}, nil
 }

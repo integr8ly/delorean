@@ -55,7 +55,7 @@ type openshiftCIReleaseCmd struct {
 //2. Create a new release branch with the correct naming we expect (release-v2.1) if one does not already exist
 //3. Push the branch
 */
-func (c *openshiftCIReleaseCmd) DoIntlyOperatorUpdate(ctx context.Context) (string, error) {
+func (c *openshiftCIReleaseCmd) DoIntlyOperatorUpdate() (string, error) {
 	//Clone integreatly operator repo to a temp directory using the base branch
 	fmt.Println(fmt.Sprintf("Clone repo from %s/%s/%s.git (%s) to a temporary directory", githubURL, c.intlyRepoInfo.owner, c.intlyRepoInfo.repo, c.baseBranch.String()))
 	repoDir, gitRepo, err := c.gitCloneService.CloneToTmpDir("integreatly-operator", fmt.Sprintf("%s/%s/%s.git", githubURL, c.intlyRepoInfo.owner, c.intlyRepoInfo.repo), c.baseBranch)
@@ -147,7 +147,7 @@ func (c *openshiftCIReleaseCmd) DoOpenShiftReleaseUpdate(ctx context.Context) (s
 	}
 
 	//Update CI Operator Config
-	err = updateCIOperatorConfig(repoDir, c.version)
+	err = c.updateCIOperatorConfig(repoDir)
 	if err != nil {
 		return "", err
 	}
@@ -247,21 +247,36 @@ func (c *openshiftCIReleaseCmd) createPRIfNotExists(ctx context.Context, newPR *
 	return pr, nil
 }
 
-func updateCIOperatorConfig(repoDir string, version *utils.RHMIVersion) error {
-	masterConfig := path.Join(repoDir, "ci-operator/config/integr8ly/integreatly-operator/integr8ly-integreatly-operator-master.yaml")
-	releaseConfig := path.Join(repoDir, fmt.Sprintf("ci-operator/config/integr8ly/integreatly-operator/integr8ly-integreatly-operator-%s.yaml", version.ReleaseBranchName()))
+func (c *openshiftCIReleaseCmd) updateCIOperatorConfig(repoDir string) error {
+	var configFile string
+	// olmType controls the prow config which is copied
+	// in the case of RHOAM we don't need to run e2e tests for release branch as it will only be used for a rhoam patch
+	// release and for RHMI we don't need to run rhoam-e2e tests
+	// using the earliest version of each RHOAM and RHMI release (1.1 and 2.0 respectively)
+	// if neither RHOAM or RHMI types are found use the master config as a default
+	// all config files can be found here -> https://github.com/openshift/release/tree/master/ci-operator/config/integr8ly/integreatly-operator
+	switch olmType {
+	case types.OlmTypeRhmi:
+		configFile = ProwConfigSourceRHMI
+	case types.OlmTypeRhoam:
+		configFile = ProwConfigSourceRHOAM
+	default:
+		configFile = ProwConfigSourceMaster
+	}
+	masterConfig := path.Join(repoDir, configFile)
+	releaseConfig := path.Join(repoDir, fmt.Sprintf("ci-operator/config/integr8ly/integreatly-operator/integr8ly-integreatly-operator-%s.yaml", c.version.ReleaseBranchName()))
 
 	y, err := utils.LoadUnstructYaml(masterConfig)
 	if err != nil {
 		return err
 	}
 
-	err = y.Set("promotion.name", version.MajorMinor())
+	err = y.Set("promotion.name", c.version.MajorMinor())
 	if err != nil {
 		return err
 	}
 
-	err = y.Set("zz_generated_metadata.branch", version.ReleaseBranchName())
+	err = y.Set("zz_generated_metadata.branch", c.version.ReleaseBranchName())
 	if err != nil {
 		return err
 	}
@@ -295,7 +310,7 @@ func updateCIOperatorConfig(repoDir string, version *utils.RHMIVersion) error {
 func updateImageMirroringConfig(repoDir string, version *utils.RHMIVersion) error {
 	mappingFile := path.Join(repoDir, fmt.Sprintf("core-services/image-mirroring/integr8ly/mapping_integr8ly_operator_%s", strings.ReplaceAll(version.MajorMinor(), ".", "_")))
 
-	internalReg := "registry.svc.ci.openshift.org/integr8ly"
+	internalReg := ProwInternalRegistry
 	publicReg := "quay.io/integreatly"
 
 	type imageTemplate struct {
@@ -359,7 +374,7 @@ func init() {
 				return
 			}
 			var intlyOperatorRepoDir string
-			if intlyOperatorRepoDir, err = c.DoIntlyOperatorUpdate(cmd.Context()); err != nil {
+			if intlyOperatorRepoDir, err = c.DoIntlyOperatorUpdate(); err != nil {
 				handleError(err)
 			}
 			if intlyOperatorRepoDir != "" {
