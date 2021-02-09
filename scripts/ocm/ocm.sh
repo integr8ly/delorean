@@ -132,6 +132,7 @@ install_addon() {
     local infra_id
     local addon_id
     local completion_phase
+    local addon_payload
 
     addon_id="${1}"
     completion_phase="${2}"
@@ -139,9 +140,15 @@ install_addon() {
     : "${USE_CLUSTER_STORAGE:=true}"
     : "${PATCH_CR_AWS_CM:=true}"
     cluster_id=$(get_cluster_id)
+    addon_payload="{\"addon\":{\"id\":\"${addon_id}\"}}"
 
-    echo "Applying RHMI Addon on a cluster with ID: ${cluster_id}"
-    echo "{\"addon\":{\"id\":\"${addon_id}\"}}" | ocm post "/api/clusters_mgmt/v1/clusters/${cluster_id}/addons"
+    # Add mandatory "cidr-range" param with default value in case of rhoam (managed-api-service) addon 
+    if [[ "${addon_id}" == "managed-api-service" ]]; then
+    	addon_payload="{\"addon\":{\"id\":\"${addon_id}\"}, \"parameters\": { \"items\": [{\"id\": \"cidr-range\", \"value\": \"10.1.0.0/26\"}] }}"
+    fi
+
+    echo "Applying ${addon_id} Add-on on a cluster with ID: ${cluster_id}"
+    echo "${addon_payload}" | ocm post "/api/clusters_mgmt/v1/clusters/${cluster_id}/addons"
 
     wait_for "oc --kubeconfig ${CLUSTER_KUBECONFIG_FILE} get rhmi -n ${OPERATOR_NAMESPACE} | grep -q NAME" "rhmi installation CR to be created" "15m" "30"
 
