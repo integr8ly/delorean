@@ -27,5 +27,5 @@ addons:
               value: ""
             - name: "ALERTING_EMAIL_ADDRESS"
               value: "{{ alertingEmailAddress }}"
-
-
+            - name: "ALERT_SMTP_FROM"
+              value: "{{ alertSMTPFrom }}"
