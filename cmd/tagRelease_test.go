@@ -3,14 +3,15 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"github.com/google/go-github/v30/github"
-	"github.com/integr8ly/delorean/pkg/quay"
-	"github.com/integr8ly/delorean/pkg/services"
-	"github.com/integr8ly/delorean/pkg/types"
 	"net/http"
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/google/go-github/v30/github"
+	"github.com/integr8ly/delorean/pkg/quay"
+	"github.com/integr8ly/delorean/pkg/services"
+	"github.com/integr8ly/delorean/pkg/types"
 )
 
 type mockGitService struct {
