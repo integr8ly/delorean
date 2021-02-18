@@ -88,9 +88,9 @@ func DoTagRelease(ctx context.Context, ghClient services.GitService, gitRepoInfo
 		var quaySrcTag string
 		fmt.Println("Try to create image tags on quay.io:")
 		quayRepos := cmdOpts.quayRepos
-		//If this is an OSDe2e image, and destination tag has been passed through the pipeline, set this tag, otherwise continue as normal
 		quayDstTag := rv.TagName()
 		quaySrcTag = rv.ReleaseBranchImageTag()
+		//If this is an OSDe2e image, and destination tag has been passed through the pipeline, set this tag, otherwise continue as normal
 		if len(cmdOpts.sourceTag) > 0 {
 			quaySrcTag = cmdOpts.sourceTag
 		}
