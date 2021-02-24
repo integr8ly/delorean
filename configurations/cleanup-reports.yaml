@@ -10,3 +10,13 @@ configs:
     tags:
       - key: datahub
         value: true
+  - bucket: rhoam-test-data-storage-4mk5
+    tags:
+      - key: polarion
+        value: true
+      - key: rp
+        value: true
+  - bucket: rhoam-test-data-storage-4mk5
+    tags:
+      - key: datahub
+        value: true
