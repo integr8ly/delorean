@@ -1,8 +1,8 @@
 FROM centos:7
 LABEL maintainer="mnairn@redhat.com"
 
-ENV OPERATOR_SDK_VERSION=v0.15.1 \
-    OC_VERSION="4.5" \
+ENV OPERATOR_SDK_VERSION=v1.2.0 \
+    OC_VERSION="4.6" \
     GOFLAGS="" \
     PATH=$PATH:/usr/local/go/bin
 
@@ -18,7 +18,10 @@ RUN set -o pipefail && \
     curl -Lo /usr/local/bin/jq https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64 && \
     chmod +x /usr/local/bin/jq && \
     wget https://golang.org/dl/go1.15.5.linux-amd64.tar.gz && \
-    tar -zxvf go1.15.5.linux-amd64.tar.gz -C /usr/local/
+    tar -zxvf go1.15.5.linux-amd64.tar.gz -C /usr/local/ && \
+    curl -Ls https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/v4.0.2/kustomize_v4.0.2_linux_amd64.tar.gz | tar -zx && \
+    mv kustomize /usr/local/bin && \
+    chmod +x /usr/local/bin/kustomize
 
 # install operator-sdk
 RUN curl -LO https://github.com/operator-framework/operator-sdk/releases/download/${OPERATOR_SDK_VERSION}/operator-sdk-${OPERATOR_SDK_VERSION}-x86_64-linux-gnu && \
