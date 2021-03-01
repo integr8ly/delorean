@@ -499,7 +499,7 @@ func (c *osdAddonReleaseCmd) updateTheAddonFile() (string, error) {
 }
 
 func (c *osdAddonReleaseCmd) updateTheCSVManifest() (string, error) {
-	relative := fmt.Sprintf("%s/%s/%s.v%s.clusterserviceversion.yaml", c.currentChannel.bundlesDirectory(), c.version.Base(), c.addonConfig.Name, c.version.Base())
+	relative := fmt.Sprintf("%s/%s/%s.clusterserviceversion.yaml", c.currentChannel.bundlesDirectory(), c.version.Base(), c.addonConfig.Name)
 	csvFile := path.Join(c.managedTenantsDir, relative)
 
 	fmt.Printf("update csv manifest file %s\n", relative)
@@ -537,7 +537,7 @@ func (c *osdAddonReleaseCmd) updateTheCSVManifest() (string, error) {
 }
 
 func (c *osdAddonReleaseCmd) renameCSVFile() (string, error) {
-	o := fmt.Sprintf("%s/%s/%s.v%s.clusterserviceversion.yaml", c.currentChannel.bundlesDirectory(), c.version.Base(), c.addonConfig.Name, c.version.Base())
+	o := fmt.Sprintf("%s/%s/%s.clusterserviceversion.yaml", c.currentChannel.bundlesDirectory(), c.version.Base(), c.addonConfig.Name)
 	n := fmt.Sprintf("%s/%s/%s.v%s.clusterserviceversion.yaml.j2", c.currentChannel.bundlesDirectory(), c.version.Base(), c.addonConfig.Name, c.version.Base())
 	fmt.Println(fmt.Sprintf("Rename file from %s to %s", o, n))
 	oldPath := path.Join(c.managedTenantsDir, o)

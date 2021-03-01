@@ -3,7 +3,7 @@ addons:
   - name: "managed-api-service"
     csv:
       repo: "https://github.com/integr8ly/integreatly-operator.git"
-      path: "deploy/olm-catalog/managed-api-service"
+      path: "packagemanifests/managed-api-service"
     channels:
       - name: "stage"
         directory: "managed-api-service"
