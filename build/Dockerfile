@@ -1,8 +1,8 @@
 FROM centos:7
 LABEL maintainer="mnairn@redhat.com"
 
-ENV OPERATOR_SDK_VERSION=v0.15.1 \
-    OC_VERSION="4.5" \
+ENV OPERATOR_SDK_VERSION=v1.2.0 \
+    OC_VERSION="4.6" \
     GOFLAGS="" \
     PATH=$PATH:/usr/local/go/bin
 
