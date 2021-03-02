@@ -2,12 +2,13 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/integr8ly/delorean/pkg/types"
 	"io/ioutil"
 	"os"
 	"path"
 	"strings"
 	"testing"
+
+	"github.com/integr8ly/delorean/pkg/types"
 
 	"github.com/ghodss/yaml"
 	olmapiv1alpha1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
@@ -148,6 +149,8 @@ func TestOSDAddonRelease(t *testing.T) {
 		{version: "1.1.0-rc1", olmType: "managed-api-service", channel: "stage", expectError: false},
 		{version: "1.1.0-rc1", olmType: "managed-api-service", channel: "some", expectError: true},
 		{version: "1.1.0", olmType: "managed-api-service", channel: "stable", expectError: false},
+		{version: "1.1.0-rc1", olmType: "managed-api-service", channel: "edge", expectError: true},
+		{version: "1.1.0", olmType: "managed-api-service", channel: "edge", expectError: false},
 	}
 
 	for _, c := range cases {
