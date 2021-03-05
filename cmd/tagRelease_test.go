@@ -3,14 +3,15 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"github.com/google/go-github/v30/github"
-	"github.com/integr8ly/delorean/pkg/quay"
-	"github.com/integr8ly/delorean/pkg/services"
-	"github.com/integr8ly/delorean/pkg/types"
 	"net/http"
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/google/go-github/v30/github"
+	"github.com/integr8ly/delorean/pkg/quay"
+	"github.com/integr8ly/delorean/pkg/services"
+	"github.com/integr8ly/delorean/pkg/types"
 )
 
 type mockGitService struct {
@@ -282,6 +283,63 @@ func TestDoTagRelease(t *testing.T) {
 				}},
 			},
 			tagReleaseOptions: &tagReleaseOptions{releaseVersion: "2.0.0", branch: "master", wait: false, quayRepos: quayRepos, olmType: types.OlmTypeRhmi},
+			expectError:       false,
+		},
+		{
+			desc: "success for osde2e tag release",
+			ghClient: &mockGitService{
+				getRefFunc: func(ctx context.Context, owner string, repo string, ref string) (reference []*github.Reference, response *github.Response, err error) {
+					if strings.Index(ref, "refs/heads/") > -1 {
+						return []*github.Reference{{
+							Ref: &masterRef,
+							Object: &github.GitObject{
+								SHA: &masterSha,
+							},
+						}}, nil, nil
+					} else {
+						return nil, nil, nil
+					}
+				},
+				createRefFunc: func(ctx context.Context, owner string, repo string, ref *github.Reference) (reference *github.Reference, response *github.Response, err error) {
+					return &github.Reference{
+						Object: &github.GitObject{
+							SHA: &masterSha,
+						},
+					}, nil, nil
+				},
+			},
+			quayClient: &quay.Client{
+				BaseURL: baseUrl,
+				Tags: &mockTagsService{
+					listFunc: func(ctx context.Context, repository string, options *quay.ListTagsOptions) (list *quay.TagList, response *http.Response, err error) {
+						requestTag := options.SpecificTag
+						if requestTag == "osde2e-master" {
+							return &quay.TagList{
+								Tags: []quay.Tag{
+									quay.Tag{
+										Name:           &requestTag,
+										ManifestDigest: &testTagDigest,
+									},
+								},
+							}, nil, nil
+						} else {
+							return &quay.TagList{
+								Tags: []quay.Tag{},
+							}, nil, nil
+						}
+					},
+					changeFunc: func(ctx context.Context, repository string, tag string, input *quay.ChangTag) (response *http.Response, err error) {
+						return nil, nil
+					},
+				},
+				Manifests: &mockManifestService{listLabelsFunc: func(ctx context.Context, repository string, manifestRef string, options *quay.ListManifestLabelsOptions) (list *quay.ManifestLabelsList, response *http.Response, err error) {
+					return &quay.ManifestLabelsList{Labels: []quay.ManifestLabel{quay.ManifestLabel{
+						Key:   &labelKey,
+						Value: &masterSha,
+					}}}, nil, nil
+				}},
+			},
+			tagReleaseOptions: &tagReleaseOptions{releaseVersion: "2.0.0", branch: "master", wait: false, quayRepos: "integreatly/integreatly-operator-test-harness:osde2e-rhmi", olmType: types.OlmTypeRhmi, sourceTag: "osde2e-master"},
 			expectError:       false,
 		},
 		{

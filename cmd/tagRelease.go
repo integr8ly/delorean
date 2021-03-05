@@ -3,16 +3,17 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"sort"
+	"strings"
+	"time"
+
 	"github.com/google/go-github/v30/github"
 	"github.com/integr8ly/delorean/pkg/quay"
 	"github.com/integr8ly/delorean/pkg/services"
 	"github.com/integr8ly/delorean/pkg/utils"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"net/http"
-	"sort"
-	"strings"
-	"time"
 )
 
 const (
@@ -27,6 +28,7 @@ type tagReleaseOptions struct {
 	waitMax        int64
 	quayRepos      string
 	olmType        string
+	sourceTag      string
 }
 
 var tagReleaseCmdOpts = &tagReleaseOptions{}
@@ -83,10 +85,15 @@ func DoTagRelease(ctx context.Context, ghClient services.GitService, gitRepoInfo
 	}
 	fmt.Println("Git tag", rv.TagName(), "created:", tagRef.GetURL())
 	if len(cmdOpts.quayRepos) > 0 {
+		var quaySrcTag string
 		fmt.Println("Try to create image tags on quay.io:")
 		quayRepos := cmdOpts.quayRepos
 		quayDstTag := rv.TagName()
-		quaySrcTag := rv.ReleaseBranchImageTag()
+		quaySrcTag = rv.ReleaseBranchImageTag()
+		//If this is an OSDe2e image, and destination tag has been passed through the pipeline, set this tag, otherwise continue as normal
+		if len(cmdOpts.sourceTag) > 0 {
+			quaySrcTag = cmdOpts.sourceTag
+		}
 		commitSHA := headRef.GetObject().GetSHA()
 
 		//If this is a final release and we have an existing tag (rc tag), promote the existing rc tag to the final release, otherwise continue as normal
@@ -232,4 +239,5 @@ func init() {
 	tagReleaseCmd.Flags().BoolVarP(&tagReleaseCmdOpts.wait, "wait", "w", false, "Wait for the quay tag to be created (it could take up to 1 hour)")
 	tagReleaseCmd.Flags().Int64Var(&tagReleaseCmdOpts.waitInterval, "wait-interval", 5, "Specify the interval to check tags in quay while waiting. In minutes.")
 	tagReleaseCmd.Flags().Int64Var(&tagReleaseCmdOpts.waitMax, "wait-max", 90, "Specify the max wait time for tags be to created in quay. In minutes.")
+	tagReleaseCmd.Flags().StringVar(&tagReleaseCmdOpts.sourceTag, "sourceTag", "", "OSD Source Tag passed through pipeline.")
 }
