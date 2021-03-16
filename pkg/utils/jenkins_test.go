@@ -10,11 +10,19 @@ func TestPipelineRun_ToJUnitSuites(t *testing.T) {
 		description        string
 		pipelineStatusFile string
 		expectedFailures   int
+		expectedSkips      int
 	}{
 		{
 			description:        "success",
 			pipelineStatusFile: "./testdata/jenkins/pipeline-status.json",
-			expectedFailures:   8,
+			expectedFailures:   1,
+			expectedSkips:      7,
+		},
+		{
+			description:        "Aborted",
+			pipelineStatusFile: "./testdata/jenkins/aborted-pipeline-status.json",
+			expectedFailures:   1,
+			expectedSkips:      6,
 		},
 	}
 
@@ -37,6 +45,11 @@ func TestPipelineRun_ToJUnitSuites(t *testing.T) {
 				t.Fatalf("number of failures doesn't match. expected: %d got: %d", c.expectedFailures, ts.Failures)
 			}
 
+			skipCount := countSkipped(ts.TestCases)
+			if skipCount != c.expectedSkips {
+				t.Fatalf("number of failures doesn't match. expected: %d got: %d", c.expectedSkips, skipCount)
+			}
+
 			w := bytes.NewBufferString("")
 			err = suites.WriteXML(w)
 			if err != nil {
@@ -44,4 +57,16 @@ func TestPipelineRun_ToJUnitSuites(t *testing.T) {
 			}
 		})
 	}
+}
+
+func countSkipped(cases []JUnitTestCase) int {
+	skipped := 0
+
+	for _, ts := range cases {
+		if ts.SkipMessage != nil {
+			skipped++
+		}
+	}
+
+	return skipped
 }
