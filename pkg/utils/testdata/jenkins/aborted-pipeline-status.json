@@ -1,0 +1,244 @@
+{
+  "_links": {
+    "self": {
+      "href": "/job/Nightly/job/managed-api-rosa/8/wfapi/describe"
+    },
+    "changesets": {
+      "href": "/job/Nightly/job/managed-api-rosa/8/wfapi/changesets"
+    }
+  },
+  "id": "8",
+  "name": "#8",
+  "status": "IN_PROGRESS",
+  "startTimeMillis": 1615838340492,
+  "endTimeMillis": 1615842138721,
+  "durationMillis": 3798229,
+  "queueDurationMillis": 161,
+  "pauseDurationMillis": 0,
+  "stages": [
+    {
+      "_links": {
+        "self": {
+          "href": "/job/Nightly/job/managed-api-rosa/8/execution/node/16/wfapi/describe"
+        }
+      },
+      "id": "16",
+      "name": "Nightly check",
+      "execNode": "",
+      "status": "SUCCESS",
+      "startTimeMillis": 1615838421265,
+      "durationMillis": 218,
+      "pauseDurationMillis": 0
+    },
+    {
+      "_links": {
+        "self": {
+          "href": "/job/Nightly/job/managed-api-rosa/8/execution/node/20/wfapi/describe"
+        }
+      },
+      "id": "20",
+      "name": "Clone required Github repositories",
+      "execNode": "",
+      "status": "SUCCESS",
+      "startTimeMillis": 1615838421529,
+      "durationMillis": 63,
+      "pauseDurationMillis": 0
+    },
+    {
+      "_links": {
+        "self": {
+          "href": "/job/Nightly/job/managed-api-rosa/8/execution/node/22/wfapi/describe"
+        }
+      },
+      "id": "22",
+      "name": "Clone delorean",
+      "execNode": "",
+      "status": "SUCCESS",
+      "startTimeMillis": 1615838421592,
+      "durationMillis": 8019,
+      "pauseDurationMillis": 0
+    },
+    {
+      "_links": {
+        "self": {
+          "href": "/job/Nightly/job/managed-api-rosa/8/execution/node/27/wfapi/describe"
+        }
+      },
+      "id": "27",
+      "name": "Clone integreatly-operator",
+      "execNode": "",
+      "status": "SUCCESS",
+      "startTimeMillis": 1615838429664,
+      "durationMillis": 6244,
+      "pauseDurationMillis": 0
+    },
+    {
+      "_links": {
+        "self": {
+          "href": "/job/Nightly/job/managed-api-rosa/8/execution/node/38/wfapi/describe"
+        }
+      },
+      "id": "38",
+      "name": "Log in with ROSA CLI",
+      "execNode": "",
+      "status": "SUCCESS",
+      "startTimeMillis": 1615838435995,
+      "durationMillis": 21570,
+      "pauseDurationMillis": 0
+    },
+    {
+      "_links": {
+        "self": {
+          "href": "/job/Nightly/job/managed-api-rosa/8/execution/node/52/wfapi/describe"
+        }
+      },
+      "id": "52",
+      "name": "Setup ROSA Cluster",
+      "execNode": "",
+      "status": "SUCCESS",
+      "startTimeMillis": 1615838457603,
+      "durationMillis": 61,
+      "pauseDurationMillis": 0
+    },
+    {
+      "_links": {
+        "self": {
+          "href": "/job/Nightly/job/managed-api-rosa/8/execution/node/54/wfapi/describe"
+        }
+      },
+      "id": "54",
+      "name": "Provision ROSA cluster and wait for it to complete",
+      "execNode": "",
+      "status": "ABORTED",
+      "error": {
+        "message": null,
+        "type": "org.jenkinsci.plugins.workflow.steps.FlowInterruptedException"
+      },
+      "startTimeMillis": 1615838457664,
+      "durationMillis": 3676726,
+      "pauseDurationMillis": 0
+    },
+    {
+      "_links": {
+        "self": {
+          "href": "/job/Nightly/job/managed-api-rosa/8/execution/node/780/wfapi/describe"
+        }
+      },
+      "id": "780",
+      "name": "Apply addon to ROSA cluster, target with OC and create KubeConfig",
+      "execNode": "",
+      "status": "ABORTED",
+      "error": {
+        "message": null,
+        "type": "org.jenkinsci.plugins.workflow.steps.FlowInterruptedException"
+      },
+      "startTimeMillis": 1615842134594,
+      "durationMillis": 221,
+      "pauseDurationMillis": 0
+    },
+    {
+      "_links": {
+        "self": {
+          "href": "/job/Nightly/job/managed-api-rosa/8/execution/node/784/wfapi/describe"
+        }
+      },
+      "id": "784",
+      "name": "Wait for installation to complete",
+      "execNode": "",
+      "status": "ABORTED",
+      "error": {
+        "message": null,
+        "type": "org.jenkinsci.plugins.workflow.steps.FlowInterruptedException"
+      },
+      "startTimeMillis": 1615842135075,
+      "durationMillis": 174,
+      "pauseDurationMillis": 0
+    },
+    {
+      "_links": {
+        "self": {
+          "href": "/job/Nightly/job/managed-api-rosa/8/execution/node/791/wfapi/describe"
+        }
+      },
+      "id": "791",
+      "name": "Setup IDP",
+      "execNode": "",
+      "status": "ABORTED",
+      "error": {
+        "message": null,
+        "type": "org.jenkinsci.plugins.workflow.steps.FlowInterruptedException"
+      },
+      "startTimeMillis": 1615842136000,
+      "durationMillis": 219,
+      "pauseDurationMillis": 0
+    },
+    {
+      "_links": {
+        "self": {
+          "href": "/job/Nightly/job/managed-api-rosa/8/execution/node/795/wfapi/describe"
+        }
+      },
+      "id": "795",
+      "name": "Run the test suite",
+      "execNode": "",
+      "status": "ABORTED",
+      "error": {
+        "message": null,
+        "type": "org.jenkinsci.plugins.workflow.steps.FlowInterruptedException"
+      },
+      "startTimeMillis": 1615842136373,
+      "durationMillis": 386,
+      "pauseDurationMillis": 0
+    },
+    {
+      "_links": {
+        "self": {
+          "href": "/job/Nightly/job/managed-api-rosa/8/execution/node/799/wfapi/describe"
+        }
+      },
+      "id": "799",
+      "name": "Persist operators logs",
+      "execNode": "",
+      "status": "ABORTED",
+      "error": {
+        "message": null,
+        "type": "org.jenkinsci.plugins.workflow.steps.FlowInterruptedException"
+      },
+      "startTimeMillis": 1615842136884,
+      "durationMillis": 81,
+      "pauseDurationMillis": 0
+    },
+    {
+      "_links": {
+        "self": {
+          "href": "/job/Nightly/job/managed-api-rosa/8/execution/node/803/wfapi/describe"
+        }
+      },
+      "id": "803",
+      "name": "Uninstall Managed API",
+      "execNode": "",
+      "status": "ABORTED",
+      "error": {
+        "message": null,
+        "type": "org.jenkinsci.plugins.workflow.steps.FlowInterruptedException"
+      },
+      "startTimeMillis": 1615842137016,
+      "durationMillis": 97,
+      "pauseDurationMillis": 0
+    },
+    {
+      "_links": {
+        "self": {
+          "href": "/job/Nightly/job/managed-api-rosa/8/execution/node/807/wfapi/describe"
+        }
+      },
+      "id": "807",
+      "name": "Declarative: Post Actions",
+      "execNode": "",
+      "status": "IN_PROGRESS",
+      "startTimeMillis": 1615842137153,
+      "durationMillis": 1552,
+      "pauseDurationMillis": 0
+    }
+  ]
+}
