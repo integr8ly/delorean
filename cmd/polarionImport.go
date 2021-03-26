@@ -225,8 +225,8 @@ func (c *polarionImportCmd) importToPolarion(key string, metadata *testMetadata,
 	if err != nil {
 		return err
 	}
-	junit := &formatter.JUnitTestSuites{}
-	if err := xml.Unmarshal(b, junit); err != nil {
+	junit, err := unmarshalJUnit(b)
+	if err != nil {
 		return err
 	}
 
@@ -270,4 +270,24 @@ func (c *polarionImportCmd) importToPolarion(key string, metadata *testMetadata,
 	}
 
 	return nil
+}
+
+func unmarshalJUnit(xmlContent []byte) (*formatter.JUnitTestSuite, error) {
+	junitFormat := &formatter.JUnitTestSuite{}
+	oldJunitFormat := &formatter.JUnitTestSuites{}
+
+	if err := xml.Unmarshal(xmlContent, junitFormat); err != nil {
+		// If the JUnit has top level element <testsuites> instead of <testsuite>,
+		// try to unmarshal it the old way and extract the <testsuite> element from it
+		if err.Error() == `expected element type <testsuite> but have <testsuites>` {
+			if err = xml.Unmarshal(xmlContent, oldJunitFormat); err != nil {
+				return nil, err
+			}
+			return &oldJunitFormat.Suites[0], nil
+		}
+		// In case of any other error, return it
+		return nil, err
+	}
+
+	return junitFormat, nil
 }
