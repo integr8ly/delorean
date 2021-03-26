@@ -72,9 +72,7 @@ create_cluster_configuration_file() {
 
     # Limit for a cluster name is 15 characters - shorten it if it's longer
     if [ "${cluster_name_length}" -gt 15 ]; then
-        OCM_CLUSTER_NAME="${OCM_CLUSTER_NAME:0:15}"
-        # Remove the last character from a cluster name if it's "-"
-        OCM_CLUSTER_NAME="${OCM_CLUSTER_NAME%-}"
+        OCM_CLUSTER_NAME="${OCM_CLUSTER_NAME:0:11}${RANDOM:0:4}"
     fi
 
     jq ".expiration_timestamp = \"${timestamp}\" | .name = \"${OCM_CLUSTER_NAME}\" | .display_name = \"${cluster_display_name}\" | .region.id = \"${OCM_CLUSTER_REGION}\" | .api.listening = \"${listening}\"" \
