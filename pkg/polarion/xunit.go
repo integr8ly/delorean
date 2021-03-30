@@ -17,7 +17,7 @@ const (
 	XunitEndpoint    = "/xunit"
 	JobQueueEndpoint = "/xunit-queue"
 
-	idRegex = "^(?:.+/)*?([A-Z][0-9]{2})_.*$"
+	idRegex = "^(?:.+)*?([A-Z][0-9]{2}).*$"
 )
 
 type PolarionXUnit struct {
@@ -175,13 +175,13 @@ func (x *XUnitImporter) GetJobStatus(id int) (XUnitJobStatus, error) {
 	return response.Jobs[0].Status, nil
 }
 
-func JUnitToPolarionXUnit(junit *formatter.JUnitTestSuites, projectID, title, templateID string) (*PolarionXUnit, error) {
+func JUnitToPolarionXUnit(junit *formatter.JUnitTestSuite, projectID, title, templateID string) (*PolarionXUnit, error) {
 
 	idr := regexp.MustCompile(idRegex)
 
 	tests := []PolarionXUnitTestCase{}
 
-	for _, t := range junit.Suites[0].TestCases {
+	for _, t := range junit.TestCases {
 
 		matches := idr.FindAllStringSubmatch(t.Name, 1)
 		if matches == nil || len(matches) < 1 || len(matches[0]) < 1 {
@@ -208,7 +208,7 @@ func JUnitToPolarionXUnit(junit *formatter.JUnitTestSuites, projectID, title, te
 			{Name: "polarion-lookup-method", Value: "custom"},
 		},
 		Suites: []PolarionXUnitTestSuite{{
-			JUnitTestSuite: junit.Suites[0],
+			JUnitTestSuite: *junit,
 			TestCases:      tests,
 		}},
 	}, nil
