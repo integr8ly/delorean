@@ -115,6 +115,7 @@ create_cluster() {
     echo "Cluster ID: ${cluster_id}"
 
     wait_for "ocm get /api/clusters_mgmt/v1/clusters/${cluster_id}/status | jq -r .state | grep -q ready" "cluster creation" "180m" "300"
+    wait_for "ocm get /api/clusters_mgmt/v1/clusters/${cluster_id} | jq -r .health_state | grep -q healthy" "cluster to be healthy" "30m" "30"
     wait_for "ocm get /api/clusters_mgmt/v1/clusters/${cluster_id}/credentials | jq -r .admin | grep -q admin" "fetching cluster credentials" "10m" "30"
 
     save_cluster_credentials "${cluster_id}"
