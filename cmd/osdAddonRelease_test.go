@@ -85,7 +85,9 @@ func initRepoFromTestDir(prefix string, testDir string) (string, *git.Repository
 	if err != nil {
 		return "", nil, err
 	}
-
+	if err := checkoutBranch(tree, false, true, "main"); err != nil {
+		return "", nil, err
+	}
 	return dir, repo, nil
 }
 
@@ -169,13 +171,13 @@ func TestOSDAddonRelease(t *testing.T) {
 			// Prepare the integreatly-operator directory
 			integreatlyOperatorDir := path.Join(basedir, fmt.Sprintf("testdata/osdAddonReleaseIntegreatlyOperator%s", version))
 
-			// Prepare the managed-teneants repo and dir
+			// Prepare the managed-tenants repo and dir
 			managedTenantsDir, managedTenantsRepo := prepareManagedTenants(t, basedir)
 
 			// Mock the push service
 			mockPushService := &mockGitPushService{pushFunc: func(gitRepo *git.Repository, opts *git.PushOptions) error {
 				// Save the last commit diff before HEAD get reset to master
-				managedTenantsPatch = gitDiff(t, managedTenantsRepo, "master", "HEAD")
+				managedTenantsPatch = gitDiff(t, managedTenantsRepo, "main", "HEAD")
 
 				managedTenantsRepoPushed = true
 				return nil
@@ -312,11 +314,11 @@ func TestOSDAddonRelease(t *testing.T) {
 						t.Fatalf("expected 1 but found %d chunk changes for %s", found, clusterServiceVersion)
 					}
 					if found := p.Chunks()[0].Type(); found != diff.Add {
-						t.Fatalf("the frist and only chunk type should be Add but found %d for %s", found, clusterServiceVersion)
+						t.Fatalf("the first and only chunk type should be Add but found %d for %s", found, clusterServiceVersion)
 					}
 					content := p.Chunks()[0].Content()
 					if found := len(content); found <= 0 {
-						t.Fatalf("expected %s to be largern then 0 but found %d", clusterServiceVersion, found)
+						t.Fatalf("expected %s to be larger than 0 but found %d", clusterServiceVersion, found)
 					}
 					csv := &olmapiv1alpha1.ClusterServiceVersion{}
 					err := yaml.Unmarshal([]byte(content), csv)
@@ -356,10 +358,10 @@ func TestOSDAddonRelease(t *testing.T) {
 						t.Fatalf("expected 1 but found %d chunk changes for %s", found, customResourceDefinition)
 					}
 					if found := p.Chunks()[0].Type(); found != diff.Add {
-						t.Fatalf("the frist and only chunk type should be Add but found %d for %s", found, customResourceDefinition)
+						t.Fatalf("the first and only chunk type should be Add but found %d for %s", found, customResourceDefinition)
 					}
 					if found := len(p.Chunks()[0].Content()); found <= 0 {
-						t.Fatalf("expected %s to be largern then 0 but found %d", customResourceDefinition, found)
+						t.Fatalf("expected %s to be larger than 0 but found %d", customResourceDefinition, found)
 					}
 				default:
 					t.Fatalf("unexpected file %s", file.Path())
@@ -372,8 +374,8 @@ func TestOSDAddonRelease(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			if founded := head.Name(); founded != "refs/heads/master" {
-				t.Fatalf("the managed-tenants repo HEAD doesn't point to the master branch\nexpected: refs/heads/master\nfounded: %s", founded)
+			if founded := head.Name(); founded != "refs/heads/main" {
+				t.Fatalf("the managed-tenants repo HEAD doesn't point to the main branch\nexpected: refs/heads/main\nfounded: %s", founded)
 			}
 		})
 	}
