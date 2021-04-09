@@ -173,11 +173,13 @@ func TestOSDAddonRelease(t *testing.T) {
 
 			// Prepare the managed-tenants repo and dir
 			managedTenantsDir, managedTenantsRepo := prepareManagedTenants(t, basedir)
+			var managedTenantsMainBranch string = "main"
+			var managedTenantsRef plumbing.ReferenceName = "refs/heads/main"
 
 			// Mock the push service
 			mockPushService := &mockGitPushService{pushFunc: func(gitRepo *git.Repository, opts *git.PushOptions) error {
 				// Save the last commit diff before HEAD get reset to master
-				managedTenantsPatch = gitDiff(t, managedTenantsRepo, "main", "HEAD")
+				managedTenantsPatch = gitDiff(t, managedTenantsRepo, managedTenantsMainBranch, "HEAD")
 
 				managedTenantsRepoPushed = true
 				return nil
@@ -368,13 +370,13 @@ func TestOSDAddonRelease(t *testing.T) {
 				}
 			}
 
-			// Verify the manage-tenents repo HEAD is pointing to master
+			// Verify the manage-tenents repo HEAD is pointing to main
 			head, err := managedTenantsRepo.Head()
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			if founded := head.Name(); founded != "refs/heads/main" {
+			if founded := head.Name(); founded != managedTenantsRef {
 				t.Fatalf("the managed-tenants repo HEAD doesn't point to the main branch\nexpected: refs/heads/main\nfounded: %s", founded)
 			}
 		})
