@@ -138,6 +138,7 @@ install_addon() {
 
     : "${USE_CLUSTER_STORAGE:=true}"
     : "${PATCH_CR_AWS_CM:=true}"
+    : "${WAIT:=true}"
     cluster_id=$(get_cluster_id)
     addon_payload="{\"addon\":{\"id\":\"${addon_id}\"}}"
 
@@ -179,8 +180,10 @@ install_addon() {
         oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" patch configMap cloud-resources-aws-strategies -n "${OPERATOR_NAMESPACE}" --type='json' -p '[{"op": "add", "path": "/data/_network", "value":"{ \"production\": { \"createStrategy\": { \"CidrBlock\": \"'10.1.0.0/23'\" } } }"}]'
     fi
 
-    wait_for "oc --kubeconfig ${CLUSTER_KUBECONFIG_FILE} get rhmi ${rhmi_name} -n ${OPERATOR_NAMESPACE} -o json | jq -r ${completion_phase} | grep -q completed" "rhmi installation" "90m" "300"
-    oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get rhmi "${rhmi_name}" -n "${OPERATOR_NAMESPACE}" -o json | jq -r '.status.stages'
+    if [[ "${WAIT}" == true ]]; then
+        wait_for "oc --kubeconfig ${CLUSTER_KUBECONFIG_FILE} get rhmi ${rhmi_name} -n ${OPERATOR_NAMESPACE} -o json | jq -r ${completion_phase} | grep -q completed" "rhmi installation" "90m" "300"
+        oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get rhmi "${rhmi_name}" -n "${OPERATOR_NAMESPACE}" -o json | jq -r '.status.stages'
+    fi
 }
 
 install_rhmi() {
@@ -380,6 +383,7 @@ Optional exported variables:
 - USE_CLUSTER_STORAGE               true/false - use OpenShift/AWS storage (default: true)
 - ALERTING_EMAIL_ADDRESS            email address for receiving alert notifications
 - SELF_SIGNED_CERTS                 true/false - cluster certificate can be invalid
+- WAIT                              true/false - wait for install to complete
 ==========================================================================================================
 upgrade_cluster                   - upgrade OSD cluster to latest version (if available)
 ==========================================================================================================
