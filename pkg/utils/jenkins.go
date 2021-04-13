@@ -5,6 +5,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 )
 
@@ -91,13 +92,14 @@ type PipelineRun struct {
 }
 
 const (
-	TestSuiteName            = "pipeline-status"
-	PipelineRunStatusFailed  = "FAILED"
-	PipelineRunStatusAborted = "ABORTED"
+	TestSuiteName             = "pipeline-status"
+	PipelineRunStatusFailed   = "FAILED"
+	PipelineRunStatusAborted  = "ABORTED"
+	PipelineRunStatusUnstable = "UNSTABLE"
 )
 
 // ToJUnitSuites will convert the status of the pipeline run into JUnit test suites
-func (p *PipelineRun) ToJUnitSuites() (*JUnitTestSuites, error) {
+func (p *PipelineRun) ToJUnitSuites(filter string) (*JUnitTestSuites, error) {
 	suites := &JUnitTestSuites{
 		Suites: []JUnitTestSuite{},
 	}
@@ -145,6 +147,18 @@ func (p *PipelineRun) ToJUnitSuites() (*JUnitTestSuites, error) {
 					Message: s.Error.Message,
 				}
 			}
+		case PipelineRunStatusUnstable:
+			ts.Failures++
+			tc.Failure = &JUnitFailure{
+				Message: s.Error.Message,
+				Type:    s.Error.Type,
+			}
+		}
+
+		// If creating a report only from stages with a specific prefix,
+		// skip adding stage names to the report that do not match the prefix
+		if filter != "" && !strings.Contains(s.Name, filter) {
+			continue
 		}
 
 		ts.TestCases = append(ts.TestCases, tc)
