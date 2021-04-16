@@ -33,7 +33,7 @@ func TestPipelineRun_ToJUnitSuites(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to parse pipeline status file: %v", err)
 			}
-			suites, _ := p.ToJUnitSuites()
+			suites, _ := p.ToJUnitSuites("")
 			ts := suites.Suites[0]
 			if ts.Name != TestSuiteName {
 				t.Fatalf("name doesn't match. expected: %s got: %s", TestSuiteName, ts.Name)
