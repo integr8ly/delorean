@@ -22,6 +22,7 @@ readonly CLUSTER_LOGS_FILE="${OCM_DIR}/cluster.log"
 readonly ERROR_MISSING_AWS_ENV_VARS="ERROR: Not all required AWS environment are set. Please make sure you've exported all following env vars:"
 readonly ERROR_MISSING_CLUSTER_JSON="ERROR: ${CLUSTER_CONFIGURATION_FILE} file does not exist. Please run 'make ocm/cluster.json' first"
 readonly ERROR_CREATING_SECRET=" secret was not created. This could be caused by unstable connection between the client and OpenShift cluster"
+readonly ERROR_MISSING_CLUSTER_ID="ERROR: OCM_CLUSTER_ID was not specified"
 
 check_aws_credentials_exported() {
     if [[ -z "${AWS_ACCOUNT_ID:-}" || -z "${AWS_SECRET_ACCESS_KEY:-}" || -z "${AWS_ACCESS_KEY_ID:-}" ]]; then
@@ -391,6 +392,11 @@ Optional exported variables:
 ==========================================================================================================
 get_cluster_logs                  - get logs from hive and save them to ${CLUSTER_LOGS_FILE}
 ==========================================================================================================
+save_cluster_credentials          - save cluster credentials to ./ocm folder
+----------------------------------------------------------------------------------------------------------
+Required variables:
+- OCM_CLUSTER_ID                  - your cluster's ID
+==========================================================================================================
 " "${0}"
 }
 
@@ -427,6 +433,14 @@ main() {
             ;;
         get_cluster_logs)
             get_cluster_logs
+            exit 0
+            ;;
+        save_cluster_credentials)
+            if [[ -z "${OCM_CLUSTER_ID:-}" ]]; then
+                printf "%s\n" "${ERROR_MISSING_CLUSTER_ID}"
+                exit 1
+            fi
+            save_cluster_credentials "${OCM_CLUSTER_ID}"
             exit 0
             ;;
         -h | --help)
