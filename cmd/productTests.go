@@ -36,6 +36,7 @@ type TestContainer struct {
 	Timeout         int64       `json:"timeout,omitempty"`
 	ImagePullSecret string      `json:"ImagePullSecretEnvVar,omitempty"`
 	EnvVars         []v1.EnvVar `json:"envVars,omitempty"`
+	RegExpFilter    string      `json:"regExpFilter,omitempty`
 	Success         bool
 }
 
@@ -261,6 +262,8 @@ func getTestContainerJob(namespace string, t *TestContainer) *batchv1.Job {
 								},
 							},
 							Env: t.EnvVars,
+							//Command: []string{"/integreatly-operator-test-harness.test"},
+							Args: []string{"-ginkgo.focus", t.RegExpFilter},
 						},
 						{
 							Name:  "sidecar",
