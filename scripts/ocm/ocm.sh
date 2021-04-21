@@ -383,7 +383,7 @@ Optional exported variables:
 - USE_CLUSTER_STORAGE               true/false - use OpenShift/AWS storage (default: true)
 - ALERTING_EMAIL_ADDRESS            email address for receiving alert notifications
 - SELF_SIGNED_CERTS                 true/false - cluster certificate can be invalid
-- WAIT                              true/false - wait for install to complete
+- WAIT                              true/false - wait for install to complete (default: true)
 ==========================================================================================================
 upgrade_cluster                   - upgrade OSD cluster to latest version (if available)
 ==========================================================================================================
