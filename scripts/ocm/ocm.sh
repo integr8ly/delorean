@@ -17,7 +17,8 @@ readonly CLUSTER_KUBECONFIG_FILE="${OCM_DIR}/cluster.kubeconfig"
 readonly CLUSTER_CONFIGURATION_FILE="${OCM_DIR}/cluster.json"
 readonly CLUSTER_DETAILS_FILE="${OCM_DIR}/cluster-details.json"
 readonly CLUSTER_CREDENTIALS_FILE="${OCM_DIR}/cluster-credentials.json"
-readonly CLUSTER_LOGS_FILE="${OCM_DIR}/cluster.log"
+readonly CLUSTER_INSTALLATION_LOGS_FILE="${OCM_DIR}/cluster-installation.log"
+readonly CLUSTER_SUBSCRIPTION_DETAILS_FILE="${OCM_DIR}/cluster-subscription.json"
 
 readonly ERROR_MISSING_AWS_ENV_VARS="ERROR: Not all required AWS environment are set. Please make sure you've exported all following env vars:"
 readonly ERROR_MISSING_CLUSTER_JSON="ERROR: ${CLUSTER_CONFIGURATION_FILE} file does not exist. Please run 'make ocm/cluster.json' first"
@@ -237,11 +238,18 @@ upgrade_cluster() {
 }
 
 get_cluster_logs() {
-    ocm get "/api/clusters_mgmt/v1/clusters/$(get_cluster_id)/logs/hive" | jq -r .content | tee "${CLUSTER_LOGS_FILE}"
+    ocm get cluster "$(get_cluster_id)/logs/install" | jq -r .content > "${CLUSTER_INSTALLATION_LOGS_FILE}"
+    printf "Cluster installation logs saved to %s\n" "${CLUSTER_INSTALLATION_LOGS_FILE}"
+    ocm get subscription "$(get_cluster_subscription_id)" | jq -r > "${CLUSTER_SUBSCRIPTION_DETAILS_FILE}"
+    printf "Cluster subscription details saved to %s\n" "${CLUSTER_SUBSCRIPTION_DETAILS_FILE}"
 }
 
 get_cluster_id() {
     jq -r .id < "${CLUSTER_DETAILS_FILE}"
+}
+
+get_cluster_subscription_id() {
+    jq -r .subscription.id < "${CLUSTER_DETAILS_FILE}"
 }
 
 get_cluster_region() {
@@ -394,7 +402,7 @@ Optional exported variables:
 - AWS_ACCESS_KEY_ID
 - AWS_SECRET_ACCESS_KEY
 ==========================================================================================================
-get_cluster_logs                  - get logs from hive and save them to ${CLUSTER_LOGS_FILE}
+get_cluster_logs                  - save cluster install logs and subscription details to ${OCM_DIR}
 ==========================================================================================================
 save_cluster_credentials          - save cluster credentials to ./ocm folder
 ----------------------------------------------------------------------------------------------------------
