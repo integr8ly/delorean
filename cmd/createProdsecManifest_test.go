@@ -15,7 +15,7 @@ import (
 	"testing"
 )
 
-func newTestCreateProdsecManifestCmd(olmType string) *createProdsecManifestCmd {
+func newTestCreateProdsecManifestCmd(olmType string, typeOfManifest string) *createProdsecManifestCmd {
 	version, _ := utils.NewVersion("1.0.0", olmType)
 
 	// Clone and initiate the mock integreatly repo from testdata/createRhoamManifest
@@ -48,6 +48,7 @@ func newTestCreateProdsecManifestCmd(olmType string) *createProdsecManifestCmd {
 		repoInfo:        &githubRepoInfo{owner: "test", repo: "test"},
 		baseBranch:      "master",
 		manifestScript:  "prodsec-manifest-generator.sh",
+		typeOfManifest:  typeOfManifest,
 		gitUser:         "testuser",
 		gitPass:         "testpass",
 		gitCloneService: cloneService,
@@ -94,7 +95,7 @@ func TestCreateRhoamManifestRelease(t *testing.T) {
 		{
 			description: "should successfully generate the correct manifest for RHMI",
 			cmd: func() *createProdsecManifestCmd {
-				return newTestCreateProdsecManifestCmd("integreatly-operator")
+				return newTestCreateProdsecManifestCmd("integreatly-operator", "production")
 			},
 			filePath:    "prodsec-manifests/rhmi-production-release-manifest.txt",
 			expectError: false,
@@ -103,11 +104,43 @@ func TestCreateRhoamManifestRelease(t *testing.T) {
 		{
 			description: "should successfully generate the correct manifest for RHOAM",
 			cmd: func() *createProdsecManifestCmd {
-				return newTestCreateProdsecManifestCmd("managed-api-service")
+				return newTestCreateProdsecManifestCmd("managed-api-service", "production")
 			},
 			filePath:    "prodsec-manifests/rhoam-production-release-manifest.txt",
 			expectError: false,
 			verify:      verificationFunction,
+		},
+		{
+			description: "should successfully generate the correct master manifest for RHMI",
+			cmd: func() *createProdsecManifestCmd {
+				return newTestCreateProdsecManifestCmd("integreatly-operator", "master")
+			},
+			filePath:    "prodsec-manifests/rhmi-master-manifest.txt",
+			expectError: false,
+			verify:      verificationFunction,
+		},
+		{
+			description: "should successfully generate the correct master manifest for RHOAM",
+			cmd: func() *createProdsecManifestCmd {
+				return newTestCreateProdsecManifestCmd("managed-api-service", "master")
+			},
+			filePath:    "prodsec-manifests/rhoam-master-manifest.txt",
+			expectError: false,
+			verify:      verificationFunction,
+		},
+		{
+			description: "RHOAM compare manifest should return 1",
+			cmd: func() *createProdsecManifestCmd {
+				return newTestCreateProdsecManifestCmd("managed-api-service", "compare")
+			},
+			expectError: true,
+		},
+		{
+			description: "RHMI compare manifest should return 0",
+			cmd: func() *createProdsecManifestCmd {
+				return newTestCreateProdsecManifestCmd("integreatly-operator", "compare")
+			},
+			expectError: false,
 		},
 	}
 
