@@ -25,6 +25,8 @@ readonly ERROR_MISSING_CLUSTER_JSON="ERROR: ${CLUSTER_CONFIGURATION_FILE} file d
 readonly ERROR_CREATING_SECRET=" secret was not created. This could be caused by unstable connection between the client and OpenShift cluster"
 readonly ERROR_MISSING_CLUSTER_ID="ERROR: OCM_CLUSTER_ID was not specified"
 
+readonly WARNING_CLUSTER_HEALTH_CHECK_FAILED="WARNING: Cluster was not reported as healthy. You might expect some issues while working with the cluster."
+
 check_aws_credentials_exported() {
     if [[ -z "${AWS_ACCOUNT_ID:-}" || -z "${AWS_SECRET_ACCESS_KEY:-}" || -z "${AWS_ACCESS_KEY_ID:-}" ]]; then
         printf "%s\n" "${ERROR_MISSING_AWS_ENV_VARS}"
@@ -110,14 +112,18 @@ create_cluster() {
         exit 1
     fi
 
+    : "${TIMEOUT_CLUSTER_CREATION:=180}"
+    : "${TIMEOUT_CLUSTER_HEALTH_CHECK:=30}"
+
     echo "Sending a request to OCM to create an OSD cluster"
     send_cluster_create_request
     cluster_id=$(get_cluster_id)
 
     echo "Cluster ID: ${cluster_id}"
 
-    wait_for "ocm get /api/clusters_mgmt/v1/clusters/${cluster_id}/status | jq -r .state | grep -q ready" "cluster creation" "180m" "300"
-    wait_for "ocm get /api/clusters_mgmt/v1/clusters/${cluster_id} | jq -r .health_state | grep -q healthy" "cluster to be healthy" "60m" "30"
+    wait_for "ocm get /api/clusters_mgmt/v1/clusters/${cluster_id}/status | jq -r .state | grep -q ready" "cluster creation" "${TIMEOUT_CLUSTER_CREATION}m" "300"
+    wait_for "ocm get /api/clusters_mgmt/v1/clusters/${cluster_id} | jq -r .health_state | grep -q healthy" "cluster to be healthy" "${TIMEOUT_CLUSTER_HEALTH_CHECK}m" "30" \
+        || echo "${WARNING_CLUSTER_HEALTH_CHECK_FAILED}"
     wait_for "ocm get /api/clusters_mgmt/v1/clusters/${cluster_id}/credentials | jq -r .admin | grep -q admin" "fetching cluster credentials" "10m" "30"
 
     save_cluster_credentials "${cluster_id}"
@@ -291,7 +297,7 @@ wait_for() {
         printf \"Waiting for %s... Trying again in ${interval}s\n\" \"${description}\"
         sleep ${interval}
     done
-    "
+    " || return 1
     printf "%s finished!\n" "${description}"
 }
 
@@ -384,6 +390,10 @@ Optional exported variables:
 - COMPUTE_NODES_COUNT               number of cluster's compute nodes (default: single-az: 4, multi-az: 9)
 ==========================================================================================================
 create_cluster                    - spin up OSD cluster
+----------------------------------------------------------------------------------------------------------
+Optional exported variables:
+- TIMEOUT_CLUSTER_CREATION          Timeout for cluster creation (in minutes, default: 180)
+- TIMEOUT_CLUSTER_HEALTH_CHECK      Timeout for cluster health check (in minutes, default: 30)
 ==========================================================================================================
 install_rhmi                      - install RHMI using addon-type installation
 install_rhoam                     - install RHOAM using addon-type installation
