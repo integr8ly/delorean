@@ -147,12 +147,13 @@ install_addon() {
     : "${USE_CLUSTER_STORAGE:=true}"
     : "${PATCH_CR_AWS_CM:=true}"
     : "${WAIT:=true}"
+    : "${QUOTA:=20}"
     cluster_id=$(get_cluster_id)
     addon_payload="{\"addon\":{\"id\":\"${addon_id}\"}}"
 
-    # Add mandatory "cidr-range" param with default value in case of rhoam (managed-api-service) addon 
+    # Add mandatory "cidr-range" and "addon-managed-api-service" (quota) params with default value in case of rhoam (managed-api-service) addon 
     if [[ "${addon_id}" == "managed-api-service" ]]; then
-    	addon_payload="{\"addon\":{\"id\":\"${addon_id}\"}, \"parameters\": { \"items\": [{\"id\": \"cidr-range\", \"value\": \"10.1.0.0/26\"}] }}"
+    	addon_payload="{\"addon\":{\"id\":\"${addon_id}\"}, \"parameters\": { \"items\": [{\"id\": \"cidr-range\", \"value\": \"10.1.0.0/26\"}, {\"id\": \"addon-managed-api-service\", \"value\": \"${QUOTA}\"}] }}"
     fi
 
     echo "Applying ${addon_id} Add-on on a cluster with ID: ${cluster_id}"
@@ -403,6 +404,7 @@ Optional exported variables:
 - ALERTING_EMAIL_ADDRESS            email address for receiving alert notifications
 - SELF_SIGNED_CERTS                 true/false - cluster certificate can be invalid
 - WAIT                              true/false - wait for install to complete (default: true)
+- QUOTA                             Ratelimit quota. Allowed values: 1,5,10,20,50 (default: 20)
 ==========================================================================================================
 upgrade_cluster                   - upgrade OSD cluster to latest version (if available)
 ==========================================================================================================
