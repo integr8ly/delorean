@@ -242,6 +242,15 @@ func (c *createProdsecManifestCmd) commitAndPushChanges(gitRepo *git.Repository,
 }
 
 func (c *createProdsecManifestCmd) createPRIfNotExists(ctx context.Context, releaseBranchName string) error {
+	var typeOfInstallation string
+	switch c.version.OlmType() {
+	case "integreatly-operator":
+		typeOfInstallation = "RHMI"
+	case "managed-api-service":
+		typeOfInstallation = "RHOAM"
+	default:
+		typeOfInstallation = "RHOAM"
+	}
 	h := fmt.Sprintf("%s:%s", c.repoInfo.owner, releaseBranchName)
 	prOpts := &github.PullRequestListOptions{Base: c.baseBranch.String(), Head: h}
 	pr, err := findPRForRelease(ctx, c.githubPRService, c.repoInfo, prOpts)
@@ -249,7 +258,7 @@ func (c *createProdsecManifestCmd) createPRIfNotExists(ctx context.Context, rele
 		return err
 	}
 	if pr == nil {
-		t := fmt.Sprintf("Manifest PR for %s for %s manifest", c.version.OlmType(), c.typeOfManifest)
+		t := fmt.Sprintf("Update to %s %s manifest", typeOfInstallation, c.typeOfManifest)
 		b := c.baseBranch.String()
 		req := &github.NewPullRequest{
 			Title: &t,
