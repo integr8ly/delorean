@@ -54,10 +54,10 @@ queries:
   # rhsso related downtime metrics
   - name: rhsso_k8s_endpoint_downtime_seconds
     type: query
-    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='keycloak', namespace='redhat-rhoam-sso'} , 1)[$duration:30s]) * $range)/1000"
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='keycloak', namespace='redhat-rhoam-rhsso'} , 1)[$duration:30s]) * $range)/1000"
   - name: rhsso_keycloak_discovery_k8s_endpoint_downtime_seconds
     type: query
-    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='keycloak-discovery', namespace='redhat-rhoam-sso'} , 1)[$duration:30s]) * $range)/1000"
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='keycloak-discovery', namespace='redhat-rhoam-rhsso'} , 1)[$duration:30s]) * $range)/1000"
   - name: rhsso_ui_blackbox_downtime_seconds
     type: query
     query: "$range - (probe_success{service='rhsso-ui'} * $range)"
