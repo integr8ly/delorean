@@ -122,7 +122,7 @@ create_cluster() {
     echo "Cluster ID: ${cluster_id}"
 
     wait_for "ocm get /api/clusters_mgmt/v1/clusters/${cluster_id}/status | jq -r .state | grep -q ready" "cluster creation" "${TIMEOUT_CLUSTER_CREATION}m" "300"
-    wait_for "ocm get /api/clusters_mgmt/v1/clusters/${cluster_id} | jq -r .health_state | grep -q healthy" "cluster to be healthy" "${TIMEOUT_CLUSTER_HEALTH_CHECK}m" "30" \
+    wait_for "ocm get subs --parameter search=\"cluster_id = '${cluster_id}'\" | jq -r .items[0].metrics[0].health_state | grep -q healthy" "cluster to be healthy" "${TIMEOUT_CLUSTER_HEALTH_CHECK}m" "30" \
         || echo "${WARNING_CLUSTER_HEALTH_CHECK_FAILED}"
     wait_for "ocm get /api/clusters_mgmt/v1/clusters/${cluster_id}/credentials | jq -r .admin | grep -q admin" "fetching cluster credentials" "10m" "30"
 
