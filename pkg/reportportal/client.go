@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	BaseURL = "https://reportportal-cloud-services.cloud.paas.psi.redhat.com/api/v1/"
+	BaseURL = "https://reportportal-reportportal.apps.chiron.intlyqe.com/api/v1/"
 )
 
 type Client struct {

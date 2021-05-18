@@ -48,7 +48,7 @@ type reportPortalImportCmd struct {
 
 type reportProcessResult struct {
 	s3ObjKey   string
-	rpLaunchId string
+	rpLaunchId int
 }
 
 type testMetadata struct {
@@ -190,16 +190,22 @@ func (c *reportPortalImportCmd) processReportFile(ctx context.Context, object *s
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println(fmt.Sprintf("[%s] File uploaded. Update the launch to add tags with id %s", *object.Key, importResp.GetLaunchId()))
+	fmt.Println(fmt.Sprintf("[%s] File uploaded. Get the Launch Id for Launch UUID %s", *object.Key, importResp.GetLaunchUuid()))
+
+	getLaunchIdResp, err := c.rpLaunchService.Get(ctx, c.rpProjectName, importResp.GetLaunchUuid())
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println(fmt.Sprintf("[%s] Launch Id: %d", *object.Key, getLaunchIdResp.Id))
 	// update the launch obj to add a bit more info
 	update := &reportportal.RPLaunchUpdateInput{
 		Description: m.JobURL,
 		Tags:        []string{m.Name, m.RHMIVersion},
 	}
-	if _, err := c.rpLaunchService.Update(ctx, c.rpProjectName, importResp.GetLaunchId(), update); err != nil {
+	if _, err := c.rpLaunchService.Update(ctx, c.rpProjectName, getLaunchIdResp.Id, update); err != nil {
 		return nil, err
 	}
-	fmt.Println(fmt.Sprintf("[%s] Launch updated. Id = %s", *object.Key, importResp.GetLaunchId()))
+	fmt.Println(fmt.Sprintf("[%s] Launch updated. Id = %d", *object.Key, getLaunchIdResp.Id))
 	if !c.noTagging {
 		// update the tags on the obj
 		fmt.Println(fmt.Sprintf("[%s] Adding tag %s=%s to s3 object", *object.Key, reportPortalTagKey, reportPortalTagVal))
@@ -221,7 +227,7 @@ func (c *reportPortalImportCmd) processReportFile(ctx context.Context, object *s
 
 	return &reportProcessResult{
 		s3ObjKey:   *object.Key,
-		rpLaunchId: importResp.GetLaunchId(),
+		rpLaunchId: getLaunchIdResp.Id,
 	}, nil
 }
 
