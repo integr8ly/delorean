@@ -202,10 +202,11 @@ func (c *reportPortalImportCmd) processReportFile(ctx context.Context, object *s
 		Description: m.JobURL,
 		Tags:        []string{m.Name, m.RHMIVersion},
 	}
-	if _, err := c.rpLaunchService.Update(ctx, c.rpProjectName, getLaunchIdResp.Id, update); err != nil {
+	updateResp, err := c.rpLaunchService.Update(ctx, c.rpProjectName, getLaunchIdResp.Id, update)
+	if err != nil {
 		return nil, err
 	}
-	fmt.Println(fmt.Sprintf("[%s] Launch updated. Id = %d", *object.Key, getLaunchIdResp.Id))
+	fmt.Println(fmt.Sprintf("[%s] Launch updated. Id = %d, UUID = %s", *object.Key, getLaunchIdResp.Id, updateResp.GetLaunchUuid()))
 	if !c.noTagging {
 		// update the tags on the obj
 		fmt.Println(fmt.Sprintf("[%s] Adding tag %s=%s to s3 object", *object.Key, reportPortalTagKey, reportPortalTagVal))

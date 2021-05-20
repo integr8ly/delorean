@@ -4,15 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"testing"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager/s3manageriface"
 	"github.com/integr8ly/delorean/pkg/reportportal"
 	"github.com/integr8ly/delorean/pkg/utils"
-	"io"
-	"io/ioutil"
-	"testing"
 )
 
 type mockRPLaunchService struct {
@@ -20,7 +21,9 @@ type mockRPLaunchService struct {
 	importFuncInvoked bool
 	importFunc        func(string, string) (*reportportal.RPLaunchResponse, error)
 	updateFuncInvoked bool
-	updateFunc        func(string, string, *reportportal.RPLaunchUpdateInput) (*reportportal.RPLaunchResponse, error)
+	updateFunc        func(string, int, *reportportal.RPLaunchUpdateInput) (*reportportal.RPLaunchResponse, error)
+	getFuncInvoked    bool
+	getFunc           func(string, string) (*reportportal.RPLaunchDetailsResponse, error)
 }
 
 func (m *mockRPLaunchService) Import(_ context.Context, projectName string, importFile string, _ string) (*reportportal.RPLaunchResponse, error) {
@@ -28,9 +31,14 @@ func (m *mockRPLaunchService) Import(_ context.Context, projectName string, impo
 	return m.importFunc(projectName, importFile)
 }
 
-func (m *mockRPLaunchService) Update(_ context.Context, projectName string, launchId string, input *reportportal.RPLaunchUpdateInput) (*reportportal.RPLaunchResponse, error) {
+func (m *mockRPLaunchService) Update(_ context.Context, projectName string, launchId int, input *reportportal.RPLaunchUpdateInput) (*reportportal.RPLaunchResponse, error) {
 	m.updateFuncInvoked = true
 	return m.updateFunc(projectName, launchId, input)
+}
+
+func (m *mockRPLaunchService) Get(_ context.Context, projectName string, launchUuid string) (*reportportal.RPLaunchDetailsResponse, error) {
+	m.getFuncInvoked = true
+	return m.getFunc(projectName, launchUuid)
 }
 
 func (m *mockRPLaunchService) Validate() error {
@@ -40,12 +48,16 @@ func (m *mockRPLaunchService) Validate() error {
 	if !m.updateFuncInvoked {
 		return errors.New("Update func is not invoked")
 	}
+	if !m.getFuncInvoked {
+		return errors.New("Get func is not invoked")
+	}
 	return nil
 }
 
 func TestReportPortalImportCmd(t *testing.T) {
-	testLaunchId := "testLaunchId"
-	testLaunchIdMsg := fmt.Sprintf("launch id = %s is updated", testLaunchId)
+	testLaunchUuid := "testLaunchId"
+	testLaunchUuidMsg := fmt.Sprintf("launch id = %s is updated", testLaunchUuid)
+	testLaunchId := 1234
 	cases := []struct {
 		description  string
 		s3           s3iface.S3API
@@ -92,13 +104,19 @@ func TestReportPortalImportCmd(t *testing.T) {
 			},
 			rpLaunch: &mockRPLaunchService{
 				importFunc: func(s string, s2 string) (response *reportportal.RPLaunchResponse, err error) {
-					return &reportportal.RPLaunchResponse{Msg: testLaunchIdMsg}, nil
+					return &reportportal.RPLaunchResponse{Message: testLaunchUuidMsg}, nil
 				},
-				updateFunc: func(project string, launchId string, input *reportportal.RPLaunchUpdateInput) (response *reportportal.RPLaunchResponse, err error) {
+				updateFunc: func(project string, launchId int, input *reportportal.RPLaunchUpdateInput) (response *reportportal.RPLaunchResponse, err error) {
 					if launchId != testLaunchId {
-						return nil, fmt.Errorf("wrong launch id. expected %s, but got: %s", testLaunchId, launchId)
+						return nil, fmt.Errorf("wrong launch id. expected %d, but got: %d", testLaunchId, launchId)
 					}
-					return &reportportal.RPLaunchResponse{Msg: testLaunchId}, nil
+					return &reportportal.RPLaunchResponse{Message: testLaunchUuidMsg}, nil
+				},
+				getFunc: func(project string, launchUuid string) (response *reportportal.RPLaunchDetailsResponse, err error) {
+					if launchUuid != testLaunchUuid {
+						return nil, fmt.Errorf("wrong launch id. expected %s, but got: %s", testLaunchUuid, launchUuid)
+					}
+					return &reportportal.RPLaunchDetailsResponse{Id: testLaunchId}, nil
 				},
 			},
 			expectError: false,

@@ -2,7 +2,7 @@ package reportportal
 
 import "testing"
 
-func TestRPLaunchResponse_GetLaunchId(t *testing.T) {
+func TestRPLaunchResponse_GetLaunchUuid(t *testing.T) {
 	cases := []struct {
 		description string
 		msg         string
@@ -10,20 +10,20 @@ func TestRPLaunchResponse_GetLaunchId(t *testing.T) {
 	}{
 		{
 			description: "success without quote",
-			msg:         "Launch with id = 5ef0edf5a2fd760001fe5a1c is successfully imported",
-			expectedId:  "5ef0edf5a2fd760001fe5a1c",
+			msg:         "Launch with id = b862b3c3-a9ce-47d1-9f5c-e51ae9de50f3 is successfully imported",
+			expectedId:  "b862b3c3-a9ce-47d1-9f5c-e51ae9de50f3",
 		},
 		{
 			description: "success with quote",
-			msg:         "Launch with ID = '5ef0ea7da2fd760001fe59f3' successfully updated",
-			expectedId:  "5ef0ea7da2fd760001fe59f3",
+			msg:         "Launch with ID = 'b862b3c3-a9ce-47d1-9f5c-e51ae9de50f3' successfully updated",
+			expectedId:  "b862b3c3-a9ce-47d1-9f5c-e51ae9de50f3",
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.description, func(t *testing.T) {
-			r := RPLaunchResponse{Msg: c.msg}
-			actualId := r.GetLaunchId()
+			r := RPLaunchResponse{Message: c.msg}
+			actualId := r.GetLaunchUuid()
 			if actualId != c.expectedId {
 				t.Fatalf("expected id: %s got: %s", c.expectedId, actualId)
 			}
