@@ -131,6 +131,10 @@ create_cluster() {
 
     printf "Login credentials: \n%s\n" "$(jq -r < "${CLUSTER_CREDENTIALS_FILE}")"
     printf "Log in to the OSD cluster using oc:\noc login --server=%s --username=kubeadmin --password=%s\n" "$(jq -r .api.url < "${CLUSTER_DETAILS_FILE}")" "$(jq -r .password < "${CLUSTER_CREDENTIALS_FILE}")"
+
+    echo "To log into the web console as kubeadmin use the link below:"
+    base_domain=$(jq -r .console_url < "${CLUSTER_CREDENTIALS_FILE}" | cut -d '.' -f 3,4,5,6,7 | cut -d '/' -f 1)
+    echo "https://oauth-openshift.apps.${base_domain}/login/kube:admin?then=%2Foauth%2Fauthorize%3Fclient_id%3Dconsole%26idp%3Dkubeadmin%26redirect_uri%3Dhttps%253A%252F%252Fconsole-openshift-console.apps.${base_domain}%252Fauth%252Fcallback%26response_type%3Dcode%26scope%3Duser%253Afull"
 }
 
 install_addon() {
