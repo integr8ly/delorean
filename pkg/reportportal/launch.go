@@ -60,14 +60,28 @@ func (s *RPLaunchService) Import(ctx context.Context, projectName string, import
 	return launchResp, nil
 }
 
-func (s *RPLaunchService) Update(ctx context.Context, projectName string, launchId string, input *RPLaunchUpdateInput) (*RPLaunchResponse, error) {
-	u := fmt.Sprintf("%s/launch/%s/update", projectName, launchId)
+func (s *RPLaunchService) Update(ctx context.Context, projectName string, launchId int, input *RPLaunchUpdateInput) (*RPLaunchResponse, error) {
+	u := fmt.Sprintf("%s/launch/%d/update", projectName, launchId)
 	req, err := s.client.NewRequest("PUT", u, input)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Add("Content-Type", "application/json")
 	launchResp := &RPLaunchResponse{}
+	_, err = s.client.Do(ctx, req, launchResp)
+	if err != nil {
+		return nil, err
+	}
+	return launchResp, nil
+}
+
+func (s *RPLaunchService) Get(ctx context.Context, projectName string, launchUuid string) (*RPLaunchDetailsResponse, error) {
+	u := fmt.Sprintf("%s/launch/uuid/%s", projectName, launchUuid)
+	req, err := s.client.NewRequest("GET", u, new(bytes.Buffer))
+	if err != nil {
+		return nil, err
+	}
+	launchResp := &RPLaunchDetailsResponse{}
 	_, err = s.client.Do(ctx, req, launchResp)
 	if err != nil {
 		return nil, err
