@@ -197,6 +197,11 @@ install_addon() {
         wait_for "oc --kubeconfig ${CLUSTER_KUBECONFIG_FILE} get rhmi ${rhmi_name} -n ${OPERATOR_NAMESPACE} -o json | jq -r ${completion_phase} | grep -q completed" "rhmi installation" "90m" "300"
         oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get rhmi "${rhmi_name}" -n "${OPERATOR_NAMESPACE}" -o json | jq -r '.status.stages'
     fi
+    
+    echo "3Scale admin credentials:"
+    oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" -n "${NS_PREFIX}-3scale" get secret system-seed -o json | jq -r .data.ADMIN_USER | base64 --decode
+    echo "" #new line
+    oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" -n "${NS_PREFIX}-3scale" get secret system-seed -o json | jq -r .data.ADMIN_PASSWORD | base64 --decode
 }
 
 install_rhmi() {
