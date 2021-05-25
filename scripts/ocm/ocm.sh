@@ -185,7 +185,11 @@ install_addon() {
             --type=merge -p "{\"spec\":{ \"alertingEmailAddress\": \"${ALERTING_EMAIL_ADDRESS}\"}}"
     fi
 
-    create_secrets
+#   Secret creation is only required rhmi addon installs.
+#   Creating the secrets for RHOAM addons affect how the SLO reporting happens in the nightly RHOAM addon pipelines due to a waiting phase
+    if [[ ${addon_id} == "rhmi" ]]; then
+        create_secrets
+    fi
 
     if [[ "${PATCH_CR_AWS_CM}" == true ]]; then
         echo "Patching Cloud Resources AWS Strategies Config Map"
