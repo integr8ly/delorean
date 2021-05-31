@@ -19,6 +19,20 @@
     {
       "_links": {
         "self": {
+          "href": "/job/Nightly/job/managed-api-rosa/8/execution/node/52/wfapi/describe"
+        }
+      },
+      "id": "52",
+      "name": "Unstable Stage",
+      "execNode": "",
+      "status": "UNSTABLE",
+      "startTimeMillis": 1615838457603,
+      "durationMillis": 61,
+      "pauseDurationMillis": 0
+    },
+    {
+      "_links": {
+        "self": {
           "href": "/job/Nightly/job/rhmi-install-addon-flow/131/execution/node/16/wfapi/describe"
         }
       },

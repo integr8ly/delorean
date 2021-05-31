@@ -92,10 +92,9 @@ type PipelineRun struct {
 }
 
 const (
-	TestSuiteName             = "pipeline-status"
-	PipelineRunStatusFailed   = "FAILED"
-	PipelineRunStatusAborted  = "ABORTED"
-	PipelineRunStatusUnstable = "UNSTABLE"
+	TestSuiteName            = "pipeline-status"
+	PipelineRunStatusFailed  = "FAILED"
+	PipelineRunStatusAborted = "ABORTED"
 )
 
 // ToJUnitSuites will convert the status of the pipeline run into JUnit test suites
@@ -146,12 +145,6 @@ func (p *PipelineRun) ToJUnitSuites(filter string) (*JUnitTestSuites, error) {
 				tc.SkipMessage = &JUnitSkipMessage{
 					Message: s.Error.Message,
 				}
-			}
-		case PipelineRunStatusUnstable:
-			ts.Failures++
-			tc.Failure = &JUnitFailure{
-				Message: s.Error.Message,
-				Type:    s.Error.Type,
 			}
 		}
 
