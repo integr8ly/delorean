@@ -1,0 +1,262 @@
+package cmd
+
+import (
+	"context"
+	"fmt"
+	"github.com/blang/semver"
+	"github.com/go-git/go-git/v5"
+	"github.com/integr8ly/delorean/pkg/types"
+	"github.com/spf13/cobra"
+	"io/ioutil"
+	"os"
+	"path"
+	"path/filepath"
+	"sort"
+	"strings"
+)
+
+type getSupportedVersionsFlags struct {
+	olmType                string
+	supportedMajorVersions string
+	supportedMinorVersions string
+	managedTenants         string
+}
+
+type getSupportedVersionsCmd struct {
+	olmType                string
+	supportedMajorVersions int
+	supportedMinorVersions int
+	manageTenants          string
+}
+
+func init() {
+	f := &getSupportedVersionsFlags{}
+	cmd := &cobra.Command{
+		Use:   "supported-versions",
+		Short: "Get a list of supported version of the operator.",
+		Long: "Get a list of supported version of the operator. " +
+			"The supported versions are compiled from the bundles in the operators folders in managed-tenants. " +
+			"Result can be configured to return different number of supported major and minor versions. " +
+			"All patch versions are returned for the minor versions.",
+		Run: func(cmd *cobra.Command, args []string) {
+			c, err := newGetSupportedVersions(f)
+			if err != nil {
+				handleError(err)
+			}
+
+			if _, err := c.run(cmd.Context()); err != nil {
+				handleError(err)
+			}
+		},
+	}
+
+	cmd.Flags().StringVar(&f.olmType, "olmType", types.OlmTypeRhoam, fmt.Sprintf("OlM Type to get the versions of. Supported Values [%s, %s]", types.OlmTypeRhmi, types.OlmTypeRhoam))
+	cmd.Flags().StringVarP(&f.supportedMinorVersions, "minor", "m", "3", "Supported number of minor versions")
+	cmd.Flags().StringVarP(&f.supportedMajorVersions, "major", "M", "1", "Supported number of major versions")
+	cmd.Flags().StringVar(&f.managedTenants, "managedTenants", "https://gitlab.cee.redhat.com/service/managed-tenants.git", "https link for the managed tenants repo to clone")
+	pipelineCmd.AddCommand(cmd)
+
+}
+
+func newGetSupportedVersions(f *getSupportedVersionsFlags) (*getSupportedVersionsCmd, error) {
+
+	var majorVersions int
+	var minorVersions int
+
+	_, err := fmt.Sscan(f.supportedMajorVersions, &majorVersions)
+	_, err = fmt.Sscan(f.supportedMinorVersions, &minorVersions)
+
+	return &getSupportedVersionsCmd{
+		olmType:                f.olmType,
+		supportedMajorVersions: majorVersions,
+		supportedMinorVersions: minorVersions,
+		manageTenants:          f.managedTenants,
+	}, err
+}
+
+func (c *getSupportedVersionsCmd) run(ctx context.Context) ([]string, error) {
+	olmTypePath, err := getOlmTypePath(c.olmType)
+	if err != nil {
+		return nil, err
+	}
+
+	// Download the manged tenants repo
+	repoDir, err := downloadManagedTenants(c.manageTenants)
+	if err != nil {
+		return nil, err
+	}
+	// read the bundle folder names
+	bundles, err := getBundleFolders(repoDir, olmTypePath)
+	if err != nil {
+		return nil, err
+	}
+
+	// create a semver object for the folder names
+	semverVersions, err := getSemverValues(bundles)
+	if err != nil {
+		return nil, err
+
+	}
+
+	// Get the top major streams versions. Max is the number of version being checked
+	majorVersions, err := getMajorVersions(semverVersions, c.supportedMajorVersions)
+
+	// get the top minor streams for the major versions. Limited the max number of versions to be checked
+	minorVersion, err := getMinorVersions(semverVersions, majorVersions, c.supportedMinorVersions)
+	if err != nil {
+		return nil, err
+	}
+
+	// For the list of minor minorVersions get a list of all the patch minorVersions
+	patchVersions, err := getPatchVersions(semverVersions, minorVersion)
+	if err != nil {
+		return nil, err
+
+	}
+
+	result := strings.Join(patchVersions, ",")
+	fmt.Println(result)
+	return patchVersions, nil
+}
+
+func downloadManagedTenants(url string) (string, error) {
+	dir, err := ioutil.TempDir(os.TempDir(), "managed-tenants")
+	if err != nil {
+		return "", err
+	}
+
+	_, err = git.PlainClone(dir, false, &git.CloneOptions{
+		URL:      url,
+		Progress: nil,
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return dir, nil
+}
+
+func getOlmTypePath(olmType string) (string, error) {
+
+	switch olmType {
+	case types.OlmTypeRhoam:
+		return "addons/managed-api-service/bundles", nil
+	case types.OlmTypeRhmi:
+		return "addons/integreatly-operator/bundles", nil
+	default:
+		return "", fmt.Errorf("Unsupported OLM type, Please use --help to see supported types.")
+	}
+}
+
+func getBundleFolders(dir string, bundlePath string) ([]string, error) {
+	var bundles []string
+	root := path.Join(dir, bundlePath)
+	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if info.IsDir() {
+			if path == root {
+				return nil
+			}
+			_, bundle := filepath.Split(path)
+			bundles = append(bundles, bundle)
+		}
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return bundles, nil
+}
+
+func getSemverValues(bundles []string) ([]semver.Version, error) {
+	var values []semver.Version
+	for _, bundle := range bundles {
+		value, err := semver.Make(bundle)
+
+		if err != nil {
+			return nil, err
+		}
+
+		values = append(values, value)
+	}
+
+	return values, nil
+}
+
+func getMajorVersions(versions []semver.Version, supportedVersions int) ([]int, error) {
+	var result []int
+	for _, version := range versions {
+		if contains(result, int(version.Major)) {
+			continue
+		}
+		result = append(result, int(version.Major))
+	}
+	sort.Ints(result)
+	if len(result) > supportedVersions {
+		result = result[len(result)-supportedVersions:]
+	}
+
+	if len(result) == 0 {
+		return nil, fmt.Errorf("Empty list being returned")
+	}
+
+	return result, nil
+}
+
+func getMinorVersions(versions []semver.Version, majorVersions []int, supportedVersions int) (map[int][]int, error) {
+	var result = make(map[int][]int)
+	for _, version := range versions {
+		if contains(majorVersions, int(version.Major)) {
+			_, exists := result[int(version.Major)]
+			if !exists {
+				result[int(version.Major)] = []int{}
+			}
+
+			if contains(result[int(version.Major)], int(version.Minor)) {
+				continue
+			}
+			result[int(version.Major)] = append(result[int(version.Major)], int(version.Minor))
+			sort.Ints(result[int(version.Major)])
+
+			if len(result[int(version.Major)]) > supportedVersions {
+				result[int(version.Major)] = result[int(version.Major)][len(result[int(version.Major)])-supportedVersions:]
+			}
+		}
+	}
+
+	if len(result) == 0 {
+		return nil, fmt.Errorf("Unexpected error trying to return an  empty map")
+	}
+
+	return result, nil
+}
+
+func getPatchVersions(versions []semver.Version, supportedVersions map[int][]int) ([]string, error) {
+	var result []string
+	for _, version := range versions {
+		major, exists := supportedVersions[int(version.Major)]
+		if !exists {
+			continue
+		}
+
+		if contains(major, int(version.Minor)) {
+			result = append(result, version.String())
+		}
+	}
+
+	if len(result) == 0 {
+		return nil, fmt.Errorf("Trying to return a empty patch list")
+	}
+
+	return result, nil
+}
+
+func contains(inputList []int, value int) bool {
+	for _, i := range inputList {
+		if i == value {
+			return true
+		}
+	}
+	return false
+}
