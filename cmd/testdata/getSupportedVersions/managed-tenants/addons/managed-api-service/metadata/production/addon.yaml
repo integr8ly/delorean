@@ -1,0 +1,3 @@
+channels:
+  - name: stable
+    currentCSV: managed-api-service.v1.6.1

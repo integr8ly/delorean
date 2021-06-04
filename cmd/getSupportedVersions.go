@@ -6,6 +6,7 @@ import (
 	"github.com/blang/semver"
 	"github.com/go-git/go-git/v5"
 	"github.com/integr8ly/delorean/pkg/types"
+	"github.com/integr8ly/delorean/pkg/utils"
 	"github.com/spf13/cobra"
 	"io/ioutil"
 	"os"
@@ -75,7 +76,7 @@ func newGetSupportedVersions(f *getSupportedVersionsFlags) (*getSupportedVersion
 }
 
 func (c *getSupportedVersionsCmd) run(ctx context.Context) ([]string, error) {
-	olmTypePath, err := getOlmTypePath(c.olmType)
+	olmBundlePath, olmFilePath, err := getOlmTypePaths(c.olmType)
 	if err != nil {
 		return nil, err
 	}
@@ -86,13 +87,27 @@ func (c *getSupportedVersionsCmd) run(ctx context.Context) ([]string, error) {
 		return nil, err
 	}
 	// read the bundle folder names
-	bundles, err := getBundleFolders(repoDir, olmTypePath)
+	bundles, err := getBundleFolders(repoDir, olmBundlePath)
+	if err != nil {
+		return nil, err
+	}
+
+	// get the current production version
+	var productionVersion semver.Version
+	productionVersion, err = getProductionVersion(repoDir, olmFilePath)
 	if err != nil {
 		return nil, err
 	}
 
 	// create a semver object for the folder names
 	semverVersions, err := getSemverValues(bundles)
+	if err != nil {
+		return nil, err
+
+	}
+
+	// trim semver version list to have newest version equal to production version
+	semverVersions, err = trimSemverVersions(semverVersions, productionVersion)
 	if err != nil {
 		return nil, err
 
@@ -119,6 +134,51 @@ func (c *getSupportedVersionsCmd) run(ctx context.Context) ([]string, error) {
 	return patchVersions, nil
 }
 
+func trimSemverVersions(versions []semver.Version, productionVersion semver.Version) ([]semver.Version, error) {
+	var result []semver.Version
+
+	for _, version := range versions {
+		if version.Major < productionVersion.Major {
+			result = append(result, version)
+		}
+
+		if version.Major == productionVersion.Major && version.Minor <= productionVersion.Minor {
+			result = append(result, version)
+		}
+	}
+
+	if len(result) == 0 {
+		return result, fmt.Errorf("All versions are newer that production")
+	}
+
+	return result, nil
+}
+
+func getProductionVersion(dir string, filePath string) (semver.Version, error) {
+	root := path.Join(dir, filePath)
+
+	type channelType struct {
+		Name       string `json:"name"`
+		CurrentCSV string `json:"currentCSV"`
+	}
+	type channel struct {
+		Channels []channelType `json:"channels"`
+	}
+
+	data := channel{}
+	err := utils.PopulateObjectFromYAML(root, &data)
+	if err != nil {
+		return semver.Version{}, err
+	}
+
+	version := strings.Split(data.Channels[0].CurrentCSV, ".v")[1]
+	semverVersion, err := semver.Make(version)
+	if err != nil {
+		return semver.Version{}, err
+	}
+	return semverVersion, nil
+}
+
 func downloadManagedTenants(url string) (string, error) {
 	dir, err := ioutil.TempDir(os.TempDir(), "managed-tenants")
 	if err != nil {
@@ -136,15 +196,15 @@ func downloadManagedTenants(url string) (string, error) {
 	return dir, nil
 }
 
-func getOlmTypePath(olmType string) (string, error) {
+func getOlmTypePaths(olmType string) (string, string, error) {
 
 	switch olmType {
 	case types.OlmTypeRhoam:
-		return "addons/managed-api-service/bundles", nil
+		return "addons/managed-api-service/bundles", "addons/managed-api-service/metadata/production/addon.yaml", nil
 	case types.OlmTypeRhmi:
-		return "addons/integreatly-operator/bundles", nil
+		return "addons/integreatly-operator/bundles", "addons/integreatly-operator/metadata/production/addon.yaml", nil
 	default:
-		return "", fmt.Errorf("Unsupported OLM type, Please use --help to see supported types.")
+		return "", "", fmt.Errorf("Unsupported OLM type, Please use --help to see supported types.")
 	}
 }
 

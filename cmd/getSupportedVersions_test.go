@@ -6,6 +6,7 @@ import (
 	"github.com/integr8ly/delorean/pkg/types"
 	"os"
 	"path"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -350,46 +351,55 @@ func compareMinorVersionResult(versions map[int][]int, expected map[int][]int) b
 
 func TestGetOlmTypePath(t *testing.T) {
 	cases := []struct {
-		description string
-		olmType     string
-		expected    string
-		hasError    bool
+		description        string
+		olmType            string
+		expectedBundlePath string
+		expectedFilePath   string
+		expectedError      string
+		hasError           bool
 	}{
 		{
-			description: "Get values for RHOAM",
-			olmType:     types.OlmTypeRhoam,
-			expected:    "addons/managed-api-service/bundles",
-			hasError:    false,
+			description:        "Get values for RHOAM",
+			olmType:            types.OlmTypeRhoam,
+			expectedBundlePath: "addons/managed-api-service/bundles",
+			expectedFilePath:   "addons/managed-api-service/metadata/production/addon.yaml",
+			hasError:           false,
 		},
 		{
-			description: "Get values for RHMI",
-			olmType:     types.OlmTypeRhmi,
-			expected:    "addons/integreatly-operator/bundles",
-			hasError:    false,
+			description:        "Get values for RHMI",
+			olmType:            types.OlmTypeRhmi,
+			expectedBundlePath: "addons/integreatly-operator/bundles",
+			expectedFilePath:   "addons/integreatly-operator/metadata/production/addon.yaml",
+
+			hasError: false,
 		},
 		{
-			description: "Unsupported Type",
-			olmType:     types.OlmTypeRhoam,
-			expected:    "Unsupported Olm Type",
-			hasError:    true,
+			description:   "Unsupported Type",
+			olmType:       types.OlmTypeRhoam,
+			expectedError: "Unsupported Olm Type",
+			hasError:      true,
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.description, func(t *testing.T) {
-			result, err := getOlmTypePath(c.olmType)
+			resultBundlePath, resultFilePath, err := getOlmTypePaths(c.olmType)
 			if err != nil {
-				if c.hasError && err.Error() != c.expected {
-					t.Fatalf("Did not get expected error. Expected: %s, Recived: %s", c.expected, err)
-				} else if c.hasError && err.Error() == c.expected {
+				if c.hasError && err.Error() != c.expectedError {
+					t.Fatalf("Did not get expected error. Expected: %s, Recived: %s", c.expectedError, err)
+				} else if c.hasError && err.Error() == c.expectedError {
 
 				} else {
 					t.Fatalf("Unexpected Error, %s", err)
 				}
 			}
 
-			if result != c.expected && !c.hasError {
-				t.Fatalf("Wrong path returned. Expected: %s, Recived: %s", c.expected, result)
+			if resultBundlePath != c.expectedBundlePath && !c.hasError {
+				t.Fatalf("Wrong path returned. Expected: %s, Recived: %s", c.expectedBundlePath, resultBundlePath)
+			}
+
+			if resultFilePath != c.expectedFilePath && !c.hasError {
+				t.Fatalf("Wrong path returned. Expected: %s, Recived: %s", c.expectedFilePath, resultBundlePath)
 			}
 
 		})
@@ -425,6 +435,102 @@ func TestDownloadManagedTenants(t *testing.T) {
 
 		})
 	}
+}
+
+func TestGetProductionVersion(t *testing.T) {
+	basedir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var cases = []struct {
+		description string
+		repoDir     string
+		filePath    string
+		expected    semver.Version
+	}{
+		{
+			description: "Get production version for rhoam",
+			repoDir:     path.Join(basedir, "testdata/getSupportedVersions/managed-tenants"),
+			filePath:    "addons/managed-api-service/metadata/production/addon.yaml",
+			expected:    semver.Version{Major: 1, Minor: 6, Patch: 1},
+		},
+		{
+			description: "Get production version for rhmi",
+			repoDir:     path.Join(basedir, "testdata/getSupportedVersions/managed-tenants"),
+			filePath:    "addons/integreatly-operator/metadata/production/addon.yaml",
+			expected:    semver.Version{Major: 2, Minor: 8, Patch: 0},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.description, func(t *testing.T) {
+			result, err := getProductionVersion(c.repoDir, c.filePath)
+			if err != nil {
+				t.Fatalf("Unexpected Error: %s", err)
+			}
+
+			if !reflect.DeepEqual(result, c.expected) {
+				t.Fatalf("Version do not match, Expected: %s, Recived: %s", c.expected, result)
+			}
+		})
+	}
+}
+
+func TestTrimSemverVersions(t *testing.T) {
+	cases := []struct {
+		description    string
+		versions       []semver.Version
+		currentVersion semver.Version
+		expected       []semver.Version
+	}{
+		{
+			description: "Two minor version less in production",
+			versions: []semver.Version{
+				{Major: 0, Minor: 0, Patch: 0},
+				{Major: 1, Minor: 0, Patch: 0},
+				{Major: 1, Minor: 0, Patch: 1},
+				{Major: 1, Minor: 1, Patch: 0},
+				{Major: 1, Minor: 2, Patch: 0},
+			},
+			currentVersion: semver.Version{Major: 1, Minor: 0},
+			expected: []semver.Version{
+				{Major: 0, Minor: 0, Patch: 0},
+				{Major: 1, Minor: 0, Patch: 0},
+				{Major: 1, Minor: 0, Patch: 1},
+			},
+		},
+		{
+			description: "Two major version less in production",
+			versions: []semver.Version{
+				{Major: 0, Minor: 0, Patch: 0},
+				{Major: 1, Minor: 0, Patch: 0},
+				{Major: 1, Minor: 0, Patch: 1},
+				{Major: 1, Minor: 1, Patch: 0},
+				{Major: 2, Minor: 0, Patch: 0},
+				{Major: 3, Minor: 0, Patch: 0},
+			},
+			currentVersion: semver.Version{Major: 1, Minor: 0},
+			expected: []semver.Version{
+				{Major: 0, Minor: 0, Patch: 0},
+				{Major: 1, Minor: 0, Patch: 0},
+				{Major: 1, Minor: 0, Patch: 1},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.description, func(t *testing.T) {
+			result, err := trimSemverVersions(c.versions, c.currentVersion)
+			if err != nil {
+				t.Fatalf("Unexected Error: %s", err)
+			}
+
+			if !reflect.DeepEqual(c.expected, result) {
+				t.Fatalf("Version do not match, Expected: %s, Recived %s", c.expected, result)
+			}
+		})
+	}
+
 }
 
 func compareIntList(versions []int, expected []int) bool {
