@@ -22,13 +22,6 @@ images:
           - destination_dir: .
             source_path: /go/src/github.com/integr8ly/integreatly-operator/build
     to: integreatly-operator
-  - dockerfile_path: Dockerfile.osde2e
-    from: os
-    inputs:
-      openshift_release_golang-1.13:
-        as:
-          - registry.svc.ci.openshift.org/openshift/release:golang-1.13
-    to: integreatly-operator-test-harness-osde2e
   - dockerfile_path: Dockerfile.functional
     from: os
     inputs:
@@ -37,7 +30,7 @@ images:
           - registry.svc.ci.openshift.org/openshift/release:golang-1.13
     to: integreatly-operator-test-harness
 promotion:
-  name: "1.1"
+  name: "2.8"
   namespace: integr8ly
 resources:
   '*':
@@ -49,7 +42,7 @@ resources:
       cpu: 200m
       memory: 2Gi
 tag_specification:
-  name: "4.4"
+  name: "4.3"
   namespace: ocp
 tests:
   - artifact_dir: /tmp/artifacts
@@ -68,12 +61,7 @@ tests:
     container:
       from: src
   - artifact_dir: /tmp/artifacts
-    as: test-cases-lint
-    commands: make test-cases/lint
-    container:
-      from: src
-  - artifact_dir: /tmp/artifacts
-    as: rhoam-e2e
+    as: e2e
     steps:
       cluster_profile: aws
       env:
@@ -81,7 +69,7 @@ tests:
       test:
         - as: test
           cli: latest
-          commands: make test/e2e/rhoam/prow
+          commands: make test/e2e/prow
           from: src
           resources:
             requests:
@@ -92,12 +80,7 @@ tests:
     commands: make manifest/check
     container:
       from: src
-  - artifact_dir: /tmp/artifacts
-    as: versions
-    commands: make versions/check
-    container:
-      from: src
 zz_generated_metadata:
-  branch: rhoam-release-v1.1
+  branch: release-v2.8
   org: integr8ly
   repo: integreatly-operator
