@@ -174,6 +174,9 @@ func WaitForContainerToComplete(client kubernetes.Interface, namespace string, p
 				}
 				continue
 			default:
+				// this section is added to try debug flaky failures in the pipeline around this area
+				fmt.Println(fmt.Sprintf("[%s] Pod=%s Container=%s ContainerStatus=%s WatchStatus=%s", logPrefix, pod.GetName(), containerName, pod.Status.Phase, e.Type))
+				fmt.Println(fmt.Sprintf("[%s] Pod=%s PodStatus=%v", logPrefix, pod.GetName(), pod.Status))
 				continue
 			}
 		case <-time.After(timeout):
