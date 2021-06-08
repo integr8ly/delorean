@@ -98,19 +98,19 @@ func Test_updateCIOperatorConfig(t *testing.T) {
 			args: args{
 				repoDir: validReleaseDirTmp,
 				olmType: types.OlmTypeRhmi,
-				version: "2.0.0-rc1",
+				version: "2.20.0-rc1",
 			},
 			verify: func(repoDir string) error {
-				content, err := ioutil.ReadFile(path.Join(repoDir, "ci-operator/config/integr8ly/integreatly-operator/integr8ly-integreatly-operator-release-v2.0.yaml"))
+				content, err := ioutil.ReadFile(path.Join(repoDir, "ci-operator/config/integr8ly/integreatly-operator/integr8ly-integreatly-operator-release-v2.20.yaml"))
 				if err != nil {
 					return err
 				}
-				promotionStr := "promotion:\n  name: \"2.0\""
+				promotionStr := "promotion:\n  name: \"2.20\""
 				if strings.Index(string(content), promotionStr) < 0 {
 					return fmt.Errorf("missing content: %s", promotionStr)
 				}
 
-				branchStr := "zz_generated_metadata:\n  branch: release-v2.0"
+				branchStr := "zz_generated_metadata:\n  branch: release-v2.20"
 				if strings.Index(string(content), branchStr) < 0 {
 					return fmt.Errorf("missing content: %s", branchStr)
 				}
@@ -123,19 +123,19 @@ func Test_updateCIOperatorConfig(t *testing.T) {
 			args: args{
 				repoDir: validReleaseDirTmp,
 				olmType: types.OlmTypeRhoam,
-				version: "1.1.0-rc1",
+				version: "1.20.0-rc1",
 			},
 			verify: func(repoDir string) error {
-				content, err := ioutil.ReadFile(path.Join(repoDir, "ci-operator/config/integr8ly/integreatly-operator/integr8ly-integreatly-operator-rhoam-release-v1.1.yaml"))
+				content, err := ioutil.ReadFile(path.Join(repoDir, "ci-operator/config/integr8ly/integreatly-operator/integr8ly-integreatly-operator-rhoam-release-v1.20.yaml"))
 				if err != nil {
 					return err
 				}
-				promotionStr := "promotion:\n  name: \"1.1\""
+				promotionStr := "promotion:\n  name: \"1.20\""
 				if strings.Index(string(content), promotionStr) < 0 {
 					return fmt.Errorf("missing content: %s", promotionStr)
 				}
 
-				branchStr := "zz_generated_metadata:\n  branch: rhoam-release-v1.1"
+				branchStr := "zz_generated_metadata:\n  branch: rhoam-release-v1.20"
 				if strings.Index(string(content), branchStr) < 0 {
 					return fmt.Errorf("missing content: %s", branchStr)
 				}
