@@ -1,7 +1,7 @@
 FROM centos:7
 LABEL maintainer="mnairn@redhat.com"
 
-ENV OPERATOR_SDK_VERSION=v1.2.0 \
+ENV OPERATOR_SDK_VERSION=v1.7.2 \
     OC_VERSION="4.6" \
     GOFLAGS="" \
     PATH=$PATH:/usr/local/go/bin
@@ -24,8 +24,8 @@ RUN set -o pipefail && \
     chmod +x /usr/local/bin/kustomize
 
 # install operator-sdk
-RUN curl -LO https://github.com/operator-framework/operator-sdk/releases/download/${OPERATOR_SDK_VERSION}/operator-sdk-${OPERATOR_SDK_VERSION}-x86_64-linux-gnu && \
-    mv operator-sdk-${OPERATOR_SDK_VERSION}-x86_64-linux-gnu /usr/bin/operator-sdk && \
+RUN curl -LO https://github.com/operator-framework/operator-sdk/releases/download/${OPERATOR_SDK_VERSION}/operator-sdk_linux_amd64 && \
+    mv operator-sdk_linux_amd64 /usr/bin/operator-sdk && \
     chmod +x /usr/bin/operator-sdk
 
 COPY scripts/prow /usr/local/bin
