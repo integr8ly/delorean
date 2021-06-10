@@ -156,7 +156,6 @@ install_addon() {
     completion_phase="${2}"
 
     : "${USE_CLUSTER_STORAGE:=true}"
-    : "${PATCH_CR_AWS_CM:=true}"
     : "${WAIT:=true}"
     : "${QUOTA:=20}"
     cluster_id=$(get_cluster_id)
@@ -196,12 +195,6 @@ install_addon() {
 #   Creating the secrets for RHOAM addons affect how the SLO reporting happens in the nightly RHOAM addon pipelines due to a waiting phase
     if [[ ${addon_id} == "rhmi" ]]; then
         create_secrets
-    fi
-
-    if [[ "${PATCH_CR_AWS_CM}" == true ]]; then
-        echo "Patching Cloud Resources AWS Strategies Config Map"
-        wait_for "oc --kubeconfig ${CLUSTER_KUBECONFIG_FILE} get configMap cloud-resources-aws-strategies -n ${OPERATOR_NAMESPACE} | grep -q cloud-resources-aws-strategies" "cloud-resources-aws-strategies ready" "5m" "20"
-        oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" patch configMap cloud-resources-aws-strategies -n "${OPERATOR_NAMESPACE}" --type='json' -p '[{"op": "add", "path": "/data/_network", "value":"{ \"production\": { \"createStrategy\": { \"CidrBlock\": \"'10.1.0.0/23'\" } } }"}]'
     fi
 
     if [[ "${WAIT}" == true ]]; then
