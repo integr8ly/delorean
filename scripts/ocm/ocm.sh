@@ -243,14 +243,23 @@ delete_cluster() {
 
 upgrade_cluster() {
     local cluster_id
+    local to_version_parameter
     cluster_id=$(get_cluster_id)
 
-    upgradeAvailable=$(ocm get cluster "${cluster_id}" | jq -r .metrics.upgrade.available)
+    : "${TO_VERSION:=latest}"
+
+    if [[ $TO_VERSION == "latest" ]]; then
+        to_version_parameter="--to-latest=true"
+    else
+        to_version_parameter="--to=${TO_VERSION}"
+    fi
+
+    upgradesAvailable=$(ocm get cluster "${cluster_id}" | jq -r '.version.available_upgrades | values')
     
-    if [[ $upgradeAvailable == true ]]; then
-        oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" adm upgrade --to-latest=true
+    if [[ $upgradesAvailable != "" ]]; then
+        oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" adm upgrade $to_version_parameter
         sleep 600 # waiting 10 minutes to allow for '.metrics.upgrade.state' to appear
-        wait_for "ocm get cluster ${cluster_id} | jq -r .metrics.upgrade.state | grep -q completed" "OpenShift upgrade" "90m" "300"
+        wait_for "ocm get subscription $(get_cluster_subscription_id) | jq -r .metrics[0].upgrade.state | grep -q complete" "OpenShift upgrade" "90m" "300"
     else
         echo "No upgrade available for cluster with id: ${cluster_id}"
     fi
@@ -424,6 +433,9 @@ Optional exported variables:
 - QUOTA                             Ratelimit quota. Allowed values: 1,5,10,20,50 (default: 20)
 ==========================================================================================================
 upgrade_cluster                   - upgrade OSD cluster to latest version (if available)
+------------------------------------------------------------------------------------------
+Optional exported variables:
+- TO_VERSION                        version in the format 'x.y.z' or 'latest' (default: latest)
 ==========================================================================================================
 delete_cluster                    - delete RHMI product & OSD cluster
 Optional exported variables:
