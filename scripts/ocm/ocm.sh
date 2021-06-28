@@ -63,6 +63,7 @@ create_cluster_configuration_file() {
     : "${PRIVATE:=false}"
     : "${MULTI_AZ:=false}"
     : "${COMPUTE_NODES_COUNT:=}"
+    : "${COMPUTE_MACHINE_TYPE:=}"
 
     timestamp=$(get_expiration_timestamp "${OCM_CLUSTER_LIFESPAN}")
 
@@ -99,6 +100,12 @@ create_cluster_configuration_file() {
     if [[ -n "${COMPUTE_NODES_COUNT}" ]]; then
         update_configuration "compute_nodes_count"
     fi
+
+    if [[ -n "${COMPUTE_MACHINE_TYPE}" ]]; then
+        update_configuration "compute_machine_type"
+    fi
+
+    
 
 
     cat "${CLUSTER_CONFIGURATION_FILE}"
@@ -349,11 +356,15 @@ update_configuration() {
         ;;
 
     multi_az)
-        updated_configuration=$(jq ".multi_az = true | .nodes.compute = 9 | .nodes.compute_machine_type.id = \"m5.xlarge\"" < "${CLUSTER_CONFIGURATION_FILE}")
+        updated_configuration=$(jq ".multi_az = true" < "${CLUSTER_CONFIGURATION_FILE}")
         ;;
 
     compute_nodes_count)
         updated_configuration=$(jq ".nodes.compute = ${COMPUTE_NODES_COUNT}" < "${CLUSTER_CONFIGURATION_FILE}")
+        ;;
+
+    compute_machine_type)
+        updated_configuration=$(jq ".nodes.compute_machine_type.id = \"${COMPUTE_MACHINE_TYPE}\"" < "${CLUSTER_CONFIGURATION_FILE}")
         ;;
 
     *)
@@ -400,7 +411,8 @@ Optional exported variables:
 - OPENSHIFT_VERSION                 to get OpenShift versions, run: ocm cluster versions
 - PRIVATE                           Cluster's API and router will be private
 - MULTI_AZ                          true/false (default: false)
-- COMPUTE_NODES_COUNT               number of cluster's compute nodes (default: single-az: 4, multi-az: 9)
+- COMPUTE_NODES_COUNT               number of cluster's compute nodes (default: 8 in cluster-template. Can be specified otherwise)
+- COMPUTE_MACHINE_TYPE              node type of cluster's compute nodes (default: m5.xlarge, can be specified otherwise)
 ==========================================================================================================
 create_cluster                    - spin up OSD cluster
 ----------------------------------------------------------------------------------------------------------
