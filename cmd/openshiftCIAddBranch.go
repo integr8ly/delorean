@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	ProwConfigSourceRHMI   = "ci-operator/config/integr8ly/integreatly-operator/integr8ly-integreatly-operator-release-v2.8.yaml"
+	ProwConfigSourceRHMI   = "ci-operator/config/integr8ly/integreatly-operator/integr8ly-integreatly-operator-release-v2.9.yaml"
 	ProwConfigSourceRHOAM  = "ci-operator/config/integr8ly/integreatly-operator/integr8ly-integreatly-operator-rhoam-release-v1.7.yaml"
 	ProwConfigSourceMaster = "ci-operator/config/integr8ly/integreatly-operator/integr8ly-integreatly-operator-master.yaml"
 	ProwInternalRegistry   = "registry.ci.openshift.org/integr8ly"
