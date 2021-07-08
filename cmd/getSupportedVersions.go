@@ -200,7 +200,7 @@ func getOlmTypePaths(olmType string) (string, string, error) {
 
 	switch olmType {
 	case types.OlmTypeRhoam:
-		return "addons/managed-api-service/bundles", "addons/managed-api-service/metadata/production/addon.yaml", nil
+		return "addons/rhoams/bundles", "addons/rhoams/metadata/production/addon.yaml", nil
 	case types.OlmTypeRhmi:
 		return "addons/integreatly-operator/bundles", "addons/integreatly-operator/metadata/production/addon.yaml", nil
 	default:
