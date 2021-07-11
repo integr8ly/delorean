@@ -6,7 +6,7 @@ addons:
       path: "packagemanifests/managed-api-service"
     channels:
       - name: "stage"
-        directory: "managed-api-service"
+        directory: "rhoams"
         environment: "stage"
         allow_pre_release: true
       - name: "edge"
@@ -14,7 +14,7 @@ addons:
         environment: "production"
         allow_pre_release: false
       - name: "stable"
-        directory: "managed-api-service"
+        directory: "rhoams"
         environment: "production"
         allow_pre_release: false
     override:
