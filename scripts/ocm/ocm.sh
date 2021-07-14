@@ -156,7 +156,6 @@ install_addon() {
     completion_phase="${2}"
 
     : "${USE_CLUSTER_STORAGE:=true}"
-    : "${PATCH_CR_AWS_CM:=true}"
     : "${WAIT:=true}"
     : "${QUOTA:=20}"
     cluster_id=$(get_cluster_id)
@@ -196,12 +195,6 @@ install_addon() {
 #   Creating the secrets for RHOAM addons affect how the SLO reporting happens in the nightly RHOAM addon pipelines due to a waiting phase
     if [[ ${addon_id} == "rhmi" ]]; then
         create_secrets
-    fi
-
-    if [[ "${PATCH_CR_AWS_CM}" == true ]]; then
-        echo "Patching Cloud Resources AWS Strategies Config Map"
-        wait_for "oc --kubeconfig ${CLUSTER_KUBECONFIG_FILE} get configMap cloud-resources-aws-strategies -n ${OPERATOR_NAMESPACE} | grep -q cloud-resources-aws-strategies" "cloud-resources-aws-strategies ready" "5m" "20"
-        oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" patch configMap cloud-resources-aws-strategies -n "${OPERATOR_NAMESPACE}" --type='json' -p '[{"op": "add", "path": "/data/_network", "value":"{ \"production\": { \"createStrategy\": { \"CidrBlock\": \"'10.1.0.0/23'\" } } }"}]'
     fi
 
     if [[ "${WAIT}" == true ]]; then
@@ -250,17 +243,47 @@ delete_cluster() {
 
 upgrade_cluster() {
     local cluster_id
+    local to_version_parameter
+    local channel_version
     cluster_id=$(get_cluster_id)
 
-    upgradeAvailable=$(ocm get cluster "${cluster_id}" | jq -r .metrics.upgrade.available)
+    : "${TO_VERSION:=latest}"
+
+    if [[ $TO_VERSION == "latest" ]]; then
+        to_version_parameter="--to-latest=true"
+    else
+        to_version_parameter="--to=${TO_VERSION}"
+    fi
+
+    upgradesAvailable=$(ocm get cluster "${cluster_id}" | jq -r '.version.available_upgrades | values')
     
-    if [[ $upgradeAvailable == true ]]; then
-        oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" adm upgrade --to-latest=true
+    if [[ $upgradesAvailable != "" ]]; then
+        channel_version=$(get_channel_version)
+        echo "Current version of cluster's upgrade channel is ${channel_version}"
+        if [[ $TO_VERSION == "latest" || $TO_VERSION == "${channel_version}."* ]]; then
+            echo "No need to update the upgrade channel for upgrading OSD to version $TO_VERSION"
+        else
+            update_channel_version
+        fi
+        oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" adm upgrade $to_version_parameter
         sleep 600 # waiting 10 minutes to allow for '.metrics.upgrade.state' to appear
-        wait_for "ocm get cluster ${cluster_id} | jq -r .metrics.upgrade.state | grep -q completed" "OpenShift upgrade" "90m" "300"
+        wait_for "ocm get subscription $(get_cluster_subscription_id) | jq -r .metrics[0].upgrade.state | grep -q complete" "OpenShift upgrade" "90m" "300"
     else
         echo "No upgrade available for cluster with id: ${cluster_id}"
     fi
+}
+
+update_channel_version() {
+    local new_channel_version="${TO_VERSION%.*}"
+
+    echo "Updating upgrade channel to version ${new_channel_version}"
+    oc patch clusterversion version --type="merge" -p "{\"spec\":{\"channel\":\"stable-${new_channel_version}\"}}"
+}
+
+get_channel_version() {
+    local channel_spec
+    channel_spec=$(oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get clusterversion version -o json | jq -r .spec.channel)
+    printf "%s" "${channel_spec##*-}"
 }
 
 get_cluster_logs() {
@@ -431,6 +454,9 @@ Optional exported variables:
 - QUOTA                             Ratelimit quota. Allowed values: 1,5,10,20,50 (default: 20)
 ==========================================================================================================
 upgrade_cluster                   - upgrade OSD cluster to latest version (if available)
+------------------------------------------------------------------------------------------
+Optional exported variables:
+- TO_VERSION                        version in the format 'x.y.z' or 'latest' (default: latest)
 ==========================================================================================================
 delete_cluster                    - delete RHMI product & OSD cluster
 Optional exported variables:
