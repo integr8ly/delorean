@@ -244,6 +244,7 @@ delete_cluster() {
 upgrade_cluster() {
     local cluster_id
     local to_version_parameter
+    local channel_version
     cluster_id=$(get_cluster_id)
 
     : "${TO_VERSION:=latest}"
@@ -257,12 +258,32 @@ upgrade_cluster() {
     upgradesAvailable=$(ocm get cluster "${cluster_id}" | jq -r '.version.available_upgrades | values')
     
     if [[ $upgradesAvailable != "" ]]; then
+        channel_version=$(get_channel_version)
+        echo "Current version of cluster's upgrade channel is ${channel_version}"
+        if [[ $TO_VERSION == "latest" || $TO_VERSION == "${channel_version}."* ]]; then
+            echo "No need to update the upgrade channel for upgrading OSD to version $TO_VERSION"
+        else
+            update_channel_version
+        fi
         oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" adm upgrade $to_version_parameter
         sleep 600 # waiting 10 minutes to allow for '.metrics.upgrade.state' to appear
         wait_for "ocm get subscription $(get_cluster_subscription_id) | jq -r .metrics[0].upgrade.state | grep -q complete" "OpenShift upgrade" "90m" "300"
     else
         echo "No upgrade available for cluster with id: ${cluster_id}"
     fi
+}
+
+update_channel_version() {
+    local new_channel_version="${TO_VERSION%.*}"
+
+    echo "Updating upgrade channel to version ${new_channel_version}"
+    oc patch clusterversion version --type="merge" -p "{\"spec\":{\"channel\":\"stable-${new_channel_version}\"}}"
+}
+
+get_channel_version() {
+    local channel_spec
+    channel_spec=$(oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get clusterversion version -o json | jq -r .spec.channel)
+    printf "%s" "${channel_spec##*-}"
 }
 
 get_cluster_logs() {
