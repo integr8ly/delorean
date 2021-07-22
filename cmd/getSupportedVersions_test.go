@@ -87,7 +87,7 @@ func TestGetBundleFolders(t *testing.T) {
 		{
 			description: "Return all bundle folders for managed-api-service",
 			dir:         path.Join(basedir, "testdata/getSupportedVersions/managed-tenants"),
-			path:        "addons/managed-api-service/bundles",
+			path:        "addons/rhoams/bundles",
 			expected:    []string{"1.4.0", "1.5.0", "1.6.0", "1.6.1", "1.7.0", "1.7.1", "1.7.2"},
 		},
 	}
@@ -361,8 +361,8 @@ func TestGetOlmTypePath(t *testing.T) {
 		{
 			description:        "Get values for RHOAM",
 			olmType:            types.OlmTypeRhoam,
-			expectedBundlePath: "addons/managed-api-service/bundles",
-			expectedFilePath:   "addons/managed-api-service/metadata/production/addon.yaml",
+			expectedBundlePath: "addons/rhoams/bundles",
+			expectedFilePath:   "addons/rhoams/metadata/production/addon.yaml",
 			hasError:           false,
 		},
 		{
@@ -452,7 +452,7 @@ func TestGetProductionVersion(t *testing.T) {
 		{
 			description: "Get production version for rhoam",
 			repoDir:     path.Join(basedir, "testdata/getSupportedVersions/managed-tenants"),
-			filePath:    "addons/managed-api-service/metadata/production/addon.yaml",
+			filePath:    "addons/rhoams/metadata/production/addon.yaml",
 			expected:    semver.Version{Major: 1, Minor: 6, Patch: 1},
 		},
 		{
