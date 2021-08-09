@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -31,6 +32,8 @@ const (
 	polarionImportURL        = "https://polarion.engineering.redhat.com/polarion/import"
 	polarionImportStagingURL = "https://polarion.stage.engineering.redhat.com/polarion/import"
 )
+
+var errJunitNotFound = errors.New("JUnit file not found. Marking the archive as processed and skipping upload to Polarion")
 
 type polarionImportCmdFlags struct {
 	bucket string
@@ -177,8 +180,13 @@ func (c *polarionImportCmd) processReportFile(ctx context.Context, object *s3.Ob
 	// upload it to Polarion
 	fmt.Println(fmt.Sprintf("[%s] uploading results to Polarion", *object.Key))
 	err = c.importToPolarion(*object.Key, m, downloaded)
+	// If JUnit
 	if err != nil {
-		return nil, err
+		if err == errJunitNotFound {
+			fmt.Printf("[%s] %s", *object.Key, errJunitNotFound)
+		} else {
+			return nil, err
+		}
 	}
 
 	// update the tags on the obj
@@ -223,7 +231,7 @@ func (c *polarionImportCmd) importToPolarion(key string, metadata *testMetadata,
 	// Get integreatly-operator JUnit
 	b, err := utils.ReadFileFromZip(zipfile, integreatlyOperatorJUnit)
 	if err != nil {
-		return err
+		return errJunitNotFound
 	}
 	junit, err := unmarshalJUnit(b)
 	if err != nil {
