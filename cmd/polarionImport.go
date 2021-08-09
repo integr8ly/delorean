@@ -180,8 +180,9 @@ func (c *polarionImportCmd) processReportFile(ctx context.Context, object *s3.Ob
 	// upload it to Polarion
 	fmt.Println(fmt.Sprintf("[%s] uploading results to Polarion", *object.Key))
 	err = c.importToPolarion(*object.Key, m, downloaded)
-	// If JUnit
+
 	if err != nil {
+		// If JUnit file is not found, ignore the error and mark the archive as processed
 		if err == errJunitNotFound {
 			fmt.Printf("[%s] %s", *object.Key, errJunitNotFound)
 		} else {
