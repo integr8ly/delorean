@@ -1,3 +1,4 @@
 #!/usr/bin/env bash
 
-echo  "This script file has deprecated ,please contact  the RHOAM team for help"
+echo  "This script file has removed, please use delorean process-csv-images cli command instead"
+exit 1
