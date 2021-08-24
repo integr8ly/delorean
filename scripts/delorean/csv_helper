@@ -1,18 +1,4 @@
 #!/usr/bin/env bash
 
-set -e
-
-WORK_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-MANIFEST_TMP_DIR=${MANIFESTS_DIR}/tmp
-
-get_current_csv() {
-    echo "$(yq r ${MANIFESTS_DIR}/integreatly-${1}/${1}.package.yaml channels[0].currentCSV)"
-}
-
-get_current_csv_file() {
-    echo "$(grep -lR "name: $(get_current_csv $1)" ${MANIFESTS_DIR}/integreatly-$1)"
-}
-
-get_current_version() {
-    echo "$(yq r "$(get_current_csv_file $1)" spec.version)"
-}
+echo  "This script file has removed, please use delorean process-csv-images cli command instead"
+exit 1
