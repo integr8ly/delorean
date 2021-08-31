@@ -309,6 +309,10 @@ get_cluster_region() {
     jq -r .region.id < "${CLUSTER_DETAILS_FILE}"
 }
 
+get_existing_cluster_id() {
+    ocm get clusters --parameter search="name like '$(get_cluster_name)'" | jq -r '.items[0].id'
+}
+
 is_ccs_cluster() {
     jq -r .ccs.enabled < "${CLUSTER_DETAILS_FILE}"
 }
@@ -329,7 +333,7 @@ send_cluster_create_request() {
 
     ocm_command="ocm post /api/clusters_mgmt/v1/clusters --body='${CLUSTER_CONFIGURATION_FILE}'"
     # Get existing cluster details if exists to avoid DuplicateClusterName error
-    existing_cluster_id=$(ocm get /api/clusters_mgmt/v1/clusters | jq -r ".items[] | select(.name==\"$(get_cluster_name)\") | .id")
+    existing_cluster_id=$(get_existing_cluster_id)
     if [[ ! -z "${existing_cluster_id:-}" ]]; then
         ocm_command="ocm get /api/clusters_mgmt/v1/clusters/${existing_cluster_id}"
         echo "Info: Cluster with the given name already exists, continue with the existing cluster details"
