@@ -83,7 +83,7 @@ create_cluster_configuration_file() {
     jq ".expiration_timestamp = \"${timestamp}\" | .name = \"${OCM_CLUSTER_NAME}\" | .display_name = \"${cluster_display_name}\" | .region.id = \"${OCM_CLUSTER_REGION}\" | .api.listening = \"${listening}\"" \
         < "${CLUSTER_TEMPLATE_FILE}" \
         > "${CLUSTER_CONFIGURATION_FILE}"
-	
+
     if [ "${BYOC}" = true ]; then
         check_aws_credentials_exported
         update_configuration "aws"
@@ -105,7 +105,7 @@ create_cluster_configuration_file() {
         update_configuration "compute_machine_type"
     fi
 
-    
+
 
 
     cat "${CLUSTER_CONFIGURATION_FILE}"
@@ -161,7 +161,7 @@ install_addon() {
     cluster_id=$(get_cluster_id)
     addon_payload="{\"addon\":{\"id\":\"${addon_id}\"}}"
 
-    # Add mandatory "cidr-range" and "addon-managed-api-service" (quota) params with default value in case of rhoam (managed-api-service) addon 
+    # Add mandatory "cidr-range" and "addon-managed-api-service" (quota) params with default value in case of rhoam (managed-api-service) addon
     if [[ "${addon_id}" == "managed-api-service" ]]; then
     	addon_payload="{\"addon\":{\"id\":\"${addon_id}\"}, \"parameters\": { \"items\": [{\"id\": \"cidr-range\", \"value\": \"10.1.0.0/26\"}, {\"id\": \"addon-resource-required\", \"value\": \"true\" }, {\"id\": \"addon-managed-api-service\", \"value\": \"${QUOTA}\"}] }}"
     fi
@@ -256,7 +256,7 @@ upgrade_cluster() {
     fi
 
     upgradesAvailable=$(ocm get cluster "${cluster_id}" | jq -r '.version.available_upgrades | values')
-    
+
     if [[ $upgradesAvailable != "" ]]; then
         channel_version=$(get_channel_version)
         echo "Current version of cluster's upgrade channel is ${channel_version}"
@@ -320,7 +320,14 @@ get_infra_id() {
 
 send_cluster_create_request() {
     local cluster_details
-    cluster_details=$(ocm post /api/clusters_mgmt/v1/clusters --body="${CLUSTER_CONFIGURATION_FILE}" | jq -r | tee "${CLUSTER_DETAILS_FILE}")
+    ocm_command="ocm post /api/clusters_mgmt/v1/clusters --body='${CLUSTER_CONFIGURATION_FILE}'"
+    # Get existing cluster details if exists to avoid DuplicateClusterName error
+    existing_cluster_id=$(ocm get /api/clusters_mgmt/v1/clusters | jq -r ".items[] | select(.name==\"${OCM_CLUSTER_NAME}\") | .id")
+    if [[ ! -z "${existing_cluster_id:-}" ]]; then
+        ocm_command="ocm get /api/clusters_mgmt/v1/clusters/${existing_cluster_id}"
+    fi
+
+    cluster_details=$(eval ${ocm_command} | jq -r | tee "${CLUSTER_DETAILS_FILE}")
     if [[ -z "${cluster_details:-}" ]]; then
         printf "Something went wrong with cluster create request\n"
         exit 1
