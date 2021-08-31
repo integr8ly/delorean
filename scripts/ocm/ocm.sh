@@ -334,11 +334,11 @@ send_cluster_create_request() {
     ocm_command="ocm post /api/clusters_mgmt/v1/clusters --body='${CLUSTER_CONFIGURATION_FILE}'"
     # Get existing cluster details if exists to avoid DuplicateClusterName error
     existing_cluster_id=$(get_existing_cluster_id)
-    if [[ ! -z "${existing_cluster_id:-}" ]]; then
+    if [[ -n "${existing_cluster_id:-}" ]]; then
         ocm_command="ocm get /api/clusters_mgmt/v1/clusters/${existing_cluster_id}"
         echo "Info: Cluster with the given name already exists, continue with the existing cluster details"
     fi
-    cluster_details=$(eval ${ocm_command} | jq -r | tee "${CLUSTER_DETAILS_FILE}")
+    cluster_details=$(eval "${ocm_command}" | jq -r | tee "${CLUSTER_DETAILS_FILE}")
     if [[ -z "${cluster_details:-}" ]]; then
         printf "Something went wrong with cluster create request\n"
         exit 1
