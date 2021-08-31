@@ -310,7 +310,7 @@ get_cluster_region() {
 }
 
 get_existing_cluster_id() {
-    ocm get clusters --parameter search="name like '$(get_cluster_name)'" | jq -r '.items[0].id'
+    ocm get clusters --parameter search="name like '$(get_cluster_name)'" | jq -r '.items[0].id // empty'
 }
 
 is_ccs_cluster() {
