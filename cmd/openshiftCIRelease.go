@@ -4,12 +4,13 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"github.com/integr8ly/delorean/pkg/types"
 	"os"
 	"os/exec"
 	"path"
 	"strings"
 	"time"
+
+	"github.com/integr8ly/delorean/pkg/types"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
@@ -369,7 +370,7 @@ func init() {
 			if err != nil {
 				handleError(err)
 			}
-			if c.version.IsPreRelease() {
+			if c.version.IsPatchRelease() {
 				fmt.Println("Skipping the update to Openshift CI release repo as the release version is not a major or a minor one")
 				return
 			}
