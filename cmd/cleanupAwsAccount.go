@@ -3,9 +3,12 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
+	"strings"
+	"time"
+
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	log "github.com/sirupsen/logrus"
-	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -19,18 +22,20 @@ import (
 	"github.com/spf13/cobra"
 
 	clusterServiceAws "github.com/integr8ly/cluster-service/pkg/aws"
+
+	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 const (
-	veleroS3BucketPrefix  = "managed-velero"
-	osdClusterTagPrefix   = "kubernetes.io/cluster/"
-	rhmiResourceTagPrefix = "integreatly.org/clusterID"
+	managedVeleroTagPrefix = "velero.io/infrastructureName"
+	veleroS3BucketPrefix   = "managed-velero"
+	osdClusterTagPrefix    = "kubernetes.io/cluster/"
+	rhmiResourceTagPrefix  = "integreatly.org/clusterID"
 )
 
 type cleanupAwsAccountCmd struct {
-	awsRegion          string
-	deleteUntaggedVpcs bool
-	dryRun             bool
+	awsRegion string
+	dryRun    bool
 
 	clusterService clusterServiceAws.Client
 	ec2            ec2.EC2
@@ -41,20 +46,21 @@ type cleanupAwsAccountCmd struct {
 
 	osdResources  map[string][]awsResourceObject
 	rhmiResources map[string][]awsResourceObject
+	ec2Instances  []awsResourceObject
 	s3Buckets     []awsResourceObject
 	vpcs          []awsResourceObject
 }
 
 type cleanupAwsAccountCmdFlags struct {
-	debug              bool
-	deleteUntaggedVpcs bool
-	dryRun             bool
-	awsRegion          string
+	debug     bool
+	dryRun    bool
+	awsRegion string
 }
 
 type awsResourceObject struct {
 	ID           string
 	tags         map[string]string
+	clusterTag   string
 	resourceType string
 }
 
@@ -79,7 +85,6 @@ func init() {
 	if err := cmd.MarkFlagRequired("region"); err != nil {
 		handleError(err)
 	}
-	cmd.Flags().BoolVar(&f.deleteUntaggedVpcs, "delete-untagged-vpcs", false, "If true, delete untagged VPCs")
 	cmd.Flags().BoolVar(&f.dryRun, "dry-run", true, "If true, only list the resources that will be deleted")
 	cmd.Flags().BoolVar(&f.debug, "debug", false, "Enable debug mode")
 }
@@ -112,13 +117,12 @@ func newcleanupAwsAccountCmd(f *cleanupAwsAccountCmdFlags) (*cleanupAwsAccountCm
 	cs := clusterServiceAws.NewDefaultClient(awsSession, log.WithField("service", "cluster_service"))
 
 	return &cleanupAwsAccountCmd{
-		awsRegion:          f.awsRegion,
-		deleteUntaggedVpcs: f.deleteUntaggedVpcs,
-		dryRun:             f.dryRun,
-		clusterService:     *cs,
-		ec2:                *ec2Session,
-		s3:                 s3Session,
-		s3Deleter:          s3Deleter,
+		awsRegion:      f.awsRegion,
+		dryRun:         f.dryRun,
+		clusterService: *cs,
+		ec2:            *ec2Session,
+		s3:             s3Session,
+		s3Deleter:      s3Deleter,
 
 		s3Buckets:     []awsResourceObject{},
 		vpcs:          []awsResourceObject{},
@@ -132,52 +136,29 @@ func (c *cleanupAwsAccountCmd) run(ctx context.Context) error {
 		log.Info("DRY RUN (No AWS resources will be deleted)")
 	}
 
+	if err := c.fetchEC2Instances(ctx); err != nil {
+		return err
+	}
 	if err := c.fetchVpcs(ctx); err != nil {
 		return err
 	}
-
 	if err := c.fetchS3Buckets(ctx); err != nil {
-		return err
-	}
-
-	if err := c.analyzeAwsResourceTags(c.s3Buckets); err != nil {
-		return err
-	}
-
-	if err := c.analyzeAwsResourceTags(c.vpcs); err != nil {
-		return err
-	}
-
-	if err := c.cleanupUnusedVeleroS3Buckets(ctx); err != nil {
-		return err
-	}
-
-	if err := c.cleanupEmptyVpcs(); err != nil {
 		return err
 	}
 
 	if len(c.rhmiResources) > 0 {
 		for tag, awsObject := range c.rhmiResources {
-			// If RHMI/RHOAM resource is associated with an OSD cluster resource, then skip the deletion
+			// If RHMI/RHOAM resource tag is associated with an OSD cluster resource, then skip the deletion
+			// and add the resource to the list of OSD cluster resources that won't be deleted
+			// Else delete it with cluster-service
 			if _, ok := c.osdResources[tag]; ok {
 				c.osdResources[tag] = append(c.osdResources[tag], awsObject...)
 			} else {
 				if c.dryRun {
-					log.Info("would use cluster-service to delete resources with a tag:", tag)
+					log.Info("Would use cluster-service to delete resources with a tag: ", tag)
 				} else {
-					report, err := c.clusterService.DeleteResourcesForCluster(tag, map[string]string{}, c.dryRun)
-
-					if err != nil {
-						log.Debug("error when running clusterService", err)
+					if err := c.cleanupWithClusterService(tag); err != nil {
 						return err
-					}
-
-					if len(report.Items) < 1 {
-						log.Debug("no items to delete")
-					}
-
-					for _, item := range report.Items {
-						log.Info(item.Name, item.ID, item.Action, item.ActionStatus)
 					}
 				}
 			}
@@ -185,10 +166,20 @@ func (c *cleanupAwsAccountCmd) run(ctx context.Context) error {
 		}
 	}
 
-	log.Info("Following OSD cluster resources were not deleted")
-	for _, awsResources := range c.osdResources {
-		for _, j := range awsResources {
-			log.Infof("Resource type: %s, ID: %s, Tags: %+v\n", j.resourceType, j.ID, j.tags)
+	if err := c.cleanupUnusedVeleroS3Buckets(ctx); err != nil {
+		return err
+	}
+
+	if err := c.cleanupVpcs(); err != nil {
+		return err
+	}
+
+	if len(c.osdResources) != 0 {
+		log.Info("Following OSD cluster resources won't be deleted")
+		for _, awsResources := range c.osdResources {
+			for _, j := range awsResources {
+				log.Infof("Resource type: %s, ID: %s, Cluster tag: %+v\n", j.resourceType, j.ID, j.clusterTag)
+			}
 		}
 	}
 
@@ -196,7 +187,7 @@ func (c *cleanupAwsAccountCmd) run(ctx context.Context) error {
 }
 
 func (c *cleanupAwsAccountCmd) fetchS3Buckets(ctx context.Context) error {
-	log.Debug("Fetch S3 Buckets")
+	log.Debug("Fetching S3 Buckets")
 
 	fetchedBuckets, err := c.s3.ListBucketsWithContext(ctx, &s3.ListBucketsInput{})
 	if err != nil {
@@ -216,7 +207,7 @@ func (c *cleanupAwsAccountCmd) fetchS3Buckets(ctx context.Context) error {
 		}
 
 		if bucketRegion == c.awsRegion {
-			tagging, err := c.s3.GetBucketTagging(&s3.GetBucketTaggingInput{Bucket: aws.String(*b.Name)})
+			tagging, err := c.s3.GetBucketTagging(&s3.GetBucketTaggingInput{Bucket: b.Name})
 			if err != nil {
 				log.Warnf("failed to get s3 bucket tags: %v \n", err)
 				continue
@@ -231,10 +222,41 @@ func (c *cleanupAwsAccountCmd) fetchS3Buckets(ctx context.Context) error {
 			for _, tag := range tagging.TagSet {
 				newS3Bucket.tags[aws.StringValue(tag.Key)] = aws.StringValue(tag.Value)
 			}
+			newS3Bucket.clusterTag = extractClusterTag(newS3Bucket.tags)
 
 			c.s3Buckets = append(c.s3Buckets, newS3Bucket)
 		}
 
+	}
+	return nil
+}
+
+func (c *cleanupAwsAccountCmd) fetchEC2Instances(ctx context.Context) error {
+	log.Debug("Fetching EC2 Instances")
+
+	fetchedReservations, err := c.ec2.DescribeInstancesWithContext(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	for _, reservation := range fetchedReservations.Reservations {
+		for _, ec2Instance := range reservation.Instances {
+			newEc2 := awsResourceObject{
+				ID:           aws.StringValue(ec2Instance.InstanceId),
+				resourceType: "ec2Instance",
+				tags:         map[string]string{},
+			}
+			for _, tag := range ec2Instance.Tags {
+				newEc2.tags[aws.StringValue(tag.Key)] = aws.StringValue(tag.Value)
+			}
+			newEc2.clusterTag = extractClusterTag(newEc2.tags)
+
+			if newEc2.clusterTag != "" {
+				c.osdResources[newEc2.clusterTag] = append(c.osdResources[newEc2.clusterTag], newEc2)
+			}
+
+			c.ec2Instances = append(c.ec2Instances, newEc2)
+		}
 	}
 	return nil
 }
@@ -260,81 +282,90 @@ func (c *cleanupAwsAccountCmd) fetchVpcs(ctx context.Context) error {
 		for _, tag := range vpc.Tags {
 			newVpc.tags[aws.StringValue(tag.Key)] = aws.StringValue(tag.Value)
 		}
+		newVpc.clusterTag = extractClusterTag(newVpc.tags)
+
+		if newVpc.clusterTag != "" {
+			c.rhmiResources[newVpc.clusterTag] = append(c.osdResources[newVpc.clusterTag], newVpc)
+		}
+
 		c.vpcs = append(c.vpcs, newVpc)
 	}
 	return nil
-}
-
-func (c *cleanupAwsAccountCmd) analyzeAwsResourceTags(awsObjects []awsResourceObject) error {
-
-	for _, obj := range awsObjects {
-		for key, value := range obj.tags {
-			if strings.Contains(key, osdClusterTagPrefix) {
-				clusterTag := strings.Replace(key, osdClusterTagPrefix, "", 1)
-				c.osdResources[clusterTag] = append(c.osdResources[clusterTag], obj)
-			} else if strings.Contains(key, rhmiResourceTagPrefix) {
-				c.rhmiResources[value] = append(c.rhmiResources[value], obj)
-			}
-		}
-	}
-
-	return nil
-
 }
 
 func (c *cleanupAwsAccountCmd) cleanupUnusedVeleroS3Buckets(ctx context.Context) error {
 	log.Debug("Deleting S3 Buckets")
 	for _, b := range c.s3Buckets {
 		if isVeleroBucket(b.ID) {
-			if !c.containsActiveOsdClusterTag(b.tags) {
+			if _, ok := c.osdResources[b.clusterTag]; !ok {
 				if c.dryRun {
-					log.Info("would delete a bucket: ", b.ID)
+					log.Infof("would delete a bucket '%s' (tag: '%s')\n", b.ID, b.clusterTag)
 				} else {
 					if err := c.removeS3Bucket(b.ID, ctx); err != nil {
-						return err
+						log.Warnf("Failed to delete S3 bucket '%s' (tag '%s'). It might be already deleted\n", b.ID, b.clusterTag)
 					}
-					log.Infof("s3 bucket %s successfully deleted\n", b.ID)
+					log.Infof("S3 bucket '%s' (tag '%s') successfully deleted\n", b.ID, b.clusterTag)
 				}
 			}
-
+		} else {
+			c.osdResources[b.clusterTag] = append(c.osdResources[b.clusterTag], b)
 		}
 	}
 	return nil
 }
 
-func (c *cleanupAwsAccountCmd) cleanupEmptyVpcs() error {
-	log.Debug("Deleting Empty VPCs")
+func (c *cleanupAwsAccountCmd) cleanupVpcs() error {
+	log.Debug("Deleting VPCs")
 	for _, vpc := range c.vpcs {
-		if len(vpc.tags) < 1 {
+		if _, ok := c.osdResources[vpc.clusterTag]; !ok || len(vpc.tags) == 0 {
 			if c.dryRun {
-				log.Info("would delete a vpc: ", vpc.ID)
+				log.Infof("would delete a vpc '%s' (tag: '%s')\n", vpc.ID, vpc.clusterTag)
 			} else {
 				_, err := c.ec2.DeleteVpc(&ec2.DeleteVpcInput{
 					VpcId: aws.String(vpc.ID),
 				})
 				if err != nil {
-					return err
+					log.Warnf("Failed to delete VPC '%s' (tag '%s'). It might be deleted already or it still contains dependencies\n", vpc.ID, vpc.clusterTag)
 				}
+				log.Infof("VPC '%s' (tag '%s') successfully deleted\n", vpc.ID, vpc.clusterTag)
 			}
+		} else {
+			c.osdResources[vpc.clusterTag] = append(c.osdResources[vpc.clusterTag], vpc)
 		}
 	}
 	return nil
 }
 
-func isVeleroBucket(bucketName string) bool {
-	if strings.Contains(bucketName, veleroS3BucketPrefix) {
-		return true
-	}
-	return false
-}
+func (c *cleanupAwsAccountCmd) cleanupWithClusterService(tag string) error {
 
-func (c *cleanupAwsAccountCmd) containsActiveOsdClusterTag(tags map[string]string) bool {
-	for _, value := range tags {
-		if _, ok := c.osdResources[value]; ok {
-			return true
+	log.Infof("About to clean up AWS resources for cluster tag %s with cluster-service", tag)
+
+	err := wait.PollImmediate(30*time.Second, 20*time.Minute, func() (bool, error) {
+
+		report, err := c.clusterService.DeleteResourcesForCluster(tag, map[string]string{}, c.dryRun)
+
+		if err != nil {
+			log.Debug("error when running clusterService", err)
+			os.Exit(1)
 		}
+
+		for _, item := range report.Items {
+			log.Debug(item.Name, item.ID, item.Action, item.ActionStatus)
+		}
+
+		if !report.AllItemsComplete() {
+			log.Infof("AWS resources with cluster tag '%s' are still being deleted. Retrying in 30 seconds...", tag)
+		}
+		return report.AllItemsComplete(), nil
+
+	})
+
+	if err != nil {
+		return err
 	}
-	return false
+	log.Infof("Finished cleaning up AWS resources for cluster tag '%s'", tag)
+
+	return nil
 }
 
 func (c *cleanupAwsAccountCmd) removeS3Bucket(bucketName string, ctx context.Context) error {
@@ -377,4 +408,23 @@ func (c *cleanupAwsAccountCmd) deleteObjects(ctx context.Context, bucket string,
 	}
 	log.Debug(fmt.Sprintf("[%s] %d objects deleted", bucket, len(toDelete)))
 	return nil
+}
+
+func isVeleroBucket(bucketName string) bool {
+	if strings.Contains(bucketName, veleroS3BucketPrefix) {
+		return true
+	}
+	return false
+}
+
+func extractClusterTag(tags map[string]string) string {
+	for key, value := range tags {
+		if strings.Contains(key, osdClusterTagPrefix) {
+			return strings.Replace(key, osdClusterTagPrefix, "", 1)
+		}
+		if strings.Contains(key, rhmiResourceTagPrefix) || strings.Contains(key, managedVeleroTagPrefix) {
+			return value
+		}
+	}
+	return ""
 }
