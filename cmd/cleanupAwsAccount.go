@@ -297,18 +297,19 @@ func (c *cleanupAwsAccountCmd) cleanupUnusedVeleroS3Buckets(ctx context.Context)
 	log.Debug("Deleting S3 Buckets")
 	for _, b := range c.s3Buckets {
 		if isVeleroBucket(b.ID) {
-			if _, ok := c.osdResources[b.clusterTag]; !ok {
+			if _, ok := c.osdResources[b.clusterTag]; !ok && b.clusterTag != "" {
 				if c.dryRun {
-					log.Infof("would delete a bucket '%s' (tag: '%s')\n", b.ID, b.clusterTag)
+					log.Infof("would delete a bucket '%s' (cluster tag '%s')\n", b.ID, b.clusterTag)
 				} else {
 					if err := c.removeS3Bucket(b.ID, ctx); err != nil {
-						log.Warnf("Failed to delete S3 bucket '%s' (tag '%s'). It might be already deleted\n", b.ID, b.clusterTag)
+						log.Warnf("Failed to delete S3 bucket '%s' (cluster tag '%s'). It might be already deleted\n", b.ID, b.clusterTag)
+					} else {
+						log.Infof("S3 bucket '%s' (cluster tag '%s') successfully deleted\n", b.ID, b.clusterTag)
 					}
-					log.Infof("S3 bucket '%s' (tag '%s') successfully deleted\n", b.ID, b.clusterTag)
 				}
+			} else {
+				c.osdResources[b.clusterTag] = append(c.osdResources[b.clusterTag], b)
 			}
-		} else {
-			c.osdResources[b.clusterTag] = append(c.osdResources[b.clusterTag], b)
 		}
 	}
 	return nil
@@ -317,17 +318,18 @@ func (c *cleanupAwsAccountCmd) cleanupUnusedVeleroS3Buckets(ctx context.Context)
 func (c *cleanupAwsAccountCmd) cleanupVpcs() error {
 	log.Debug("Deleting VPCs")
 	for _, vpc := range c.vpcs {
-		if _, ok := c.osdResources[vpc.clusterTag]; !ok || len(vpc.tags) == 0 {
+		if _, ok := c.osdResources[vpc.clusterTag]; !ok && vpc.clusterTag != "" || len(vpc.tags) == 0 {
 			if c.dryRun {
-				log.Infof("would delete a vpc '%s' (tag: '%s')\n", vpc.ID, vpc.clusterTag)
+				log.Infof("would delete a vpc '%s' (cluster tag: '%s')\n", vpc.ID, vpc.clusterTag)
 			} else {
 				_, err := c.ec2.DeleteVpc(&ec2.DeleteVpcInput{
 					VpcId: aws.String(vpc.ID),
 				})
 				if err != nil {
-					log.Warnf("Failed to delete VPC '%s' (tag '%s'). It might be deleted already or it still contains dependencies\n", vpc.ID, vpc.clusterTag)
+					log.Warnf("Failed to delete VPC '%s' (cluster tag '%s'). It might be deleted already or it still contains dependencies\n", vpc.ID, vpc.clusterTag)
+				} else {
+					log.Infof("VPC '%s' (cluster tag '%s') successfully deleted\n", vpc.ID, vpc.clusterTag)
 				}
-				log.Infof("VPC '%s' (tag '%s') successfully deleted\n", vpc.ID, vpc.clusterTag)
 			}
 		} else {
 			c.osdResources[vpc.clusterTag] = append(c.osdResources[vpc.clusterTag], vpc)
