@@ -460,6 +460,7 @@ Optional exported variables:
 - MULTI_AZ                          true/false (default: false)
 - COMPUTE_NODES_COUNT               number of cluster's compute nodes (default: 8 in cluster-template. Can be specified otherwise)
 - COMPUTE_MACHINE_TYPE              node type of cluster's compute nodes (default: m5.xlarge, can be specified otherwise)
+- OSD_TRIAL                         true/false (default: false)
 ==========================================================================================================
 create_cluster                    - spin up OSD cluster
 ----------------------------------------------------------------------------------------------------------
