@@ -136,7 +136,7 @@ create_cluster() {
     save_cluster_credentials "${cluster_id}"
 
 
-    printf "Login credentials: \n%s\n" "$(jq -r < "${CLUSTER_CREDENTIALS_FILE}")"
+    printf "Login credentials: \n%s\n" "$(jq -r . < "${CLUSTER_CREDENTIALS_FILE}")"
     printf "Log in to the OSD cluster using oc:\noc login --server=%s --username=kubeadmin --password=%s\n" "$(jq -r .api.url < "${CLUSTER_DETAILS_FILE}")" "$(jq -r .password < "${CLUSTER_CREDENTIALS_FILE}")"
 
     echo "To log into the web console as kubeadmin use the link below:"
@@ -289,7 +289,7 @@ get_channel_version() {
 get_cluster_logs() {
     ocm get cluster "$(get_cluster_id)/logs/install" | jq -r .content > "${CLUSTER_INSTALLATION_LOGS_FILE}"
     printf "Cluster installation logs saved to %s\n" "${CLUSTER_INSTALLATION_LOGS_FILE}"
-    ocm get subscription "$(get_cluster_subscription_id)" | jq -r > "${CLUSTER_SUBSCRIPTION_DETAILS_FILE}"
+    ocm get subscription "$(get_cluster_subscription_id)" | jq -r . > "${CLUSTER_SUBSCRIPTION_DETAILS_FILE}"
     printf "Cluster subscription details saved to %s\n" "${CLUSTER_SUBSCRIPTION_DETAILS_FILE}"
 }
 
@@ -338,7 +338,7 @@ send_cluster_create_request() {
         ocm_command="ocm get /api/clusters_mgmt/v1/clusters/${existing_cluster_id}"
         echo "Info: Cluster with the given name already exists, continue with the existing cluster details"
     fi
-    cluster_details=$(eval "${ocm_command}" | jq -r | tee "${CLUSTER_DETAILS_FILE}")
+    cluster_details=$(eval "${ocm_command}" | jq -r . | tee "${CLUSTER_DETAILS_FILE}")
     if [[ -z "${cluster_details:-}" ]]; then
         printf "Something went wrong with cluster create request\n"
         exit 1
@@ -365,7 +365,7 @@ wait_for() {
 save_cluster_credentials() {
     local cluster_id="${1}"
     # Update cluster details (with master & console URL)
-    ocm get "/api/clusters_mgmt/v1/clusters/${cluster_id}" | jq -r > "${CLUSTER_DETAILS_FILE}"
+    ocm get "/api/clusters_mgmt/v1/clusters/${cluster_id}" | jq -r . > "${CLUSTER_DETAILS_FILE}"
     # Create kubeconfig file & save admin credentials
     ocm get "/api/clusters_mgmt/v1/clusters/${cluster_id}/credentials" | jq -r .kubeconfig > "${CLUSTER_KUBECONFIG_FILE}"
     ocm get "/api/clusters_mgmt/v1/clusters/${cluster_id}/credentials" | jq -r ".admin | .api_url = $(jq .api.url < "${CLUSTER_DETAILS_FILE}") | .console_url = $(jq .console.url < "${CLUSTER_DETAILS_FILE}")" > "${CLUSTER_CREDENTIALS_FILE}"
