@@ -3,10 +3,11 @@ package cmd
 import (
 	"context"
 	"fmt"
-	clusterServiceAws "github.com/integr8ly/cluster-service/pkg/aws"
 	"os"
 	"strings"
 	"time"
+
+	clusterServiceAws "github.com/integr8ly/cluster-service/pkg/aws"
 
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	log "github.com/sirupsen/logrus"
@@ -212,6 +213,7 @@ func (c *cleanupAwsAccountCmd) fetchS3Buckets(ctx context.Context) error {
 			tagging, err := c.s3.GetBucketTagging(&s3.GetBucketTaggingInput{Bucket: b.Name})
 			if err != nil {
 				log.Warnf("failed to get s3 bucket tags: %v \n", err)
+				log.Debug(err)
 				continue
 			}
 
@@ -309,6 +311,7 @@ func (c *cleanupAwsAccountCmd) cleanupUnusedVeleroS3Buckets(ctx context.Context)
 				} else {
 					if err := c.removeS3Bucket(b.ID, ctx); err != nil {
 						log.Warnf("Failed to delete S3 bucket '%s' (cluster tag '%s'). It might be already deleted\n", b.ID, b.clusterTag)
+						log.Debug(err)
 					} else {
 						log.Infof("S3 bucket '%s' (cluster tag '%s') successfully deleted\n", b.ID, b.clusterTag)
 						c.deletedResources = append(c.deletedResources, b)
@@ -334,6 +337,7 @@ func (c *cleanupAwsAccountCmd) cleanupVpcs() error {
 				})
 				if err != nil {
 					log.Warnf("Failed to delete VPC '%s' (cluster tag '%s'). It might be deleted already or it still contains dependencies\n", vpc.ID, vpc.clusterTag)
+					log.Debug(err)
 				} else {
 					log.Infof("VPC '%s' (cluster tag '%s') successfully deleted\n", vpc.ID, vpc.clusterTag)
 					c.deletedResources = append(c.deletedResources, vpc)
@@ -421,10 +425,7 @@ func (c *cleanupAwsAccountCmd) deleteObjects(ctx context.Context, bucket string,
 }
 
 func isVeleroBucket(bucketName string) bool {
-	if strings.Contains(bucketName, veleroS3BucketPrefix) {
-		return true
-	}
-	return false
+	return strings.Contains(bucketName, veleroS3BucketPrefix)
 }
 
 func extractClusterTag(tags map[string]string) (clusterTag string, hasRhmiTag bool) {
