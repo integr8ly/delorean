@@ -64,6 +64,7 @@ create_cluster_configuration_file() {
     : "${MULTI_AZ:=false}"
     : "${COMPUTE_NODES_COUNT:=}"
     : "${COMPUTE_MACHINE_TYPE:=}"
+    : "${OSD_TRIAL:=false}"
 
     timestamp=$(get_expiration_timestamp "${OCM_CLUSTER_LIFESPAN}")
 
@@ -104,7 +105,9 @@ create_cluster_configuration_file() {
     if [[ -n "${COMPUTE_MACHINE_TYPE}" ]]; then
         update_configuration "compute_machine_type"
     fi
-
+    if [[ "${OSD_TRIAL}" = true ]]; then
+        update_configuration "osd_trial"
+    fi
 
 
 
@@ -407,6 +410,9 @@ update_configuration() {
     compute_machine_type)
         updated_configuration=$(jq ".nodes.compute_machine_type.id = \"${COMPUTE_MACHINE_TYPE}\"" < "${CLUSTER_CONFIGURATION_FILE}")
         ;;
+    osd_trial)
+        updated_configuration=$(jq '.product.id = "osdtrial"' < "${CLUSTER_CONFIGURATION_FILE}")
+        ;;
 
     *)
         echo "Error: Invalid parameter: '${param}' passed to a function '${FUNCNAME[0]}'" >&2
@@ -454,6 +460,7 @@ Optional exported variables:
 - MULTI_AZ                          true/false (default: false)
 - COMPUTE_NODES_COUNT               number of cluster's compute nodes (default: 8 in cluster-template. Can be specified otherwise)
 - COMPUTE_MACHINE_TYPE              node type of cluster's compute nodes (default: m5.xlarge, can be specified otherwise)
+- OSD_TRIAL                         true/false (default: false)
 ==========================================================================================================
 create_cluster                    - spin up OSD cluster
 ----------------------------------------------------------------------------------------------------------
