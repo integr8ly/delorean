@@ -67,7 +67,24 @@ func init() {
 	f := &cleanupAwsAccountCmdFlags{}
 	cmd := &cobra.Command{
 		Use:   "cleanup-aws",
-		Short: "Clean up AWS account. Remove unused s3 buckets (cluster backups), empty VPCs and all RHMI resources left behind",
+		Short: "Clean up AWS account region (S3 buckets, empty and unused cluster VPCs and all unused RHMI/RHOAM resources)",
+		Long: `Clean up AWS account region. Remove unused S3 buckets (cluster backups), empty and unused cluster VPCs and all RHMI/RHOAM resources left behind
+
+Before running this command, you need to export AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY env vars.
+
+Example of usage:
+
+# Use AWS account used for creating OSD clusters and installing RHMI/RHOAM
+export AWS_ACCESS_KEY_ID=<replace_me> AWS_SECRET_ACCESS_KEY="<replace_me>" 
+export AWS_REGION=<replace_me>
+# Run the command in dry-run mode, which will only list the resources that are about to be deleted
+./delorean pipeline cleanup-aws --region $AWS_REGION --dry-run=true
+# Run the same command in debug mode, to see more logs
+./delorean pipeline cleanup-aws --region $AWS_REGION --dry-run=true --debug
+# Run the command without dry-run to delete the resources
+./delorean pipeline cleanup-aws --region $AWS_REGION --dry-run=false
+# Run the command without dry-run again to verify that previously lister resources were deleted
+./delorean pipeline cleanup-aws --region $AWS_REGION --dry-run=false`,
 		Run: func(cmd *cobra.Command, args []string) {
 
 			c, err := newcleanupAwsAccountCmd(f)
