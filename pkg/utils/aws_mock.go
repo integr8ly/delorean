@@ -3,6 +3,8 @@ package utils
 import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/request"
+	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
@@ -30,10 +32,29 @@ func (m *MockS3Uploader) UploadWithContext(_ aws.Context, input *s3manager.Uploa
 
 type MockS3API struct {
 	s3iface.S3API
-	ListObjsFunc      func(*s3.ListObjectsV2Input) (*s3.ListObjectsV2Output, error)
-	GetObjTaggingFunc func(*s3.GetObjectTaggingInput) (*s3.GetObjectTaggingOutput, error)
-	PutObjTaggingFunc func(*s3.PutObjectTaggingInput) (*s3.PutObjectTaggingOutput, error)
-	CopyObjectFunc    func(*s3.CopyObjectInput) (*s3.CopyObjectOutput, error)
+	//GetBucketLocationOutput *s3.GetBucketLocationOutput
+	GetBucketTaggingFunc func(*s3.GetBucketTaggingInput) (*s3.GetBucketTaggingOutput, error)
+	ListBucketsOutput    *s3.ListBucketsOutput
+	ListObjsFunc         func(*s3.ListObjectsV2Input) (*s3.ListObjectsV2Output, error)
+	GetObjTaggingFunc    func(*s3.GetObjectTaggingInput) (*s3.GetObjectTaggingOutput, error)
+	PutObjTaggingFunc    func(*s3.PutObjectTaggingInput) (*s3.PutObjectTaggingOutput, error)
+	CopyObjectFunc       func(*s3.CopyObjectInput) (*s3.CopyObjectOutput, error)
+}
+
+func (m *MockS3API) DeleteBucket(input *s3.DeleteBucketInput) (*s3.DeleteBucketOutput, error) {
+	return nil, nil
+}
+
+func (m *MockS3API) GetBucketLocation(_ *s3.GetBucketLocationInput) (*s3.GetBucketLocationOutput, error) {
+	return &s3.GetBucketLocationOutput{LocationConstraint: aws.String("us-east-1")}, nil
+}
+
+func (m *MockS3API) GetBucketTagging(input *s3.GetBucketTaggingInput) (*s3.GetBucketTaggingOutput, error) {
+	return m.GetBucketTaggingFunc(input)
+}
+
+func (m *MockS3API) ListBucketsWithContext(_ aws.Context, _ *s3.ListBucketsInput, _ ...request.Option) (*s3.ListBucketsOutput, error) {
+	return m.ListBucketsOutput, nil
 }
 
 func (m *MockS3API) ListObjectsV2WithContext(_ aws.Context, input *s3.ListObjectsV2Input, _ ...request.Option) (*s3.ListObjectsV2Output, error) {
@@ -59,4 +80,22 @@ type MockS3BatchDeleter struct {
 
 func (m *MockS3BatchDeleter) Delete(_ aws.Context, input s3manager.BatchDeleteIterator) error {
 	return m.BatchDeleteFunc(input)
+}
+
+type MockEC2API struct {
+	ec2iface.EC2API
+	DescribeInstancesOutput *ec2.DescribeInstancesOutput
+	DescribeVpcsOutput      *ec2.DescribeVpcsOutput
+}
+
+func (m *MockEC2API) DescribeInstancesWithContext(_ aws.Context, _ *ec2.DescribeInstancesInput, _ ...request.Option) (*ec2.DescribeInstancesOutput, error) {
+	return m.DescribeInstancesOutput, nil
+}
+
+func (m *MockEC2API) DescribeVpcsWithContext(_ aws.Context, _ *ec2.DescribeVpcsInput, _ ...request.Option) (*ec2.DescribeVpcsOutput, error) {
+	return m.DescribeVpcsOutput, nil
+}
+
+func (m *MockEC2API) DeleteVpc(_ *ec2.DeleteVpcInput) (*ec2.DeleteVpcOutput, error) {
+	return nil, nil
 }
