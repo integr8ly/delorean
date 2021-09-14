@@ -152,6 +152,8 @@ func (c *createReleaseCmd) runReleaseScript(repoDir string) error {
 	} else {
 		envs = append(envs, "SERVICE_AFFECTING=false")
 	}
+	// pass your local PATH config to the script in case opeartor-sdk or other prereq binary is in unusal location
+	envs = append(envs, "PATH="+os.Getenv("PATH"))
 	releaseScript := &exec.Cmd{Dir: repoDir, Env: envs, Path: c.releaseScript, Stdout: os.Stdout, Stderr: os.Stderr}
 	return releaseScript.Run()
 }
