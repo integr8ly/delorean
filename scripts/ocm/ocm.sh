@@ -154,9 +154,11 @@ install_addon() {
     local addon_id
     local completion_phase
     local addon_payload
+    local osd_trial
 
     addon_id="${1}"
     completion_phase="${2}"
+    osd_trial="${3:-false}"
 
     : "${USE_CLUSTER_STORAGE:=true}"
     : "${WAIT:=true}"
@@ -166,7 +168,12 @@ install_addon() {
 
     # Add mandatory "cidr-range" and "addon-managed-api-service" (quota) params with default value in case of rhoam (managed-api-service) addon
     if [[ "${addon_id}" == "managed-api-service" ]]; then
-    	addon_payload="{\"addon\":{\"id\":\"${addon_id}\"}, \"parameters\": { \"items\": [{\"id\": \"cidr-range\", \"value\": \"10.1.0.0/26\"}, {\"id\": \"addon-resource-required\", \"value\": \"true\" }, {\"id\": \"addon-managed-api-service\", \"value\": \"${QUOTA}\"}] }}"
+    	addon_payload="{\"addon\":{\"id\":\"${addon_id}\"}, \"parameters\": { \"items\": [{\"id\": \"cidr-range\", \"value\": \"10.1.0.0/26\"}, {\"id\": \"addon-resource-required\", \"value\": \"true\" }"
+        if [[ "${osd_trial}" == "false" ]]; then
+            addon_payload+=", {\"id\": \"addon-managed-api-service\", \"value\": \"${QUOTA}\"}] }}"
+        else
+            addon_payload+=", {\"id\": \"trial-quota\", \"value\": \"0\"}] }}"
+        fi
     fi
 
     echo "Applying ${addon_id} Add-on on a cluster with ID: ${cluster_id}"
@@ -220,6 +227,12 @@ install_rhoam() {
     NS_PREFIX="redhat-rhoam"
     OPERATOR_NAMESPACE="${NS_PREFIX}-operator"
     install_addon "managed-api-service" ".status.stages.products.phase"
+}
+
+install_rhoam_trial() {
+    NS_PREFIX="redhat-rhoam"
+    OPERATOR_NAMESPACE="${NS_PREFIX}-operator"
+    install_addon "managed-api-service" ".status.stages.products.phase" "true"
 }
 
 
@@ -470,6 +483,7 @@ Optional exported variables:
 ==========================================================================================================
 install_rhmi                      - install RHMI using addon-type installation
 install_rhoam                     - install RHOAM using addon-type installation
+install_rhoam_trial               - install RHOAM using addon-type installation on OSD Trial
 ------------------------------------------------------------------------------------------
 Optional exported variables:
 - USE_CLUSTER_STORAGE               true/false - use OpenShift/AWS storage (default: true)
@@ -520,6 +534,10 @@ main() {
             ;;
         install_rhoam)
             install_rhoam
+            exit 0
+            ;;
+        install_rhoam_trial)
+            install_rhoam_trial
             exit 0
             ;;
         delete_cluster)
