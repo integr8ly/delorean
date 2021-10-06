@@ -3,12 +3,13 @@ package cmd
 import (
 	"bufio"
 	"context"
-	"github.com/integr8ly/delorean/pkg/utils"
 	"io/ioutil"
 	"os"
 	"path"
 	"regexp"
 	"testing"
+
+	"github.com/integr8ly/delorean/pkg/utils"
 )
 
 func mockProcessCSVImages(manifestDir string, isGa bool, extraImages string) error {
@@ -138,6 +139,7 @@ func TestProcessCSVImages(t *testing.T) {
 					"registry-proxy.engineering.redhat.com/rh-osbs/3scale-amp2-memcached-rhel7@sha256:ff5f3d2d131631d5db8985a5855ff4607e91f0aa86d07dafdcec4f7da13c9e05 quay.io/integreatly/delorean:3scale-amp2-memcached-rhel7_ff5f3d2d131631d5db8985a5855ff4607e91f0aa86d07dafdcec4f7da13c9e05",
 					"registry-proxy.engineering.redhat.com/rh-osbs/3scale-amp2-system-rhel7@sha256:93819c324831353bb8f7cb6e9910694b88609c3a20d4c1b9a22d9c2bbfbad16f quay.io/integreatly/delorean:3scale-amp2-system-rhel7_93819c324831353bb8f7cb6e9910694b88609c3a20d4c1b9a22d9c2bbfbad16f",
 					"registry-proxy.engineering.redhat.com/rh-osbs/3scale-amp2-zync-rhel7@sha256:f4d5c1fdebe306f4e891ddfc4d3045a622d2f01db21ecfc9397cab25c9baa91a quay.io/integreatly/delorean:3scale-amp2-zync-rhel7_f4d5c1fdebe306f4e891ddfc4d3045a622d2f01db21ecfc9397cab25c9baa91a",
+					"registry-proxy.engineering.redhat.com/rh-osbs/openshift4-ose-kube-rbac-proxy@sha256:484e26e348354e6dd28934aedbcd139c786284a88a4e16a7652b5a52bd0beeac quay.io/integreatly/delorean:openshift4-ose-kube-rbac-proxy_484e26e348354e6dd28934aedbcd139c786284a88a4e16a7652b5a52bd0beeac",
 					"registry-proxy.engineering.redhat.com/rh-osbs/rhscl-mysql-57-rhel7@sha256:9a781abe7581cc141e14a7e404ec34125b3e89c008b14f4e7b41e094fd3049fe quay.io/integreatly/delorean:rhscl-mysql-57-rhel7_9a781abe7581cc141e14a7e404ec34125b3e89c008b14f4e7b41e094fd3049fe",
 					"registry-proxy.engineering.redhat.com/rh-osbs/rhscl-postgresql-10-rhel7@sha256:de3ab628b403dc5eed986a7f392c34687bddafee7bdfccfd65cecf137ade3dfd quay.io/integreatly/delorean:rhscl-postgresql-10-rhel7_de3ab628b403dc5eed986a7f392c34687bddafee7bdfccfd65cecf137ade3dfd",
 					"registry-proxy.engineering.redhat.com/rh-osbs/rhscl-redis-32-rhel7@sha256:a9bdf52384a222635efc0284db47d12fbde8c3d0fcb66517ba8eefad1d4e9dc9 quay.io/integreatly/delorean:rhscl-redis-32-rhel7_a9bdf52384a222635efc0284db47d12fbde8c3d0fcb66517ba8eefad1d4e9dc9",

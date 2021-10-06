@@ -519,17 +519,22 @@ func GetAndUpdateOperatorImage(manifestDir string, images map[string]string, isG
 			annotations["containerImage"] = prodImage
 		}
 	} else {
-		//check for stage and prod images and replace with quay image
-		stageMatched := ReStage.FindString(deployment.Spec.Template.Spec.Containers[0].Image)
-		prodMatched := ReProd.FindString(deployment.Spec.Template.Spec.Containers[0].Image)
-		if stageMatched != "" || prodMatched != "" {
-			processedDeloreanImage := processToDeloreanImage(deployment.Spec.Template.Spec.Containers[0].Image)
-			mirrorString := BuildOSBSImage(deployment.Spec.Template.Spec.Containers[0].Image) + " " + processedDeloreanImage
-			addImageMapping(mirrorString, images)
-			deployment.Spec.Template.Spec.Containers[0].Image = processedDeloreanImage
+		for i, container := range deployment.Spec.Template.Spec.Containers {
+			//check for stage and prod images and replace with quay image
+			stageMatched := ReStage.FindString(container.Image)
+			prodMatched := ReProd.FindString(container.Image)
+			if stageMatched != "" || prodMatched != "" {
+				processedDeloreanImage := processToDeloreanImage(container.Image)
+				mirrorString := BuildOSBSImage(container.Image) + " " + processedDeloreanImage
+				addImageMapping(mirrorString, images)
+				container.Image = processedDeloreanImage
+			}
+
+			deployment.Spec.Template.Spec.Containers[i] = container
 		}
-		stageMatched = ReStage.FindString(annotations["containerImage"])
-		prodMatched = ReProd.FindString(annotations["containerImage"])
+
+		stageMatched := ReStage.FindString(annotations["containerImage"])
+		prodMatched := ReProd.FindString(annotations["containerImage"])
 		if stageMatched != "" || prodMatched != "" {
 			processedDeloreanImage := processToDeloreanImage(annotations["containerImage"])
 			annotations["containerImage"] = processedDeloreanImage
@@ -539,7 +544,7 @@ func GetAndUpdateOperatorImage(manifestDir string, images map[string]string, isG
 	csv.SetOperatorDeploymentSpec(deployment)
 
 	err = csv.WriteYAML(fp)
-	return images, nil
+	return images, err
 }
 
 func processToDeloreanImage(image string) string {
