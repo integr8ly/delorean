@@ -2,12 +2,12 @@ package cmd
 
 import (
 	"fmt"
-	"io/ioutil"
+	// "io/ioutil"
 	"os"
 	"path"
 	"regexp"
 	"time"
-
+	"os/exec"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -41,9 +41,7 @@ const (
 	commitAuthorName                 = "Delorean"
 	commitAuthorEmail                = "cloud-services-delorean@redhat.com"
 	mergeRequestTitleTemplate        = "Update %s %s to %s" // channel, version
-	envVarNameUseClusterStorage      = "USE_CLUSTER_STORAGE"
-	envVarNameAlertEmailAddress      = "ALERTING_EMAIL_ADDRESS"
-	envVarNameAlertEmailAddressValue = "{{ alertingEmailAddress }}"
+
 )
 
 type releaseChannel struct {
@@ -91,11 +89,7 @@ type addons struct {
 // directory returns the relative path of the managed-teneants repo to the
 // addon for the given channel
 func (c *releaseChannel) bundlesDirectory() string {
-	return fmt.Sprintf("addons/%s/bundles", c.Directory)
-}
-
-func (c *releaseChannel) addonFile() string {
-	return fmt.Sprintf("addons/%s/metadata/%s/addon.yaml", c.Directory, c.Environment)
+	return fmt.Sprintf("addons/%s/main", c.Directory)
 }
 
 type osdAddonReleaseFlags struct {
@@ -130,14 +124,6 @@ func (a *addon) setCurrentCSV(currentCSV string) {
 	r := regexp.MustCompile(`currentCSV: .*`)
 	s := r.ReplaceAllString(a.content, fmt.Sprintf("currentCSV: %s", currentCSV))
 	a.content = s
-}
-
-func newAddon(addonPath string) (*addon, error) {
-	c, err := ioutil.ReadFile(addonPath)
-	if err != nil {
-		return nil, err
-	}
-	return &addon{content: string(c)}, nil
 }
 
 func init() {
@@ -201,13 +187,13 @@ func init() {
 	cmd.Flags().StringVar(
 		&f.managedTenantsOrigin,
 		"managed-tenants-origin",
-		"service/managed-tenants",
+		"service/managed-tenants-bundles",
 		"managed-tenants origin repository from where to fork the main branch")
 
 	cmd.Flags().StringVar(
 		&f.managedTenantsFork,
 		"managed-tenants-fork",
-		"integreatly-qe/managed-tenants",
+		"integreatly-qe/managed-tenants-bundles",
 		"managed-tenants fork repository where to push the release files")
 }
 
@@ -271,14 +257,14 @@ func newOSDAddonReleaseCmd(flags *osdAddonReleaseFlags, gitlabToken string) (*os
 	// Clone the managed tenants
 	// TODO: Move the clone functions inside the run() method to improve the test covered code
 	managedTenantsDir, managedTenantsRepo, err := gitCloneService.CloneToTmpDir(
-		"managed-tenants-",
+		"managed-tenants-bundles",
 		fmt.Sprintf("%s/%s", gitlabURL, flags.managedTenantsOrigin),
 		plumbing.NewBranchReferenceName(managedTenantsMainBranch),
 	)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("managed-tenants repo cloned to %s\n", managedTenantsDir)
+	fmt.Printf("managed-tenants-bundles repo cloned to %s\n", managedTenantsDir)
 
 	// Add the fork remote to the managed-tenats repo
 	_, err = managedTenantsRepo.CreateRemote(&config.RemoteConfig{
@@ -288,7 +274,7 @@ func newOSDAddonReleaseCmd(flags *osdAddonReleaseFlags, gitlabToken string) (*os
 	if err != nil {
 		return nil, err
 	}
-	fmt.Print("added the fork remote to the managed-tenants repo\n")
+	fmt.Print("added the fork remote to the managed-tenants-bundle repo\n")
 
 	// Clone the repo to get the csv for the addon
 	csvDir, _, err := gitCloneService.CloneToTmpDir(
@@ -331,7 +317,7 @@ func (c *osdAddonReleaseCmd) run() error {
 
 	// Verify that the repo is on master
 	if managedTenantsHead.Name() != plumbing.NewBranchReferenceName(managedTenantsMainBranch) {
-		return fmt.Errorf("the managed-tenants repo is pointing to %s instead of main", managedTenantsHead.Name())
+		return fmt.Errorf("the managed-tenants-bundle repo is pointing to %s instead of main", managedTenantsHead.Name())
 	}
 
 	managedTenantsTree, err := c.managedTenantsRepo.Worktree()
@@ -343,7 +329,7 @@ func (c *osdAddonReleaseCmd) run() error {
 	managedTenantsBranch := fmt.Sprintf(branchNameTemplate, c.addonConfig.Name, c.currentChannel.Name, c.version)
 	branchRef := plumbing.NewBranchReferenceName(managedTenantsBranch)
 
-	fmt.Printf("create the branch %s in the managed-tenants repo\n", managedTenantsBranch)
+	fmt.Printf("create the branch %s in the managed-tenants-bundle repo\n", managedTenantsBranch)
 	err = managedTenantsTree.Checkout(&git.CheckoutOptions{
 		Branch: branchRef,
 		Create: true,
@@ -351,6 +337,13 @@ func (c *osdAddonReleaseCmd) run() error {
 	if err != nil {
 		return err
 	}
+
+	// Generate OLM bundles and manifests
+	err = c.generateBundles(c.addonDir)
+	if err != nil {
+		return err
+	}
+
 
 	// Copy the OLM manifests from the integreatly-operator repo to the the managed-tenats repo
 	manifestsDirectory, err := c.copyTheOLMManifests()
@@ -364,30 +357,8 @@ func (c *osdAddonReleaseCmd) run() error {
 		return err
 	}
 
-	// Update the addon.yaml file
-	addonFile, err := c.updateTheAddonFile()
-	if err != nil {
-		return err
-	}
-
-	// Add the addon.yaml file
-	_, err = managedTenantsTree.Add(addonFile)
-	if err != nil {
-		return err
-	}
-
 	//Update the integreatly-operator.vx.x.x.clusterserviceversion.yaml
 	_, err = c.updateTheCSVManifest()
-	if err != nil {
-		return err
-	}
-
-	csvTemplate, err := c.renameCSVFile()
-	if err != nil {
-		return err
-	}
-
-	_, err = managedTenantsTree.Add(csvTemplate)
 	if err != nil {
 		return err
 	}
@@ -463,9 +434,27 @@ func (c *osdAddonReleaseCmd) run() error {
 	return nil
 }
 
-func (c *osdAddonReleaseCmd) copyTheOLMManifests() (string, error) {
-	source := path.Join(c.addonDir, fmt.Sprintf("%s/%s", c.addonConfig.CSV.Path, c.version.Base()))
+func (c *osdAddonReleaseCmd) generateBundles(repoDir string) error {
+	scriptPath := "scripts/bundle-rhmi-operators.sh"
+	if err := os.Chmod(path.Join(repoDir, scriptPath), 0755); err != nil {
+		return err
+	}
 
+	envs := []string{"BUNDLE_ONLY=true", fmt.Sprintf("OLM_TYPE=%s", c.version.OlmType())}
+	releaseScript := &exec.Cmd{Dir: repoDir, Env: envs, Path: scriptPath, Stdout: os.Stdout, Stderr: os.Stderr}
+	err := releaseScript.Run()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *osdAddonReleaseCmd) copyTheOLMManifests() (string, error) {
+
+	source := path.Join(c.addonDir, fmt.Sprintf("%s/%s/%s", c.addonConfig.CSV.Path, c.version.Base(), c.version.Base()))
+
+	// Copy bundles 
 	relativeDestination := fmt.Sprintf("%s/%s", c.currentChannel.bundlesDirectory(), c.version.Base())
 	destination := path.Join(c.managedTenantsDir, relativeDestination)
 
@@ -475,33 +464,14 @@ func (c *osdAddonReleaseCmd) copyTheOLMManifests() (string, error) {
 		return "", err
 	}
 
+	fmt.Print("Copied!")
+
 	return relativeDestination, nil
 }
 
-func (c *osdAddonReleaseCmd) updateTheAddonFile() (string, error) {
-	relative := c.currentChannel.addonFile()
-	addonFilePath := path.Join(c.managedTenantsDir, relative)
-
-	fmt.Printf("update the currentCSV value in addon file %s to %s\n", relative, c.version)
-	addon, err := newAddon(addonFilePath)
-	if err != nil {
-		return "", err
-	}
-	// Set currentCSV value
-	addon.setCurrentCSV(fmt.Sprintf("%s.v%s", c.addonConfig.Name, c.version.Base()))
-
-	err = ioutil.WriteFile(addonFilePath, []byte(addon.content), os.ModePerm)
-	if err != nil {
-		return "", err
-	}
-
-	return relative, nil
-}
-
 func (c *osdAddonReleaseCmd) updateTheCSVManifest() (string, error) {
-	relative := fmt.Sprintf("%s/%s/%s.clusterserviceversion.yaml", c.currentChannel.bundlesDirectory(), c.version.Base(), c.addonConfig.Name)
+	relative := fmt.Sprintf("%s/%s/manifests/%s.clusterserviceversion.yaml", c.currentChannel.bundlesDirectory(), c.version.Base(), c.addonConfig.Name)
 	csvFile := path.Join(c.managedTenantsDir, relative)
-
 	fmt.Printf("update csv manifest file %s\n", relative)
 	csv := &olmapiv1alpha1.ClusterServiceVersion{}
 	err := utils.PopulateObjectFromYAML(csvFile, csv)
@@ -509,18 +479,20 @@ func (c *osdAddonReleaseCmd) updateTheCSVManifest() (string, error) {
 		return "", err
 	}
 
-	if c.addonConfig.Override != nil {
-		_, deployment := utils.FindDeploymentByName(csv.Spec.InstallStrategy.StrategySpec.DeploymentSpecs, c.addonConfig.Override.Deployment.Name)
-		if deployment != nil {
-			i, container := utils.FindContainerByName(deployment.Spec.Template.Spec.Containers, c.addonConfig.Override.Deployment.Container.Name)
-			if container != nil {
-				for _, envVar := range c.addonConfig.Override.Deployment.Container.EnvVars {
-					container.Env = utils.AddOrUpdateEnvVar(container.Env, envVar.Name, envVar.Value)
-				}
-			}
-			deployment.Spec.Template.Spec.Containers[i] = *container
-		}
-	}
+	// As these values will differ per environment and we are no longer allowed to use jinja format, this bit of logic is blocked by:
+	// https://issues.redhat.com/browse/MTSRE-244
+	// if c.addonConfig.Override != nil {
+	// 	_, deployment := utils.FindDeploymentByName(csv.Spec.InstallStrategy.StrategySpec.DeploymentSpecs, c.addonConfig.Override.Deployment.Name)
+	// 	if deployment != nil {
+	// 		i, container := utils.FindContainerByName(deployment.Spec.Template.Spec.Containers, c.addonConfig.Override.Deployment.Container.Name)
+	// 		if container != nil {
+	// 			for _, envVar := range c.addonConfig.Override.Deployment.Container.EnvVars {
+	// 				container.Env = utils.AddOrUpdateEnvVar(container.Env, envVar.Name, envVar.Value)
+	// 			}
+	// 		}
+	// 		deployment.Spec.Template.Spec.Containers[i] = *container
+	// 	}
+	// }
 
 	//Set SingleNamespace install mode to true
 	mi, m := utils.FindInstallMode(csv.Spec.InstallModes, olmapiv1alpha1.InstallModeTypeSingleNamespace)
@@ -536,11 +508,3 @@ func (c *osdAddonReleaseCmd) updateTheCSVManifest() (string, error) {
 	return relative, nil
 }
 
-func (c *osdAddonReleaseCmd) renameCSVFile() (string, error) {
-	o := fmt.Sprintf("%s/%s/%s.clusterserviceversion.yaml", c.currentChannel.bundlesDirectory(), c.version.Base(), c.addonConfig.Name)
-	n := fmt.Sprintf("%s/%s/%s.v%s.clusterserviceversion.yaml.j2", c.currentChannel.bundlesDirectory(), c.version.Base(), c.addonConfig.Name, c.version.Base())
-	fmt.Println(fmt.Sprintf("Rename file from %s to %s", o, n))
-	oldPath := path.Join(c.managedTenantsDir, o)
-	newPath := path.Join(c.managedTenantsDir, n)
-	return n, os.Rename(oldPath, newPath)
-}
