@@ -30,8 +30,8 @@ import (
 type queryType string
 
 const (
-	prometheusNamespace           = "redhat-rhmi-middleware-monitoring-operator"
-	prometheusRouteName           = "prometheus-route"
+	prometheusNamespace           = "redhat-rhoam-observability"
+	prometheusRouteName           = "prometheus"
 	promQueryType       queryType = "query"
 	promQueryRangeType  queryType = "query_range"
 	defaultWorkers                = 5
