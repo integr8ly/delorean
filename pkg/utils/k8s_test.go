@@ -1,14 +1,16 @@
 package utils
 
 import (
+	"context"
+	"reflect"
+	"testing"
+	"time"
+
 	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
-	"reflect"
-	"testing"
-	"time"
 )
 
 func TestCreateJob(t *testing.T) {
@@ -224,7 +226,7 @@ func TestWaitForContainerToComplete(t *testing.T) {
 						},
 					},
 				}
-				_, err := client.CoreV1().Pods(namespace).Update(updated)
+				_, err := client.CoreV1().Pods(namespace).Update(context.TODO(), updated, metav1.UpdateOptions{})
 				if err != nil {
 					t.Errorf("failed to update pod due to error: %v", err)
 				}

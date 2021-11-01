@@ -2,15 +2,16 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/integr8ly/delorean/pkg/types"
 	"io/ioutil"
 	"os"
 	"path"
 	"strings"
 	"testing"
 
+	"github.com/integr8ly/delorean/pkg/types"
+
 	"github.com/ghodss/yaml"
-	olmapiv1alpha1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
+	olmapiv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"

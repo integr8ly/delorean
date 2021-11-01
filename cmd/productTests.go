@@ -168,7 +168,7 @@ func (c *runTestsCmd) run(ctx context.Context) error {
 	wg.Wait()
 	fmt.Println(fmt.Sprintf("[Reporting] Tests completed. Results can be found in %s", c.outputDir))
 	fmt.Println("[TearDown] Delete namespace", c.namespace)
-	err = c.clientset.CoreV1().Namespaces().Delete(c.namespace, &metav1.DeleteOptions{})
+	err = c.clientset.CoreV1().Namespaces().Delete(ctx, c.namespace, metav1.DeleteOptions{})
 	if err != nil {
 		return err
 	}
@@ -221,7 +221,7 @@ func (c *runTestsCmd) runTestContainer(ctx context.Context, test *TestContainer)
 		return false, err
 	}
 	fmt.Println(fmt.Sprintf("[%s] Delete test job", test.Name))
-	err = c.clientset.BatchV1().Jobs(job.GetNamespace()).Delete(job.GetName(), &metav1.DeleteOptions{})
+	err = c.clientset.BatchV1().Jobs(job.GetNamespace()).Delete(ctx, job.GetName(), metav1.DeleteOptions{})
 	if err != nil {
 		return false, err
 	}
