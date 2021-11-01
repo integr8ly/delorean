@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"io/ioutil"
+	"os"
+	"testing"
+	"time"
+
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
-	"os"
-	"testing"
-	"time"
 )
 
 type mockOC struct {
@@ -105,7 +106,7 @@ func createPod(client kubernetes.Interface, namespace string) (*v1.Pod, error) {
 			Phase: v1.PodPending,
 		},
 	}
-	return client.CoreV1().Pods(namespace).Create(pod)
+	return client.CoreV1().Pods(namespace).Create(context.TODO(), pod, metav1.CreateOptions{})
 }
 
 func terminateContainer(client kubernetes.Interface, namespace string, pod *v1.Pod) (*v1.Pod, error) {
@@ -119,5 +120,5 @@ func terminateContainer(client kubernetes.Interface, namespace string, pod *v1.P
 			},
 		},
 	}
-	return client.CoreV1().Pods(namespace).Update(updated)
+	return client.CoreV1().Pods(namespace).Update(context.TODO(), updated, metav1.UpdateOptions{})
 }

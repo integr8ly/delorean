@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,18 +19,18 @@ import (
 // Create the given Job object. If a job with the same name exists, it will delete the existing job first before creating.
 func CreateJob(clientset kubernetes.Interface, job *batchv1.Job) (*batchv1.Job, error) {
 	api := clientset.BatchV1().Jobs(job.GetNamespace())
-	j, err := api.Get(job.GetName(), metav1.GetOptions{})
+	j, err := api.Get(context.TODO(), job.GetName(), metav1.GetOptions{})
 	if err != nil {
 		if !k8serrors.IsNotFound(err) {
 			return nil, err
 		}
 	}
 	if j != nil && j.GetName() != "" {
-		if err = api.Delete(j.GetName(), &metav1.DeleteOptions{}); err != nil {
+		if err = api.Delete(context.TODO(), j.GetName(), metav1.DeleteOptions{}); err != nil {
 			return nil, err
 		}
 	}
-	return api.Create(job)
+	return api.Create(context.TODO(), job, metav1.CreateOptions{})
 }
 
 // Create the given namespace if it's not already exist
@@ -37,7 +38,7 @@ func CreateNamespace(client kubernetes.Interface, namespace string) (*v1.Namespa
 	api := client.CoreV1().Namespaces()
 	var n *v1.Namespace
 	var err error
-	if n, err = api.Get(namespace, metav1.GetOptions{}); err != nil {
+	if n, err = api.Get(context.TODO(), namespace, metav1.GetOptions{}); err != nil {
 		if !k8serrors.IsNotFound(err) {
 			return nil, err
 		}
@@ -48,7 +49,7 @@ func CreateNamespace(client kubernetes.Interface, namespace string) (*v1.Namespa
 				Name: namespace,
 			},
 		}
-		if n, err = api.Create(n); err != nil {
+		if n, err = api.Create(context.TODO(), n, metav1.CreateOptions{}); err != nil {
 			return nil, err
 		}
 	}
@@ -60,7 +61,7 @@ func CreateServiceAccount(client kubernetes.Interface, namespace string, service
 	api := client.CoreV1().ServiceAccounts(namespace)
 	var s *v1.ServiceAccount
 	var err error
-	if s, err = api.Get(serviceAccountName, metav1.GetOptions{}); err != nil {
+	if s, err = api.Get(context.TODO(), serviceAccountName, metav1.GetOptions{}); err != nil {
 		if !k8serrors.IsNotFound(err) {
 			return nil, err
 		}
@@ -72,7 +73,7 @@ func CreateServiceAccount(client kubernetes.Interface, namespace string, service
 				Namespace: namespace,
 			},
 		}
-		if s, err = api.Create(s); err != nil {
+		if s, err = api.Create(context.TODO(), s, metav1.CreateOptions{}); err != nil {
 			return nil, err
 		}
 	}
@@ -103,7 +104,7 @@ func CreateClusterRoleBinding(client kubernetes.Interface, sa *v1.ServiceAccount
 			Name:     clusterRoleName,
 		},
 	}
-	if r, err = api.Create(r); err != nil {
+	if r, err = api.Create(context.TODO(), r, metav1.CreateOptions{}); err != nil {
 		return nil, err
 	}
 	return r, nil
@@ -125,14 +126,14 @@ func CreateDockerSecret(client kubernetes.Interface, secretName string, namespac
 	if err != nil {
 		return err
 	}
-	_, err = client.CoreV1().Secrets(namespace).Create(&v1.Secret{
+	_, err = client.CoreV1().Secrets(namespace).Create(context.TODO(), &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      secretName,
 			Namespace: namespace,
 		},
 		Type:       v1.SecretTypeDockercfg,
 		StringData: map[string]string{".dockercfg": string(auth)},
-	})
+	}, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
@@ -144,7 +145,7 @@ func WaitForContainerToComplete(client kubernetes.Interface, namespace string, p
 	var err error
 	var watcher watch.Interface
 	api := client.CoreV1().Pods(namespace)
-	if watcher, err = api.Watch(metav1.ListOptions{LabelSelector: podSelector}); err != nil {
+	if watcher, err = api.Watch(context.TODO(), metav1.ListOptions{LabelSelector: podSelector}); err != nil {
 		return nil, err
 	}
 	for {
@@ -198,9 +199,9 @@ func GetContainerStatus(statuses []v1.ContainerStatus, name string) (v1.Containe
 
 func GetPods(client kubernetes.Interface, namespace string, podSelector string) (*v1.PodList, error) {
 	api := client.CoreV1().Pods(namespace)
-	return api.List(metav1.ListOptions{LabelSelector: podSelector})
+	return api.List(context.TODO(), metav1.ListOptions{LabelSelector: podSelector})
 }
 
 func GetPod(client kubernetes.Interface, namespace string, name string) (*v1.Pod, error) {
-	return client.CoreV1().Pods(namespace).Get(name, metav1.GetOptions{})
+	return client.CoreV1().Pods(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 }

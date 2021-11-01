@@ -221,7 +221,7 @@ func newQueryReportCmd(kubeconfig string, f *queryReportCmdFlags, session *sessi
 	if err != nil {
 		return nil, err
 	}
-	promRoute, err := routeclient.Routes(f.namespace).Get(f.prometheusRouteName, metav1.GetOptions{})
+	promRoute, err := routeclient.Routes(f.namespace).Get(context.TODO(), f.prometheusRouteName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -350,7 +350,7 @@ func (c *queryReportCmd) parseQueryRangeQuery(query string) string {
 }
 
 func newPromAPI(url string, token string) (promv1.API, error) {
-	rt := config.NewBearerAuthRoundTripper(config.Secret(token), api.DefaultRoundTripper)
+	rt := config.NewAuthorizationCredentialsRoundTripper("Bearer", config.Secret(token), api.DefaultRoundTripper)
 	client, err := api.NewClient(api.Config{Address: url, RoundTripper: rt})
 	if err != nil {
 		return nil, err
