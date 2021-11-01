@@ -4,12 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/integr8ly/delorean/pkg/utils"
-	"github.com/spf13/cobra"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
+
+	"github.com/integr8ly/delorean/pkg/utils"
+	"github.com/spf13/cobra"
 )
 
 type extractManifestsCmdOptions struct {
@@ -23,20 +24,22 @@ var extractManifestsCmdOpts = &extractManifestsCmdOptions{}
 
 type ExtractManifestsCmd func(image string, path string) error
 
-func extractImageManifests(image string, destDir string) error {
-	ocExecutable, err := exec.LookPath("oc")
-	if err != nil {
-		return err
-	}
+func ocExtractImage(sourcePath string) ExtractManifestsCmd {
+	return func(image, destDir string) error {
+		ocExecutable, err := exec.LookPath("oc")
+		if err != nil {
+			return err
+		}
 
-	cmdOCManifestExtract := &exec.Cmd{
-		Path:   ocExecutable,
-		Args:   []string{ocExecutable, "image", "extract", image, "--path", "/manifests/:" + destDir, "--confirm", "--insecure"},
-		Stdout: os.Stdout,
-		Stderr: os.Stdout,
-	}
+		cmdOCManifestExtract := &exec.Cmd{
+			Path:   ocExecutable,
+			Args:   []string{ocExecutable, "image", "extract", image, "--path", fmt.Sprintf("%s:%s", sourcePath, destDir), "--confirm", "--insecure"},
+			Stdout: os.Stdout,
+			Stderr: os.Stdout,
+		}
 
-	return cmdOCManifestExtract.Run()
+		return cmdOCManifestExtract.Run()
+	}
 }
 
 func copyLatestManifest(srcPkgDir, destPkgDir string) (string, string, error) {
@@ -127,7 +130,7 @@ var extractManifestsCmd = &cobra.Command{
 			extractManifestsCmdOpts.extractDir = tmpDir
 		}
 
-		if err := DoExtractManifests(cmd.Context(), extractImageManifests, extractManifestsCmdOpts); err != nil {
+		if err := DoExtractManifests(cmd.Context(), ocExtractImage("/manifests/"), extractManifestsCmdOpts); err != nil {
 			handleError(err)
 		}
 	},
