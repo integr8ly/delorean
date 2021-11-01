@@ -1,7 +1,7 @@
 FROM centos:7
 LABEL maintainer="mnairn@redhat.com"
 
-ENV OPERATOR_SDK_VERSION=v1.7.2 \
+ENV OPERATOR_SDK_VERSION=v1.12.0 \
     OC_VERSION="4.6" \
     GOFLAGS="" \
     PATH=$PATH:/usr/local/go/bin
