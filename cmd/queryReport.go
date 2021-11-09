@@ -4,6 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
+	"path"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -20,18 +26,13 @@ import (
 	"github.com/spf13/viper"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/clientcmd"
-	"math"
-	"path"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type queryType string
 
 const (
-	prometheusNamespace           = "redhat-rhmi-middleware-monitoring-operator"
-	prometheusRouteName           = "prometheus-route"
+	prometheusNamespace           = "redhat-rhoam-observability"
+	prometheusRouteName           = "prometheus"
 	promQueryType       queryType = "query"
 	promQueryRangeType  queryType = "query_range"
 	defaultWorkers                = 5
@@ -130,7 +131,6 @@ type queryRange struct {
 }
 
 type queryReportCmd struct {
-	namespace  string
 	outputDir  string
 	promAPI    services.PrometheusService
 	timeout    int
@@ -142,15 +142,16 @@ type queryReportCmd struct {
 }
 
 type queryReportCmdFlags struct {
-	namespace  string
-	outputDir  string
-	timeout    int
-	configFile string
-	start      int64
-	end        int64
-	duration   time.Duration
-	version    string
-	s3bucket   string
+	namespace           string
+	prometheusRouteName string
+	outputDir           string
+	timeout             int
+	configFile          string
+	start               int64
+	end                 int64
+	duration            time.Duration
+	version             string
+	s3bucket            string
 }
 
 func init() {
@@ -194,6 +195,7 @@ func init() {
 	cmd.Flags().StringVarP(&f.outputDir, "output", "o", "", "Absolute path of the output directory to save reports")
 	cmd.MarkFlagRequired("output")
 	cmd.Flags().StringVarP(&f.namespace, "namespace", "n", prometheusNamespace, "The namespace to find the Prometheus route")
+	cmd.Flags().StringVarP(&f.prometheusRouteName, "route-name", "r", prometheusRouteName, "The Prometheus route name")
 	cmd.Flags().StringVar(&f.configFile, "config-file", "", "Path to the query configuration file")
 	cmd.MarkFlagRequired("config-file")
 	cmd.Flags().IntVarP(&f.timeout, "timeout", "t", defaultQueryTimeout, "Timeout value for executing Prometheus queries")
@@ -219,7 +221,7 @@ func newQueryReportCmd(kubeconfig string, f *queryReportCmdFlags, session *sessi
 	if err != nil {
 		return nil, err
 	}
-	promRoute, err := routeclient.Routes(f.namespace).Get(prometheusRouteName, metav1.GetOptions{})
+	promRoute, err := routeclient.Routes(f.namespace).Get(f.prometheusRouteName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -242,7 +244,6 @@ func newQueryReportCmd(kubeconfig string, f *queryReportCmdFlags, session *sessi
 	}
 
 	return &queryReportCmd{
-		namespace:  f.namespace,
 		outputDir:  f.outputDir,
 		promAPI:    promAPI,
 		timeout:    f.timeout,
