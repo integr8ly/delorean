@@ -37,7 +37,7 @@ type TestContainer struct {
 	ImagePullSecret string      `json:"ImagePullSecretEnvVar,omitempty"`
 	EnvVars         []v1.EnvVar `json:"envVars,omitempty"`
 	RegExpFilter    string      `json:"regExpFilter,omitempty`
-    Argument        string      `json:"argument, omitempty`
+	Argument        string      `json:"argument, omitempty`
 	Success         bool
 }
 
@@ -329,7 +329,7 @@ func parseSecretName(pullSecret string) string {
 }
 func assignArguments(t *TestContainer) []string {
 	if t.Argument != "" {
-        return []string{t.Argument}
-    }
-    return []string{"-ginkgo.focus", t.RegExpFilter}
+		return []string{t.Argument}
+	}
+	return []string{"-ginkgo.focus", t.RegExpFilter}
 }
