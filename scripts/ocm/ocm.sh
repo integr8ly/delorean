@@ -233,7 +233,7 @@ get_infra_id() {
 
 send_cluster_create_request() {
     local cluster_details
-    cluster_details=$(ocm post /api/clusters_mgmt/v1/clusters --body="${CLUSTER_CONFIGURATION_FILE}" | jq -r | tee "${CLUSTER_DETAILS_FILE}")
+    cluster_details=$(ocm post /api/clusters_mgmt/v1/clusters --body="${CLUSTER_CONFIGURATION_FILE}" --log_dir "target/logs" | jq -r | tee "${CLUSTER_DETAILS_FILE}")
     if [[ -z "${cluster_details:-}" ]]; then
         printf "Something went wrong with cluster create request\n"
         exit 1
