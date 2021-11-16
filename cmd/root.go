@@ -20,6 +20,7 @@ var cfgFile string
 var integreatlyGHOrg string
 var integreatlyOperatorRepo string
 var releaseVersion string
+var olmType string
 
 var kubeconfigFile string
 
@@ -59,6 +60,13 @@ var releaseCmd = &cobra.Command{
 	Use:   "release",
 	Short: "RHMI release commands",
 	Long:  `Commands for creating a RHMI release`,
+}
+
+// openshifCICmd represents the openshift ci command
+var openshifCICmd = &cobra.Command{
+	Use:   "openshift-ci",
+	Short: "OpenShift CI commands",
+	Long:  `Commands for working with the OpenShift CI release repo`,
 }
 
 // ewsCmd represents the release command
@@ -104,6 +112,7 @@ func init() {
 	releaseCmd.PersistentFlags().StringVarP(&integreatlyOperatorRepo, "repo", "r", DefaultIntegreatlyOperatorRepo, "Github repository")
 	releaseCmd.PersistentFlags().String("quayToken", "", fmt.Sprintf("Access token for quay. Can be set via the %s env var", strings.ToUpper(QuayTokenKey)))
 	viper.BindPFlag(QuayTokenKey, releaseCmd.PersistentFlags().Lookup("quayToken"))
+	releaseCmd.PersistentFlags().StringVarP(&olmType, "olmType", "", DefaultIntegreatlyOperatorRepo, "OLM type for the release. Valid inputs are \"integreatly-operator\" or \"managed-api-service\"")
 
 	defaultKubeconfigFilePath := ""
 	if home := homedir.HomeDir(); home != "" {
@@ -126,6 +135,7 @@ func init() {
 	rootCmd.AddCommand(ewsCmd)
 	rootCmd.AddCommand(pipelineCmd)
 	rootCmd.AddCommand(reportCmd)
+	rootCmd.AddCommand(openshifCICmd)
 }
 
 // initConfig reads in config file and ENV variables if set.

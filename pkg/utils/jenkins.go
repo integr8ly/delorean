@@ -5,6 +5,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 )
 
@@ -91,12 +92,13 @@ type PipelineRun struct {
 }
 
 const (
-	TestSuiteName           = "pipeline-status"
-	PipelineRunStatusFailed = "FAILED"
+	TestSuiteName            = "pipeline-status"
+	PipelineRunStatusFailed  = "FAILED"
+	PipelineRunStatusAborted = "ABORTED"
 )
 
 // ToJUnitSuites will convert the status of the pipeline run into JUnit test suites
-func (p *PipelineRun) ToJUnitSuites() (*JUnitTestSuites, error) {
+func (p *PipelineRun) ToJUnitSuites(filter string) (*JUnitTestSuites, error) {
 	suites := &JUnitTestSuites{
 		Suites: []JUnitTestSuite{},
 	}
@@ -108,18 +110,48 @@ func (p *PipelineRun) ToJUnitSuites() (*JUnitTestSuites, error) {
 		Failures:  0,
 	}
 
+	failure := false
+	aborted := false
 	for _, s := range p.Stages {
 		tc := JUnitTestCase{
 			Name:    s.Name,
 			Time:    formatMillis(s.DurationInMills),
 			Failure: nil,
 		}
-		if s.Status == PipelineRunStatusFailed {
-			ts.Failures++
-			tc.Failure = &JUnitFailure{
-				Message: s.Error.Message,
-				Type:    s.Error.Type,
+
+		switch s.Status {
+		case PipelineRunStatusFailed:
+			if !failure && s.Status == PipelineRunStatusFailed {
+				ts.Failures++
+				tc.Failure = &JUnitFailure{
+					Message: s.Error.Message,
+					Type:    s.Error.Type,
+				}
+				failure = true
+			} else {
+				tc.SkipMessage = &JUnitSkipMessage{
+					Message: s.Error.Message,
+				}
 			}
+		case PipelineRunStatusAborted:
+			if !aborted {
+				ts.Failures++
+				tc.Failure = &JUnitFailure{
+					Message: s.Error.Message,
+					Type:    s.Error.Type,
+				}
+				aborted = true
+			} else {
+				tc.SkipMessage = &JUnitSkipMessage{
+					Message: s.Error.Message,
+				}
+			}
+		}
+
+		// If creating a report only from stages with a specific prefix,
+		// skip adding stage names to the report that do not match the prefix
+		if filter != "" && !strings.Contains(s.Name, filter) {
+			continue
 		}
 
 		ts.TestCases = append(ts.TestCases, tc)

@@ -3,7 +3,7 @@ addons:
   - name: "integreatly-operator"
     csv:
       repo: "https://github.com/integr8ly/integreatly-operator.git"
-      path: "deploy/olm-catalog/integreatly-operator"
+      path: "packagemanifests/integreatly-operator"
     channels:
       - name: "stage"
         directory: "integreatly-operator"
@@ -27,5 +27,5 @@ addons:
               value: ""
             - name: "ALERTING_EMAIL_ADDRESS"
               value: "{{ alertingEmailAddress }}"
-
-
+            - name: "ALERT_SMTP_FROM"
+              value: "{{ alertSMTPFrom }}"

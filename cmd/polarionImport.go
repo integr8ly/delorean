@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -31,6 +32,8 @@ const (
 	polarionImportURL        = "https://polarion.engineering.redhat.com/polarion/import"
 	polarionImportStagingURL = "https://polarion.stage.engineering.redhat.com/polarion/import"
 )
+
+var errJunitNotFound = errors.New("JUnit file not found. Marking the archive as processed and skipping upload to Polarion")
 
 type polarionImportCmdFlags struct {
 	bucket string
@@ -177,8 +180,14 @@ func (c *polarionImportCmd) processReportFile(ctx context.Context, object *s3.Ob
 	// upload it to Polarion
 	fmt.Println(fmt.Sprintf("[%s] uploading results to Polarion", *object.Key))
 	err = c.importToPolarion(*object.Key, m, downloaded)
+
 	if err != nil {
-		return nil, err
+		// If JUnit file is not found, ignore the error and mark the archive as processed
+		if err == errJunitNotFound {
+			fmt.Printf("[%s] %s", *object.Key, errJunitNotFound)
+		} else {
+			return nil, err
+		}
 	}
 
 	// update the tags on the obj
@@ -205,6 +214,16 @@ func (c *polarionImportCmd) importToPolarion(key string, metadata *testMetadata,
 		return nil
 	}
 
+	var projectName string
+	if strings.Contains(metadata.Name, "rhmi") {
+		// integreatly = RHMI
+		projectName = "rhmi"
+	} else if strings.Contains(metadata.Name, "managed-api") {
+		// managedapi = RHOAM
+		projectName = "rhoam"
+	} else {
+		return fmt.Errorf("job name %s does not contain required substring 'rhmi' or 'managed-api'", metadata.Name)
+	}
 	version, err := utils.NewRHMIVersion(metadata.RHMIVersion)
 	if err != nil {
 		return err
@@ -213,15 +232,15 @@ func (c *polarionImportCmd) importToPolarion(key string, metadata *testMetadata,
 	// Get integreatly-operator JUnit
 	b, err := utils.ReadFileFromZip(zipfile, integreatlyOperatorJUnit)
 	if err != nil {
-		return err
+		return errJunitNotFound
 	}
-	junit := &formatter.JUnitTestSuites{}
-	if err := xml.Unmarshal(b, junit); err != nil {
+	junit, err := unmarshalJUnit(b)
+	if err != nil {
 		return err
 	}
 
-	title := fmt.Sprintf("RHMI %s %s Automated Tests", version.String(), metadata.Name)
-	xunit, err := polarion.JUnitToPolarionXUnit(junit, polarionProjectID, title, version.PolarionMilestoneId())
+	title := fmt.Sprintf("%s %s %s Automated Tests", strings.ToUpper(projectName), version.String(), metadata.Name)
+	xunit, err := polarion.JUnitToPolarionXUnit(junit, polarionProjectIDs[projectName], title, version.PolarionMilestoneId())
 	if err != nil {
 		return err
 	}
@@ -251,7 +270,7 @@ func (c *polarionImportCmd) importToPolarion(key string, metadata *testMetadata,
 			fmt.Printf("[%s] polarion job completed successfully\n", key)
 			exit = true
 		default:
-			panic(fmt.Errorf("unknown job status %s", status))
+			return fmt.Errorf("[%s] unknown job status %s", key, status)
 		}
 
 		if exit {
@@ -260,4 +279,24 @@ func (c *polarionImportCmd) importToPolarion(key string, metadata *testMetadata,
 	}
 
 	return nil
+}
+
+func unmarshalJUnit(xmlContent []byte) (*formatter.JUnitTestSuite, error) {
+	junitFormat := &formatter.JUnitTestSuite{}
+	oldJunitFormat := &formatter.JUnitTestSuites{}
+
+	if err := xml.Unmarshal(xmlContent, junitFormat); err != nil {
+		// If the JUnit has top level element <testsuites> instead of <testsuite>,
+		// try to unmarshal it the old way and extract the <testsuite> element from it
+		if err.Error() == `expected element type <testsuite> but have <testsuites>` {
+			if err = xml.Unmarshal(xmlContent, oldJunitFormat); err != nil {
+				return nil, err
+			}
+			return &oldJunitFormat.Suites[0], nil
+		}
+		// In case of any other error, return it
+		return nil, err
+	}
+
+	return junitFormat, nil
 }

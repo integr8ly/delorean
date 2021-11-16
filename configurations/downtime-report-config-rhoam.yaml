@@ -1,0 +1,63 @@
+---
+# Update this configuration file to add more metrics. You can use the following params in the query:
+# "$range": the range of the query in milliseconds
+# "$duration": the range of the query in seconds. Can be used as the duration param in the query
+name: Downtime Report
+queries:
+  # 3scale related dowmtime metrics. For k8s endpoints, it assumes that the service is down when the kube_endpoint_address_available value is 0
+  - name: 3scale_apicast_production_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='apicast-production', namespace='redhat-rhoam-3scale'} , 1)[$duration:30s]) * $range)/1000"
+  - name: 3scale_apicast_staging_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='apicast-staging', namespace='redhat-rhoam-3scale'} , 1)[$duration:30s]) * $range)/1000"
+  - name: 3scale_system_developer_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='system-developer', namespace='redhat-rhoam-3scale'} , 1)[$duration:30s]) * $range)/1000"
+  - name: 3scale_system_master_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='system-master', namespace='redhat-rhoam-3scale'} , 1)[$duration:30s]) * $range)/1000"
+  - name: 3scale_system_memcache_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='system-memcache', namespace='redhat-rhoam-3scale'} , 1)[$duration:30s]) * $range)/1000"
+  - name: 3scale_system_provider_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='system-provider', namespace='redhat-rhoam-3scale'} , 1)[$duration:30s]) * $range)/1000"
+  - name: 3scale_system_sphinx_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='system-sphinx', namespace='redhat-rhoam-3scale'} , 1)[$duration:30s]) * $range)/1000"
+  - name: 3scale_zync_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='zync', namespace='redhat-rhoam-3scale'} , 1)[$duration:30s]) * $range)/1000"
+  - name: 3scale_zync_database_provider_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='zync-database', namespace='redhat-rhoam-3scale'} , 1)[$duration:30s]) * $range)/1000"
+  - name: 3scale_backend_listener_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='backend-listener', namespace='redhat-rhoam-3scale'} , 1)[$duration:30s]) * $range)/1000"
+  - name: 3scale_workload_app_downtime_seconds
+    type: query
+    query: "sum(workload_app_service_downtime_seconds{name='3scale_service'})"
+  # rhssouser related downtime metrics
+  - name: rhssouser_keycloak_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='keycloak', namespace='redhat-rhoam-user-sso'} , 1)[$duration:30s]) * $range)/1000"
+  - name: rhssouser_keycloak_discovery_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='keycloak-discovery', namespace='redhat-rhoam-user-sso'} , 1)[$duration:30s]) * $range)/1000"
+  - name: rhssouser_ui_blackbox_downtime_seconds
+    type: query
+    query: "$range - (probe_success{service='rhssouser-ui'} * $range)"
+  - name: rhssouser_workload_app_downtime_seconds
+    type: query
+    query: "sum(workload_app_service_downtime_seconds{name='sso_service'})"
+  # rhsso related downtime metrics
+  - name: rhsso_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='keycloak', namespace='redhat-rhoam-rhsso'} , 1)[$duration:30s]) * $range)/1000"
+  - name: rhsso_keycloak_discovery_k8s_endpoint_downtime_seconds
+    type: query
+    query: "($range - avg_over_time(clamp_max(kube_endpoint_address_available{endpoint='keycloak-discovery', namespace='redhat-rhoam-rhsso'} , 1)[$duration:30s]) * $range)/1000"
+  - name: rhsso_ui_blackbox_downtime_seconds
+    type: query
+    query: "$range - (probe_success{service='rhsso-ui'} * $range)"

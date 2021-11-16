@@ -17,13 +17,15 @@ readonly CLUSTER_KUBECONFIG_FILE="${OCM_DIR}/cluster.kubeconfig"
 readonly CLUSTER_CONFIGURATION_FILE="${OCM_DIR}/cluster.json"
 readonly CLUSTER_DETAILS_FILE="${OCM_DIR}/cluster-details.json"
 readonly CLUSTER_CREDENTIALS_FILE="${OCM_DIR}/cluster-credentials.json"
-readonly CLUSTER_LOGS_FILE="${OCM_DIR}/cluster.log"
-
-readonly RHMI_OPERATOR_NAMESPACE="redhat-rhmi-operator"
+readonly CLUSTER_INSTALLATION_LOGS_FILE="${OCM_DIR}/cluster-installation.log"
+readonly CLUSTER_SUBSCRIPTION_DETAILS_FILE="${OCM_DIR}/cluster-subscription.json"
 
 readonly ERROR_MISSING_AWS_ENV_VARS="ERROR: Not all required AWS environment are set. Please make sure you've exported all following env vars:"
 readonly ERROR_MISSING_CLUSTER_JSON="ERROR: ${CLUSTER_CONFIGURATION_FILE} file does not exist. Please run 'make ocm/cluster.json' first"
 readonly ERROR_CREATING_SECRET=" secret was not created. This could be caused by unstable connection between the client and OpenShift cluster"
+readonly ERROR_MISSING_CLUSTER_ID="ERROR: OCM_CLUSTER_ID was not specified"
+
+readonly WARNING_CLUSTER_HEALTH_CHECK_FAILED="WARNING: Cluster was not reported as healthy. You might expect some issues while working with the cluster."
 
 check_aws_credentials_exported() {
     if [[ -z "${AWS_ACCOUNT_ID:-}" || -z "${AWS_SECRET_ACCESS_KEY:-}" || -z "${AWS_ACCESS_KEY_ID:-}" ]]; then
@@ -50,6 +52,8 @@ get_latest_generated_access_key_id() {
 create_cluster_configuration_file() {
     local timestamp
     local listening="external"
+    local cluster_display_name
+    local cluster_name_length
 
     : "${OCM_CLUSTER_LIFESPAN:=4}"
     : "${OCM_CLUSTER_NAME:=rhmi-$(date +"%y%m%d-%H%M")}"
@@ -58,6 +62,9 @@ create_cluster_configuration_file() {
     : "${OPENSHIFT_VERSION:=}"
     : "${PRIVATE:=false}"
     : "${MULTI_AZ:=false}"
+    : "${COMPUTE_NODES_COUNT:=}"
+    : "${COMPUTE_MACHINE_TYPE:=}"
+    : "${OSD_TRIAL:=false}"
 
     timestamp=$(get_expiration_timestamp "${OCM_CLUSTER_LIFESPAN}")
 
@@ -65,10 +72,19 @@ create_cluster_configuration_file() {
         listening="internal"
     fi
 
-    jq ".expiration_timestamp = \"${timestamp}\" | .name = \"${OCM_CLUSTER_NAME}\" | .region.id = \"${OCM_CLUSTER_REGION}\" | .api.listening = \"${listening}\"" \
+    # Set cluster display name (a name that's visible in OCM UI)
+    cluster_display_name="${OCM_CLUSTER_NAME}"
+    cluster_name_length=$(echo -n "${OCM_CLUSTER_NAME}" | wc -c | xargs)
+
+    # Limit for a cluster name is 15 characters - shorten it if it's longer
+    if [ "${cluster_name_length}" -gt 15 ]; then
+        OCM_CLUSTER_NAME="${OCM_CLUSTER_NAME:0:11}${RANDOM:0:4}"
+    fi
+
+    jq ".expiration_timestamp = \"${timestamp}\" | .name = \"${OCM_CLUSTER_NAME}\" | .display_name = \"${cluster_display_name}\" | .region.id = \"${OCM_CLUSTER_REGION}\" | .api.listening = \"${listening}\"" \
         < "${CLUSTER_TEMPLATE_FILE}" \
         > "${CLUSTER_CONFIGURATION_FILE}"
-	
+
     if [ "${BYOC}" = true ]; then
         check_aws_credentials_exported
         update_configuration "aws"
@@ -82,6 +98,18 @@ create_cluster_configuration_file() {
         update_configuration "multi_az"
     fi
 
+    if [[ -n "${COMPUTE_NODES_COUNT}" ]]; then
+        update_configuration "compute_nodes_count"
+    fi
+
+    if [[ -n "${COMPUTE_MACHINE_TYPE}" ]]; then
+        update_configuration "compute_machine_type"
+    fi
+    if [[ "${OSD_TRIAL}" = true ]]; then
+        update_configuration "osd_trial"
+    fi
+
+
 
     cat "${CLUSTER_CONFIGURATION_FILE}"
 }
@@ -94,79 +122,117 @@ create_cluster() {
         exit 1
     fi
 
+    : "${TIMEOUT_CLUSTER_CREATION:=180}"
+    : "${TIMEOUT_CLUSTER_HEALTH_CHECK:=30}"
+
     echo "Sending a request to OCM to create an OSD cluster"
     send_cluster_create_request
     cluster_id=$(get_cluster_id)
 
     echo "Cluster ID: ${cluster_id}"
 
-    wait_for "ocm get /api/clusters_mgmt/v1/clusters/${cluster_id}/status | jq -r .state | grep -q ready" "cluster creation" "180m" "300"
+    wait_for "ocm get /api/clusters_mgmt/v1/clusters/${cluster_id}/status | jq -r .state | grep -q ready" "cluster creation" "${TIMEOUT_CLUSTER_CREATION}m" "300"
+    wait_for "ocm get subs --parameter search=\"cluster_id = '${cluster_id}'\" | jq -r .items[0].metrics[0].health_state | grep -q healthy" "cluster to be healthy" "${TIMEOUT_CLUSTER_HEALTH_CHECK}m" "30" \
+        || echo "${WARNING_CLUSTER_HEALTH_CHECK_FAILED}"
     wait_for "ocm get /api/clusters_mgmt/v1/clusters/${cluster_id}/credentials | jq -r .admin | grep -q admin" "fetching cluster credentials" "10m" "30"
 
     save_cluster_credentials "${cluster_id}"
 
 
-    printf "Login credentials: \n%s\n" "$(jq -r < "${CLUSTER_CREDENTIALS_FILE}")"
+    printf "Login credentials: \n%s\n" "$(jq -r . < "${CLUSTER_CREDENTIALS_FILE}")"
     printf "Log in to the OSD cluster using oc:\noc login --server=%s --username=kubeadmin --password=%s\n" "$(jq -r .api.url < "${CLUSTER_DETAILS_FILE}")" "$(jq -r .password < "${CLUSTER_CREDENTIALS_FILE}")"
+
+    echo "To log into the web console as kubeadmin use the link below:"
+    base_domain=$(jq -r .console_url < "${CLUSTER_CREDENTIALS_FILE}" | cut -d '.' -f 3,4,5,6,7 | cut -d '/' -f 1)
+    echo "https://oauth-openshift.apps.${base_domain}/login?then=%2Foauth%2Fauthorize%3Fclient_id%3Dconsole%26idp%3Dkubeadmin%26redirect_uri%3Dhttps%253A%252F%252Fconsole-openshift-console.apps.${base_domain}%252Fauth%252Fcallback%26response_type%3Dcode%26scope%3Duser%253Afull"
 }
 
 install_addon() {
     local cluster_id
     local rhmi_name
     local infra_id
-    local csv_name
     local addon_id
     local completion_phase
+    local addon_payload
+    local osd_trial
 
     addon_id="${1}"
     completion_phase="${2}"
+    osd_trial="${3:-false}"
 
     : "${USE_CLUSTER_STORAGE:=true}"
+    : "${WAIT:=true}"
+    : "${QUOTA:=20}"
     cluster_id=$(get_cluster_id)
+    addon_payload="{\"addon\":{\"id\":\"${addon_id}\"}}"
 
-    echo "Applying RHMI Addon on a cluster with ID: ${cluster_id}"
-    echo "{\"addon\":{\"id\":\"${addon_id}\"}}" | ocm post "/api/clusters_mgmt/v1/clusters/${cluster_id}/addons"
+    # Add mandatory "cidr-range" and "addon-managed-api-service" (quota) params with default value in case of rhoam (managed-api-service) addon
+    if [[ "${addon_id}" == "managed-api-service" ]]; then
+    	addon_payload="{\"addon\":{\"id\":\"${addon_id}\"}, \"parameters\": { \"items\": [{\"id\": \"cidr-range\", \"value\": \"10.1.0.0/26\"}, {\"id\": \"addon-resource-required\", \"value\": \"true\" }"
+        if [[ "${osd_trial}" == "false" ]]; then
+            addon_payload+=", {\"id\": \"addon-managed-api-service\", \"value\": \"${QUOTA}\"}] }}"
+        else
+            addon_payload+=", {\"id\": \"trial-quota\", \"value\": \"0\"}] }}"
+        fi
+    fi
 
-    wait_for "oc --kubeconfig ${CLUSTER_KUBECONFIG_FILE} get rhmi -n ${RHMI_OPERATOR_NAMESPACE} | grep -q NAME" "rhmi installation CR to be created" "15m" "30"
+    echo "Applying ${addon_id} Add-on on a cluster with ID: ${cluster_id}"
+    echo "${addon_payload}" | ocm post "/api/clusters_mgmt/v1/clusters/${cluster_id}/addons"
+
+    wait_for "oc --kubeconfig ${CLUSTER_KUBECONFIG_FILE} get rhmi -n ${OPERATOR_NAMESPACE} | grep -q NAME" "rhmi installation CR to be created" "15m" "30"
 
     rhmi_name=$(get_rhmi_name)
 
-    if [[ "${USE_CLUSTER_STORAGE}" == false ]]; then
+    # Apply cluster resource quotas and AWS backup strategies only in case of RHMI installation (with AWS cloud resources)
+    if [[ "${USE_CLUSTER_STORAGE}" == false && "${NS_PREFIX}" == "redhat-rhmi" ]]; then
         echo "Creating cluster resource quotas and AWS backup strategies"
-        oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" create -f \
+        oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" -n "${OPERATOR_NAMESPACE}" create -f \
         "${CR_AWS_STRATEGIES_CONFIGMAP_FILE},${LB_CLUSTER_QUOTA_FILE},${CLUSTER_STORAGE_QUOTA_FILE}"
     fi
 
     echo "Patching RHMI CR"
-    oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" patch rhmi "${rhmi_name}" -n ${RHMI_OPERATOR_NAMESPACE} \
-        --type=merge -p "{\"spec\":{\"useClusterStorage\": \"${USE_CLUSTER_STORAGE}\", \"selfSignedCerts\": ${SELF_SIGNED_CERTS:-true} }}"
+    oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" patch rhmi "${rhmi_name}" -n "${OPERATOR_NAMESPACE}" \
+        --type=merge -p "{\"spec\":{\"useClusterStorage\": \"${USE_CLUSTER_STORAGE}\", \"selfSignedCerts\": ${SELF_SIGNED_CERTS:-false} }}"
 
     # Change alerting email address is ALERTING_EMAIL_ADDRESS variable is set
     if [[ -n "${ALERTING_EMAIL_ADDRESS:-}" ]]; then
         echo "Changing alerting email address to: ${ALERTING_EMAIL_ADDRESS}"
-        csv_name=$(oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get csv -n ${RHMI_OPERATOR_NAMESPACE} | grep integreatly-operator | awk '{print $1}')
-        oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" patch csv "${csv_name}" -n ${RHMI_OPERATOR_NAMESPACE} \
-            --type=json -p "[{\"op\": \"replace\", \"path\": \"/spec/install/spec/deployments/0/spec/template/spec/containers/0/env/4/value\", \"value\": \"${ALERTING_EMAIL_ADDRESS}\" }]"
+        oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" patch rhmi "${rhmi_name}" -n "${OPERATOR_NAMESPACE}" \
+            --type=merge -p "{\"spec\":{ \"alertingEmailAddress\": \"${ALERTING_EMAIL_ADDRESS}\"}}"
     fi
 
-    create_secrets
-
-    if [[ "${PATCH_CR_AWS_CM}" == true ]]; then
-        echo "Patching Cloud Resources AWS Strategies Config Map"
-        wait_for "oc --kubeconfig ${CLUSTER_KUBECONFIG_FILE} get configMap cloud-resources-aws-strategies -n ${RHMI_OPERATOR_NAMESPACE} | grep -q cloud-resources-aws-strategies" "cloud-resources-aws-strategies ready" "5m" "20"
-        oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" patch configMap cloud-resources-aws-strategies -n "${RHMI_OPERATOR_NAMESPACE}" --type='json' -p '[{"op": "add", "path": "/data/_network", "value":"{ \"production\": { \"createStrategy\": { \"CidrBlock\": \"'10.1.0.0/23'\" } } }"}]'
+#   Secret creation is only required rhmi addon installs.
+#   Creating the secrets for RHOAM addons affect how the SLO reporting happens in the nightly RHOAM addon pipelines due to a waiting phase
+    if [[ ${addon_id} == "rhmi" ]]; then
+        create_secrets
     fi
 
-    wait_for "oc --kubeconfig ${CLUSTER_KUBECONFIG_FILE} get rhmi ${rhmi_name} -n ${RHMI_OPERATOR_NAMESPACE} -o json | jq -r ${completion_phase} | grep -q completed" "rhmi installation" "90m" "300"
-    oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get rhmi "${rhmi_name}" -n ${RHMI_OPERATOR_NAMESPACE} -o json | jq -r '.status.stages'
+    if [[ "${WAIT}" == true ]]; then
+        wait_for "oc --kubeconfig ${CLUSTER_KUBECONFIG_FILE} get rhmi ${rhmi_name} -n ${OPERATOR_NAMESPACE} -o json | jq -r ${completion_phase} | grep -q completed" "rhmi installation" "90m" "300"
+        oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get rhmi "${rhmi_name}" -n "${OPERATOR_NAMESPACE}" -o json | jq -r '.status.stages'
+        echo "3Scale admin credentials:"
+        oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" -n "${NS_PREFIX}-3scale" get secret system-seed -o json | jq -r .data.ADMIN_USER | base64 --decode
+        echo "" #new line
+        oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" -n "${NS_PREFIX}-3scale" get secret system-seed -o json | jq -r .data.ADMIN_PASSWORD | base64 --decode
+    fi
 }
 
 install_rhmi() {
+    NS_PREFIX="redhat-rhmi"
+    OPERATOR_NAMESPACE="${NS_PREFIX}-operator"
     install_addon "rhmi" ".status.stages.\\\"solution-explorer\\\".phase"
 }
 
-install_managed_api() {
+install_rhoam() {
+    NS_PREFIX="redhat-rhoam"
+    OPERATOR_NAMESPACE="${NS_PREFIX}-operator"
     install_addon "managed-api-service" ".status.stages.products.phase"
+}
+
+install_rhoam_trial() {
+    NS_PREFIX="redhat-rhoam"
+    OPERATOR_NAMESPACE="${NS_PREFIX}-operator"
+    install_addon "managed-api-service" ".status.stages.products.phase" "true"
 }
 
 
@@ -182,7 +248,7 @@ delete_cluster() {
     ocm delete "/api/clusters_mgmt/v1/clusters/${cluster_id}"
 
     # Use cluster-service to cleanup AWS resources
-    if [[ $(is_byoc_cluster) == true ]] && [[ -n "${infra_id:-}" ]]; then
+    if [[ $(is_ccs_cluster) == true ]] && [[ -n "${infra_id:-}" ]]; then
         check_aws_credentials_exported
 
         cluster_region=$(get_cluster_region)
@@ -193,37 +259,82 @@ delete_cluster() {
 
 upgrade_cluster() {
     local cluster_id
+    local to_version_parameter
+    local channel_version
     cluster_id=$(get_cluster_id)
 
-    upgradeAvailable=$(ocm get cluster "${cluster_id}" | jq -r .metrics.upgrade.available)
-    
-    if [[ $upgradeAvailable == true ]]; then
-        oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" adm upgrade --to-latest=true
+    : "${TO_VERSION:=latest}"
+
+    if [[ $TO_VERSION == "latest" ]]; then
+        to_version_parameter="--to-latest=true"
+    else
+        to_version_parameter="--to=${TO_VERSION}"
+    fi
+
+    upgradesAvailable=$(ocm get cluster "${cluster_id}" | jq -r '.version.available_upgrades | values')
+
+    if [[ $upgradesAvailable != "" ]]; then
+        channel_version=$(get_channel_version)
+        echo "Current version of cluster's upgrade channel is ${channel_version}"
+        if [[ $TO_VERSION == "latest" || $TO_VERSION == "${channel_version}."* ]]; then
+            echo "No need to update the upgrade channel for upgrading OSD to version $TO_VERSION"
+        else
+            update_channel_version
+        fi
+        oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" adm upgrade $to_version_parameter
         sleep 600 # waiting 10 minutes to allow for '.metrics.upgrade.state' to appear
-        wait_for "ocm get cluster ${cluster_id} | jq -r .metrics.upgrade.state | grep -q completed" "OpenShift upgrade" "90m" "300"
+        wait_for "ocm get subscription $(get_cluster_subscription_id) | jq -r .metrics[0].upgrade.state | grep -q complete" "OpenShift upgrade" "90m" "300"
     else
         echo "No upgrade available for cluster with id: ${cluster_id}"
     fi
 }
 
+update_channel_version() {
+    local new_channel_version="${TO_VERSION%.*}"
+
+    echo "Updating upgrade channel to version ${new_channel_version}"
+    oc patch clusterversion version --type="merge" -p "{\"spec\":{\"channel\":\"stable-${new_channel_version}\"}}"
+}
+
+get_channel_version() {
+    local channel_spec
+    channel_spec=$(oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get clusterversion version -o json | jq -r .spec.channel)
+    printf "%s" "${channel_spec##*-}"
+}
+
 get_cluster_logs() {
-    ocm get "/api/clusters_mgmt/v1/clusters/$(get_cluster_id)/logs/hive" | jq -r .content | tee "${CLUSTER_LOGS_FILE}"
+    ocm get cluster "$(get_cluster_id)/logs/install" | jq -r .content > "${CLUSTER_INSTALLATION_LOGS_FILE}"
+    printf "Cluster installation logs saved to %s\n" "${CLUSTER_INSTALLATION_LOGS_FILE}"
+    ocm get subscription "$(get_cluster_subscription_id)" | jq -r . > "${CLUSTER_SUBSCRIPTION_DETAILS_FILE}"
+    printf "Cluster subscription details saved to %s\n" "${CLUSTER_SUBSCRIPTION_DETAILS_FILE}"
 }
 
 get_cluster_id() {
     jq -r .id < "${CLUSTER_DETAILS_FILE}"
 }
 
+get_cluster_name() {
+    jq -r .name < "${CLUSTER_CONFIGURATION_FILE}"
+}
+
+get_cluster_subscription_id() {
+    jq -r .subscription.id < "${CLUSTER_DETAILS_FILE}"
+}
+
 get_cluster_region() {
     jq -r .region.id < "${CLUSTER_DETAILS_FILE}"
 }
 
-is_byoc_cluster() {
-    jq -r .byoc < "${CLUSTER_DETAILS_FILE}"
+get_existing_cluster_id() {
+    ocm get clusters --parameter search="name like '$(get_cluster_name)'" | jq -r '.items[0].id // empty'
+}
+
+is_ccs_cluster() {
+    jq -r .ccs.enabled < "${CLUSTER_DETAILS_FILE}"
 }
 
 get_rhmi_name() {
-    oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get rhmi -n "${RHMI_OPERATOR_NAMESPACE}" -o jsonpath='{.items[*].metadata.name}'
+    oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get rhmi -n "${OPERATOR_NAMESPACE}" -o jsonpath='{.items[*].metadata.name}'
 }
 
 get_infra_id() {
@@ -253,14 +364,14 @@ wait_for() {
         printf \"Waiting for %s... Trying again in ${interval}s\n\" \"${description}\"
         sleep ${interval}
     done
-    "
+    " || return 1
     printf "%s finished!\n" "${description}"
 }
 
 save_cluster_credentials() {
     local cluster_id="${1}"
     # Update cluster details (with master & console URL)
-    ocm get "/api/clusters_mgmt/v1/clusters/${cluster_id}" | jq -r > "${CLUSTER_DETAILS_FILE}"
+    ocm get "/api/clusters_mgmt/v1/clusters/${cluster_id}" | jq -r . > "${CLUSTER_DETAILS_FILE}"
     # Create kubeconfig file & save admin credentials
     ocm get "/api/clusters_mgmt/v1/clusters/${cluster_id}/credentials" | jq -r .kubeconfig > "${CLUSTER_KUBECONFIG_FILE}"
     ocm get "/api/clusters_mgmt/v1/clusters/${cluster_id}/credentials" | jq -r ".admin | .api_url = $(jq .api.url < "${CLUSTER_DETAILS_FILE}") | .console_url = $(jq .console.url < "${CLUSTER_DETAILS_FILE}")" > "${CLUSTER_CREDENTIALS_FILE}"
@@ -284,7 +395,7 @@ update_configuration() {
     case $param in
 
     aws)
-        updated_configuration=$(jq ".byoc = true | .aws.access_key_id = \"${AWS_ACCESS_KEY_ID}\" | .aws.secret_access_key = \"${AWS_SECRET_ACCESS_KEY}\" | .aws.account_id = \"${AWS_ACCOUNT_ID}\"" < "${CLUSTER_CONFIGURATION_FILE}")
+        updated_configuration=$(jq ".ccs.enabled = true | .aws.access_key_id = \"${AWS_ACCESS_KEY_ID}\" | .aws.secret_access_key = \"${AWS_SECRET_ACCESS_KEY}\" | .aws.account_id = \"${AWS_ACCOUNT_ID}\"" < "${CLUSTER_CONFIGURATION_FILE}")
         ;;
 
     openshift_version)
@@ -292,7 +403,18 @@ update_configuration() {
         ;;
 
     multi_az)
-        updated_configuration=$(jq ".multi_az = true | .nodes.compute = 9 | .nodes.compute_machine_type.id = \"r5.xlarge\"" < "${CLUSTER_CONFIGURATION_FILE}")
+        updated_configuration=$(jq ".multi_az = true" < "${CLUSTER_CONFIGURATION_FILE}")
+        ;;
+
+    compute_nodes_count)
+        updated_configuration=$(jq ".nodes.compute = ${COMPUTE_NODES_COUNT}" < "${CLUSTER_CONFIGURATION_FILE}")
+        ;;
+
+    compute_machine_type)
+        updated_configuration=$(jq ".nodes.compute_machine_type.id = \"${COMPUTE_MACHINE_TYPE}\"" < "${CLUSTER_CONFIGURATION_FILE}")
+        ;;
+    osd_trial)
+        updated_configuration=$(jq '.product.id = "osdtrial"' < "${CLUSTER_CONFIGURATION_FILE}")
         ;;
 
     *)
@@ -306,26 +428,19 @@ update_configuration() {
 
 create_secrets() {
     local secrets
-    secrets=$(oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get secrets -n "${RHMI_OPERATOR_NAMESPACE}" || true)
+    secrets=$(oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get secrets -n "${OPERATOR_NAMESPACE}" || true)
 
-    # Pagerduty secret
-    if ! grep -q pagerduty <<< "${secrets}"; then
-        oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" create secret generic redhat-rhmi-pagerduty -n ${RHMI_OPERATOR_NAMESPACE} \
-            --from-literal=serviceKey=dummykey \
-            || echo "Pagerduty ${ERROR_CREATING_SECRET}"
-    fi
-
-    # DMS secret
-    if ! grep -q deadmanssnitch <<< "${secrets}"; then
-        oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" create secret generic redhat-rhmi-deadmanssnitch -n ${RHMI_OPERATOR_NAMESPACE} \
+    # Create DMS secret if it's not present in the "redhat-rhmi-operator" namespace
+    # This secret should be created only for RHMI (the creation of this secret is automated for RHOAM)
+    # The rest of the secrets (SMTP, Pagerduty) are also auto-created
+    if [[ $NS_PREFIX = "redhat-rhmi" ]] && ! grep -q deadmanssnitch <<< "${secrets}"; then
+        oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" create secret generic ${NS_PREFIX}-deadmanssnitch -n ${OPERATOR_NAMESPACE} \
             --from-literal=url=https://dms.example.com \
             || echo "DMS ${ERROR_CREATING_SECRET}"
     fi
 
-    # Keep trying creating secrets until all of them are present in RHMI operator namespace
-    # SMTP Secret should be automatically created (and deleted) by a Sendgrid Service
-    # https://gitlab.cee.redhat.com/service/ocm-sendgrid-service
-    if [[ $(oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get secrets -n ${RHMI_OPERATOR_NAMESPACE} | grep -cE "redhat-rhmi-((.*pagerduty|.*deadmanssnitch))" || true) != 2 ]]; then
+    if [[ $(oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" get secrets -n ${OPERATOR_NAMESPACE} | grep -cE "${NS_PREFIX}-((.*smtp|.*pagerduty|.*deadmanssnitch))" || true) != 3 ]]; then
+        printf "Waiting for DMS, Pagerduty and SMTP secrets to be created. Found the following secrets in %s namespace:\n%s\n" "${OPERATOR_NAMESPACE}" "${secrets}"
         create_secrets
     fi
 }
@@ -335,39 +450,56 @@ display_help() {
 "Usage: %s <command>
 
 Commands:
-==========================================================================================
+==========================================================================================================
 create_cluster_configuration_file - create cluster.json
-------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------
 Optional exported variables:
 - OCM_CLUSTER_LIFESPAN              How many hours should cluster stay until it's deleted?
 - OCM_CLUSTER_NAME                  e.g. my-cluster (lowercase, numbers, hyphens)
 - OCM_CLUSTER_REGION                e.g. eu-west-1
-- BYOC                              true/false (default: false)
+- BYOC                              Cloud Customer Subscription: true/false (default: false)
 - OPENSHIFT_VERSION                 to get OpenShift versions, run: ocm cluster versions
 - PRIVATE                           Cluster's API and router will be private
 - MULTI_AZ                          true/false (default: false)
-==========================================================================================
+- COMPUTE_NODES_COUNT               number of cluster's compute nodes (default: 8 in cluster-template. Can be specified otherwise)
+- COMPUTE_MACHINE_TYPE              node type of cluster's compute nodes (default: m5.xlarge, can be specified otherwise)
+- OSD_TRIAL                         true/false (default: false)
+==========================================================================================================
 create_cluster                    - spin up OSD cluster
-==========================================================================================
+----------------------------------------------------------------------------------------------------------
+Optional exported variables:
+- TIMEOUT_CLUSTER_CREATION          Timeout for cluster creation (in minutes, default: 180)
+- TIMEOUT_CLUSTER_HEALTH_CHECK      Timeout for cluster health check (in minutes, default: 30)
+==========================================================================================================
 install_rhmi                      - install RHMI using addon-type installation
-==========================================================================================
-install_managed_api               - install Managed API Service using addon-type installation
+install_rhoam                     - install RHOAM using addon-type installation
+install_rhoam_trial               - install RHOAM using addon-type installation on OSD Trial
 ------------------------------------------------------------------------------------------
 Optional exported variables:
 - USE_CLUSTER_STORAGE               true/false - use OpenShift/AWS storage (default: true)
 - ALERTING_EMAIL_ADDRESS            email address for receiving alert notifications
 - SELF_SIGNED_CERTS                 true/false - cluster certificate can be invalid
-==========================================================================================
+- WAIT                              true/false - wait for install to complete (default: true)
+- QUOTA                             Ratelimit quota. Allowed values: 1,5,10,20,50 (default: 20)
+==========================================================================================================
 upgrade_cluster                   - upgrade OSD cluster to latest version (if available)
-==========================================================================================
+------------------------------------------------------------------------------------------
+Optional exported variables:
+- TO_VERSION                        version in the format 'x.y.z' or 'latest' (default: latest)
+==========================================================================================================
 delete_cluster                    - delete RHMI product & OSD cluster
 Optional exported variables:
 - AWS_ACCOUNT_ID
 - AWS_ACCESS_KEY_ID
 - AWS_SECRET_ACCESS_KEY
-==========================================================================================
-get_cluster_logs                  - get logs from hive and save them to ${CLUSTER_LOGS_FILE}
-==========================================================================================
+==========================================================================================================
+get_cluster_logs                  - save cluster install logs and subscription details to ${OCM_DIR}
+==========================================================================================================
+save_cluster_credentials          - save cluster credentials to ./ocm folder
+----------------------------------------------------------------------------------------------------------
+Required variables:
+- OCM_CLUSTER_ID                  - your cluster's ID
+==========================================================================================================
 " "${0}"
 }
 
@@ -390,8 +522,12 @@ main() {
             install_rhmi
             exit 0
             ;;
-        install_managed_api)
-            install_managed_api
+        install_rhoam)
+            install_rhoam
+            exit 0
+            ;;
+        install_rhoam_trial)
+            install_rhoam_trial
             exit 0
             ;;
         delete_cluster)
@@ -404,6 +540,14 @@ main() {
             ;;
         get_cluster_logs)
             get_cluster_logs
+            exit 0
+            ;;
+        save_cluster_credentials)
+            if [[ -z "${OCM_CLUSTER_ID:-}" ]]; then
+                printf "%s\n" "${ERROR_MISSING_CLUSTER_ID}"
+                exit 1
+            fi
+            save_cluster_credentials "${OCM_CLUSTER_ID}"
             exit 0
             ;;
         -h | --help)

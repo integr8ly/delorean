@@ -12,6 +12,7 @@ import (
 type mergeReleaseOptions struct {
 	releaseVersion string
 	baseBranch     string
+	olmType        string
 }
 
 var mergeReleaseCmdOpts = &mergeReleaseOptions{}
@@ -30,6 +31,7 @@ var mergeReleaseCmd = &cobra.Command{
 		client := newGithubClient(token)
 		repoInfo := &githubRepoInfo{owner: integreatlyGHOrg, repo: integreatlyOperatorRepo}
 		mergeReleaseCmdOpts.releaseVersion = releaseVersion
+		mergeReleaseCmdOpts.olmType = olmType
 		if err = DoMergeRelease(cmd.Context(), client.PullRequests, repoInfo, mergeReleaseCmdOpts); err != nil {
 			handleError(err)
 		}
@@ -37,7 +39,7 @@ var mergeReleaseCmd = &cobra.Command{
 }
 
 func DoMergeRelease(ctx context.Context, client services.PullRequestsService, repoInfo *githubRepoInfo, cmdOpts *mergeReleaseOptions) error {
-	rv, err := utils.NewRHMIVersion(cmdOpts.releaseVersion)
+	rv, err := utils.NewVersion(cmdOpts.releaseVersion, cmdOpts.olmType)
 	if err != nil {
 		return err
 	}

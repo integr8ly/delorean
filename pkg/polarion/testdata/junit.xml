@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuites>
 	<testsuite tests="7" failures="3" time="4354.820" name="">
 		<testcase classname="" name="TestIntegreatly" time="1451.610">
 			<failure message="Failed" type=""></failure>
@@ -16,4 +15,3 @@
 			<skipped message="Skip"></skipped>
 		</testcase>
 	</testsuite>
-</testsuites>

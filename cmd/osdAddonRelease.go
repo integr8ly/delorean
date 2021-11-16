@@ -33,17 +33,17 @@ const (
 	githubURL = "https://github.com"
 
 	// The branch to target with the merge request
-	managedTenantsMasterBranch = "master"
+	managedTenantsMainBranch = "main"
 
 	// Info for the commit and merge request
-	branchNameTemplate              = "%s-%s-v%s"
-	commitMessageTemplate           = "update %s %s to %s"
-	commitAuthorName                = "Delorean"
-	commitAuthorEmail               = "cloud-services-delorean@redhat.com"
-	mergeRequestTitleTemplate       = "Update %s %s to %s" // channel, version
-	envVarNameUseClusterStorage     = "USE_CLUSTER_STORAGE"
-	envVarNameAlerEmailAddress      = "ALERTING_EMAIL_ADDRESS"
-	envVarNameAlerEmailAddressValue = "{{ alertingEmailAddress }}"
+	branchNameTemplate               = "%s-%s-v%s"
+	commitMessageTemplate            = "update %s %s to %s"
+	commitAuthorName                 = "Delorean"
+	commitAuthorEmail                = "cloud-services-delorean@redhat.com"
+	mergeRequestTitleTemplate        = "Update %s %s to %s" // channel, version
+	envVarNameUseClusterStorage      = "USE_CLUSTER_STORAGE"
+	envVarNameAlertEmailAddress      = "ALERTING_EMAIL_ADDRESS"
+	envVarNameAlertEmailAddressValue = "{{ alertingEmailAddress }}"
 )
 
 type releaseChannel struct {
@@ -155,7 +155,7 @@ func init() {
 			}
 
 			// Prepare
-			c, err := newOSDAddonReleseCmd(f, gitlabToken)
+			c, err := newOSDAddonReleaseCmd(f, gitlabToken)
 			if err != nil {
 				handleError(err)
 			}
@@ -174,7 +174,7 @@ func init() {
 
 	cmd.Flags().StringVar(
 		&f.version, "version", "",
-		"The version to push to the managed-tenats repo (ex \"2.0.0\", \"2.0.0-er4\")")
+		"The version to push to the managed-tenants repo (ex \"2.0.0\", \"2.0.0-er4\")")
 	cmd.MarkFlagRequired("version")
 
 	cmd.Flags().StringVar(&f.addonsConfig, "addons-config", "", "Configuration files for the addons")
@@ -202,7 +202,7 @@ func init() {
 		&f.managedTenantsOrigin,
 		"managed-tenants-origin",
 		"service/managed-tenants",
-		"managed-tenants origin repository from where to fork the master branch")
+		"managed-tenants origin repository from where to fork the main branch")
 
 	cmd.Flags().StringVar(
 		&f.managedTenantsFork,
@@ -235,8 +235,8 @@ func findChannel(addon *addonConfig, channelName string) *releaseChannel {
 	return currentChannel
 }
 
-func newOSDAddonReleseCmd(flags *osdAddonReleaseFlags, gitlabToken string) (*osdAddonReleaseCmd, error) {
-	version, err := utils.NewRHMIVersion(flags.version)
+func newOSDAddonReleaseCmd(flags *osdAddonReleaseFlags, gitlabToken string) (*osdAddonReleaseCmd, error) {
+	version, err := utils.NewVersion(flags.version, olmType)
 	if err != nil {
 		return nil, err
 	}
@@ -255,7 +255,7 @@ func newOSDAddonReleseCmd(flags *osdAddonReleaseFlags, gitlabToken string) (*osd
 		return nil, fmt.Errorf("can not find channel %s for addon %s in config file %s", flags.channel, flags.addonName, flags.addonsConfig)
 	}
 
-	fmt.Printf("create osd addon release for %s v%s to the %s channel\n", flags.addonName, version, flags.channel)
+	fmt.Printf("create osd addon release for %s %s to the %s channel\n", flags.addonName, version.TagName(), flags.channel)
 
 	// Prepare the GitLab Client
 	gitlabClient, err := gitlab.NewClient(
@@ -269,16 +269,16 @@ func newOSDAddonReleseCmd(flags *osdAddonReleaseFlags, gitlabToken string) (*osd
 
 	gitCloneService := &services.DefaultGitCloneService{}
 	// Clone the managed tenants
-	// TODO: Move the clone functions inise the run() method to improve the test covered code
-	managedTenatsDir, managedTenantsRepo, err := gitCloneService.CloneToTmpDir(
+	// TODO: Move the clone functions inside the run() method to improve the test covered code
+	managedTenantsDir, managedTenantsRepo, err := gitCloneService.CloneToTmpDir(
 		"managed-tenants-",
 		fmt.Sprintf("%s/%s", gitlabURL, flags.managedTenantsOrigin),
-		plumbing.NewBranchReferenceName(managedTenantsMasterBranch),
+		plumbing.NewBranchReferenceName(managedTenantsMainBranch),
 	)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("managed-tenants repo cloned to %s\n", managedTenatsDir)
+	fmt.Printf("managed-tenants repo cloned to %s\n", managedTenantsDir)
 
 	// Add the fork remote to the managed-tenats repo
 	_, err = managedTenantsRepo.CreateRemote(&config.RemoteConfig{
@@ -294,7 +294,7 @@ func newOSDAddonReleseCmd(flags *osdAddonReleaseFlags, gitlabToken string) (*osd
 	csvDir, _, err := gitCloneService.CloneToTmpDir(
 		"addon-csv-",
 		currentAddon.CSV.Repo,
-		plumbing.NewTagReferenceName(fmt.Sprintf("v%s", version)),
+		plumbing.NewTagReferenceName(version.TagName()),
 	)
 	if err != nil {
 		return nil, err
@@ -307,7 +307,7 @@ func newOSDAddonReleseCmd(flags *osdAddonReleaseFlags, gitlabToken string) (*osd
 		version:             version,
 		gitlabMergeRequests: gitlabClient.MergeRequests,
 		gitlabProjects:      gitlabClient.Projects,
-		managedTenantsDir:   managedTenatsDir,
+		managedTenantsDir:   managedTenantsDir,
 		managedTenantsRepo:  managedTenantsRepo,
 		gitPushService:      &services.DefaultGitPushService{},
 		currentChannel:      currentChannel,
@@ -330,8 +330,8 @@ func (c *osdAddonReleaseCmd) run() error {
 	}
 
 	// Verify that the repo is on master
-	if managedTenantsHead.Name() != plumbing.NewBranchReferenceName(managedTenantsMasterBranch) {
-		return fmt.Errorf("the managed-tenants repo is pointing to %s insteand of master", managedTenantsHead.Name())
+	if managedTenantsHead.Name() != plumbing.NewBranchReferenceName(managedTenantsMainBranch) {
+		return fmt.Errorf("the managed-tenants repo is pointing to %s instead of main", managedTenantsHead.Name())
 	}
 
 	managedTenantsTree, err := c.managedTenantsRepo.Worktree()
@@ -377,7 +377,7 @@ func (c *osdAddonReleaseCmd) run() error {
 	}
 
 	//Update the integreatly-operator.vx.x.x.clusterserviceversion.yaml
-	_, err = c.udpateTheCSVManifest()
+	_, err = c.updateTheCSVManifest()
 	if err != nil {
 		return err
 	}
@@ -393,7 +393,7 @@ func (c *osdAddonReleaseCmd) run() error {
 	}
 
 	// Commit
-	fmt.Print("commit all changes in the managed-tenats repo\n")
+	fmt.Print("commit all changes in the managed-tenants repo\n")
 	_, err = managedTenantsTree.Commit(
 		fmt.Sprintf(commitMessageTemplate, c.addonConfig.Name, c.currentChannel.Name, c.version),
 		&git.CommitOptions{
@@ -420,7 +420,7 @@ func (c *osdAddonReleaseCmd) run() error {
 	}
 
 	// Push to fork
-	fmt.Printf("push the managed-tenats repo to the fork remote\n")
+	fmt.Printf("push the managed-tenants repo to the fork remote\n")
 	err = c.gitPushService.Push(c.managedTenantsRepo, &git.PushOptions{
 		RemoteName: "fork",
 		Auth:       &http.BasicAuth{Password: c.gitlabToken},
@@ -443,7 +443,7 @@ func (c *osdAddonReleaseCmd) run() error {
 		Title:              gitlab.String(fmt.Sprintf(mergeRequestTitleTemplate, c.addonConfig.Name, c.currentChannel.Name, c.version)),
 		Description:        gitlab.String(c.flags.mergeRequestDescription),
 		SourceBranch:       gitlab.String(managedTenantsBranch),
-		TargetBranch:       gitlab.String(managedTenantsMasterBranch),
+		TargetBranch:       gitlab.String(managedTenantsMainBranch),
 		TargetProjectID:    gitlab.Int(targetProject.ID),
 		RemoveSourceBranch: gitlab.Bool(true),
 	})
@@ -455,7 +455,7 @@ func (c *osdAddonReleaseCmd) run() error {
 	fmt.Printf("MR: %s\n", mr.WebURL)
 
 	// Reset the managed repostiroy to master
-	err = managedTenantsTree.Checkout(&git.CheckoutOptions{Branch: plumbing.NewBranchReferenceName(managedTenantsMasterBranch)})
+	err = managedTenantsTree.Checkout(&git.CheckoutOptions{Branch: plumbing.NewBranchReferenceName(managedTenantsMainBranch)})
 	if err != nil {
 		return err
 	}
@@ -464,7 +464,6 @@ func (c *osdAddonReleaseCmd) run() error {
 }
 
 func (c *osdAddonReleaseCmd) copyTheOLMManifests() (string, error) {
-
 	source := path.Join(c.addonDir, fmt.Sprintf("%s/%s", c.addonConfig.CSV.Path, c.version.Base()))
 
 	relativeDestination := fmt.Sprintf("%s/%s", c.currentChannel.bundlesDirectory(), c.version.Base())
@@ -499,8 +498,8 @@ func (c *osdAddonReleaseCmd) updateTheAddonFile() (string, error) {
 	return relative, nil
 }
 
-func (c *osdAddonReleaseCmd) udpateTheCSVManifest() (string, error) {
-	relative := fmt.Sprintf("%s/%s/%s.v%s.clusterserviceversion.yaml", c.currentChannel.bundlesDirectory(), c.version.Base(), c.addonConfig.Name, c.version.Base())
+func (c *osdAddonReleaseCmd) updateTheCSVManifest() (string, error) {
+	relative := fmt.Sprintf("%s/%s/%s.clusterserviceversion.yaml", c.currentChannel.bundlesDirectory(), c.version.Base(), c.addonConfig.Name)
 	csvFile := path.Join(c.managedTenantsDir, relative)
 
 	fmt.Printf("update csv manifest file %s\n", relative)
@@ -538,7 +537,7 @@ func (c *osdAddonReleaseCmd) udpateTheCSVManifest() (string, error) {
 }
 
 func (c *osdAddonReleaseCmd) renameCSVFile() (string, error) {
-	o := fmt.Sprintf("%s/%s/%s.v%s.clusterserviceversion.yaml", c.currentChannel.bundlesDirectory(), c.version.Base(), c.addonConfig.Name, c.version.Base())
+	o := fmt.Sprintf("%s/%s/%s.clusterserviceversion.yaml", c.currentChannel.bundlesDirectory(), c.version.Base(), c.addonConfig.Name)
 	n := fmt.Sprintf("%s/%s/%s.v%s.clusterserviceversion.yaml.j2", c.currentChannel.bundlesDirectory(), c.version.Base(), c.addonConfig.Name, c.version.Base())
 	fmt.Println(fmt.Sprintf("Rename file from %s to %s", o, n))
 	oldPath := path.Join(c.managedTenantsDir, o)

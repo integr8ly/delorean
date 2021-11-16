@@ -17,7 +17,7 @@ func TestJUnitToPolarionXUnit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	junit := &formatter.JUnitTestSuites{}
+	junit := &formatter.JUnitTestSuite{}
 	err = xml.Unmarshal(bytes, junit)
 	if err != nil {
 		t.Fatal(err)

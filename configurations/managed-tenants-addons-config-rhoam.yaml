@@ -1,0 +1,35 @@
+---
+addons:
+  - name: "managed-api-service"
+    csv:
+      repo: "https://github.com/integr8ly/integreatly-operator.git"
+      path: "packagemanifests/managed-api-service"
+    channels:
+      - name: "stage"
+        directory: "rhoams"
+        environment: "stage"
+        allow_pre_release: true
+      - name: "edge"
+        directory: "managed-api-service-internal"
+        environment: "production"
+        allow_pre_release: false
+      - name: "stable"
+        directory: "rhoams"
+        environment: "production"
+        allow_pre_release: false
+    override:
+      deployment:
+        name: "rhmi-operator"
+        container:
+          name: "rhmi-operator"
+          env_vars:
+            - name: "INSTALLATION_TYPE"
+              value: "managed-api"
+            - name: "USE_CLUSTER_STORAGE"
+              value: "{{ useClusterStorage }}"
+            - name: "ALERTING_EMAIL_ADDRESS"
+              value: "{{ alertingEmailAddress }}"
+            - name: "BU_ALERTING_EMAIL_ADDRESS"
+              value: "{{ buAlertingEmailAddress }}"
+            - name: "ALERT_SMTP_FROM"
+              value: "{{ alertSMTPFrom }}"

@@ -43,7 +43,6 @@ func TestQueryReportCmd(t *testing.T) {
 		t.Fatalf("Failed to create output dir: %v", err)
 	}
 	defer os.RemoveAll(outputDir)
-	namespace := "test"
 	queries := []queryOpts{
 		{
 			QueryType: promQueryType,
@@ -135,7 +134,6 @@ func TestQueryReportCmd(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.description, func(t *testing.T) {
 			cmd := &queryReportCmd{
-				namespace: namespace,
 				outputDir: outputDir,
 				promAPI:   c.promAPI,
 				config:    c.config,

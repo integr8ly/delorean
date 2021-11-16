@@ -6,15 +6,19 @@ import (
 )
 
 type RPLaunchResponse struct {
-	Msg string `json:"msg"`
+	Message string `json:"message"`
 }
 
-func (r *RPLaunchResponse) GetLaunchId() string {
-	// the msg field is something like "Launch with id = 5ef0edf5a2fd760001fe5a1c is successfully imported."
-	// or "Launch with ID = '5ef0ea7da2fd760001fe59f3' successfully updated."
+type RPLaunchDetailsResponse struct {
+	Id int `json:"id"`
+}
+
+func (r *RPLaunchResponse) GetLaunchUuid() string {
+	// the msg field is something like "Launch with id = b862b3c3-a9ce-47d1-9f5c-e51ae9de50f3 is successfully imported."
+	// or "Launch with id = b862b3c3-a9ce-47d1-9f5c-e51ae9de50f3 is successfully updated."
 	// need a regexp to get the id value
-	var re = regexp.MustCompile(`.*?\=\s?'?([a-zA-Z0-9]*?)'?\s`)
-	m := re.FindStringSubmatch(r.Msg)
+	var re = regexp.MustCompile(`.*?\=\s?'?([a-zA-Z0-9-]*?)'?\s`)
+	m := re.FindStringSubmatch(r.Message)
 	if m != nil {
 		return m[1]
 	}
@@ -28,5 +32,6 @@ type RPLaunchUpdateInput struct {
 
 type RPLaunchManager interface {
 	Import(ctx context.Context, projectName string, importFile string, launchName string) (*RPLaunchResponse, error)
-	Update(ctx context.Context, projectName string, launchId string, input *RPLaunchUpdateInput) (*RPLaunchResponse, error)
+	Update(ctx context.Context, projectName string, launchId int, input *RPLaunchUpdateInput) (*RPLaunchResponse, error)
+	Get(ctx context.Context, projectName string, launchUuid string) (*RPLaunchDetailsResponse, error)
 }

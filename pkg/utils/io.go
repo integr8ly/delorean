@@ -140,3 +140,15 @@ func FileExists(filename string) bool {
 func WriteToFile(writePath string, content []string) error {
 	return ioutil.WriteFile(writePath, []byte(strings.Join(content, "\n")), 0644)
 }
+
+func FileAsBytes(path string) ([]byte, error) {
+	read, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	bytes, err := ioutil.ReadAll(read)
+	if err != nil {
+		return nil, err
+	}
+	return bytes, nil
+}

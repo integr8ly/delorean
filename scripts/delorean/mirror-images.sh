@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # This script mirrors all image mappings found in any image_mirror_mapping files
-# inside each product's manifest folder.
+# inside the given folder.
 # Authentication is required for any repository referenced in a mapping from the running machine.
 #
 # Example:
@@ -20,7 +20,7 @@ fi
 mirror_images() {
     set -o errexit
     failures=0
-    files=$(find ${MANIFESTS_DIR} -name "image_mirror_mapping")
+    files=$(find ${MIRROR_MAPPING_DIR} -name "image_mirror_mapping")
     for mapping in $files; do
         echo "Running: oc image mirror -f=$mapping --skip-multiple-scopes $ARGS"
         if ! oc image mirror -f="$mapping" --skip-multiple-scopes --insecure $ARGS; then
@@ -31,8 +31,8 @@ mirror_images() {
     exit $failures
 }
 
-if [ -z "${MANIFESTS_DIR}" ]; then
-    echo "MANIFEST_DIR is not set!!"
+if [ -z "${MIRROR_MAPPING_DIR}" ]; then
+    echo "MIRROR_MAPPING_DIR is not set!!"
     exit 1
 else
     mirror_images

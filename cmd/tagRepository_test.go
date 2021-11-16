@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"errors"
+	"github.com/integr8ly/delorean/pkg/types"
 	"strings"
 	"testing"
 
@@ -45,7 +46,7 @@ func TestTagRepository(t *testing.T) {
 				},
 			},
 			version:     "2.0.0-rc1",
-			flags:       &tagRepositoryFlags{branch: "master", organization: "test", repository: "test", skipPreRelease: false},
+			flags:       &tagRepositoryFlags{branch: "master", organization: "test", repository: "test", skipPreRelease: false, olmType: types.OlmTypeRhmi},
 			expectError: false,
 		},
 		{
@@ -71,7 +72,7 @@ func TestTagRepository(t *testing.T) {
 				},
 			},
 			version:     "2.0.0",
-			flags:       &tagRepositoryFlags{branch: "master", organization: "test", repository: "test", skipPreRelease: true},
+			flags:       &tagRepositoryFlags{branch: "master", organization: "test", repository: "test", skipPreRelease: true, olmType: types.OlmTypeRhmi},
 			expectError: false,
 		},
 		{
@@ -85,7 +86,7 @@ func TestTagRepository(t *testing.T) {
 				},
 			},
 			version:     "2.0.0-rc1",
-			flags:       &tagRepositoryFlags{branch: "master", organization: "test", repository: "test", skipPreRelease: true},
+			flags:       &tagRepositoryFlags{branch: "master", organization: "test", repository: "test", skipPreRelease: true, olmType: types.OlmTypeRhmi},
 			expectError: false,
 		},
 		{
@@ -107,7 +108,7 @@ func TestTagRepository(t *testing.T) {
 				},
 			},
 			version:     "2.0.0-rc1",
-			flags:       &tagRepositoryFlags{branch: "master", organization: "test", repository: "test", skipPreRelease: false},
+			flags:       &tagRepositoryFlags{branch: "master", organization: "test", repository: "test", skipPreRelease: false, olmType: types.OlmTypeRhmi},
 			expectError: true,
 		},
 	}

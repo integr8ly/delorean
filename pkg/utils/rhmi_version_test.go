@@ -101,6 +101,7 @@ func TestRHMIVersion_InitialPointReleaseTag(t *testing.T) {
 		name    string
 		version string
 		want    string
+		olmType string
 	}{
 		{
 			name:    "test same point value",
@@ -138,6 +139,7 @@ func TestRHMIVersion_MajorMinor(t *testing.T) {
 		name    string
 		version string
 		want    string
+		olmType string
 	}{
 		{
 			name:    "test same point value",
@@ -165,6 +167,66 @@ func TestRHMIVersion_MajorMinor(t *testing.T) {
 			v, _ := NewRHMIVersion(tt.version)
 			if got := v.MajorMinor(); got != tt.want {
 				t.Errorf("RHMIVersion.MajorMinor() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestNameByOlmType(t *testing.T) {
+	tests := []struct {
+		name    string
+		version string
+		want    string
+		olmType string
+	}{
+		{
+			name:    "test that managed-api-service returns rhoam",
+			olmType: "managed-api-service",
+			version: "1.1.0",
+			want:    "rhoam",
+		},
+		{
+			name:    "test that integreatly-operaotr returns rhmi",
+			version: "2.7.0",
+			olmType: "integreatly-operator",
+			want:    "rhmi",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v, _ := NewVersion(tt.version, tt.olmType)
+			if got := v.NameByOlmType(); got != tt.want {
+				t.Errorf("NameByOlmType = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPrepareProdsecManifestBranchName(t *testing.T) {
+	tests := []struct {
+		name    string
+		version string
+		want    string
+		olmType string
+	}{
+		{
+			name:    "test that managed-api-service returns rhoam",
+			olmType: "managed-api-service",
+			version: "1.1.0",
+			want:    "rhoam-manifest-for-release-rhoam-v1.1.0",
+		},
+		{
+			name:    "test that integreatly-operaotr returns rhmi",
+			version: "2.7.0",
+			olmType: "integreatly-operator",
+			want:    "rhmi-manifest-for-release-v2.7.0",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v, _ := NewVersion(tt.version, tt.olmType)
+			if got := v.PrepareProdsecManifestBranchName(); got != tt.want {
+				t.Errorf("NameByOlmType = %v, want %v", got, tt.want)
 			}
 		})
 	}

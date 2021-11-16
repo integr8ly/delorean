@@ -6,6 +6,7 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/google/go-github/v30/github"
+	"github.com/integr8ly/delorean/pkg/types"
 	"github.com/integr8ly/delorean/pkg/utils"
 	"io/ioutil"
 	"os"
@@ -36,8 +37,8 @@ func (m mockGitPushService) Push(gitRepo *git.Repository, opts *git.PushOptions)
 	panic("implement me")
 }
 
-func newTestCreateReleaseCmd(serviceAffecting bool) *createReleaseCmd {
-	version, _ := utils.NewRHMIVersion("2.0.0-rc1")
+func newTestCreateReleaseCmd(serviceAffecting bool, olmType string) *createReleaseCmd {
+	version, _ := utils.NewVersion("2.0.0-rc1", olmType)
 	cloneService := &mockGitCloneService{cloneToTmpDirFunc: func(prefix string, url string, reference plumbing.ReferenceName) (s string, repository *git.Repository, err error) {
 		currentDir, err := os.Getwd()
 		if err != nil {
@@ -83,7 +84,7 @@ func TestCreateRelease(t *testing.T) {
 		{
 			description: "should finish successfully when serviceAffecting is true",
 			cmd: func() *createReleaseCmd {
-				return newTestCreateReleaseCmd(true)
+				return newTestCreateReleaseCmd(true, types.OlmTypeRhmi)
 			},
 			expectError: false,
 			verify: func(repoDir string) error {
@@ -118,7 +119,7 @@ func TestCreateRelease(t *testing.T) {
 		{
 			description: "should finish successfully when serviceAffecting is false",
 			cmd: func() *createReleaseCmd {
-				return newTestCreateReleaseCmd(false)
+				return newTestCreateReleaseCmd(false, types.OlmTypeRhmi)
 			},
 			expectError: false,
 			verify: func(repoDir string) error {

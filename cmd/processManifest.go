@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"github.com/integr8ly/delorean/pkg/utils"
 	"github.com/spf13/cobra"
 )
@@ -19,7 +18,7 @@ var processManifestCmd = &cobra.Command{
 	Short: "Process a given manifest to meet the rhmi requirements.",
 	Long:  `Process a given manifest to meet the rhmi requirements.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		err := DoProcessManifest(cmd.Context(), manifestDir)
+		err := DoProcessManifest(manifestDir)
 		if err != nil {
 			handleError(err)
 		}
@@ -39,7 +38,7 @@ func processManifest(csv *utils.CSV) error {
 	return nil
 }
 
-func DoProcessManifest(ctx context.Context, manifestDir string) error {
+func DoProcessManifest(manifestDir string) error {
 	//verify it's a manifest dir.
 	err := utils.VerifyManifestDirs(manifestDir)
 	if err != nil {
