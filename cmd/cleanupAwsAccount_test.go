@@ -49,6 +49,7 @@ func TestCleanupAwsCmd(t *testing.T) {
 									Tags: []*ec2.Tag{
 										{Key: aws.String("kubernetes.io/cluster/dont-delete-me"), Value: aws.String("owned")},
 									},
+									State: &ec2.InstanceState{Name: aws.String("running")},
 								},
 							},
 						},
@@ -149,7 +150,15 @@ func TestCleanupAwsCmd(t *testing.T) {
 				DescribeInstancesOutput: &ec2.DescribeInstancesOutput{
 					Reservations: []*ec2.Reservation{
 						{
-							Instances: []*ec2.Instance{},
+							Instances: []*ec2.Instance{
+								{
+									InstanceId: aws.String("Terminated OSD instance"),
+									Tags: []*ec2.Tag{
+										{Key: aws.String("kubernetes.io/cluster/delete-me"), Value: aws.String("owned")},
+									},
+									State: &ec2.InstanceState{Name: aws.String("terminated")},
+								},
+							},
 						},
 					},
 				},
