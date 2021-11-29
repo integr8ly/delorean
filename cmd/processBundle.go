@@ -102,10 +102,17 @@ type ProductInstallationUpdaterFromValues struct {
 }
 
 func (u *ProductInstallationUpdaterFromValues) UpdateProductInstallation(p *ProductInstallation) error {
+	if p == nil {
+		return errors.New("the product doesn't exist in the parsed ProductInstallation")
+	}
+
 	if u.Channel != nil {
 		p.Channel = *u.Channel
 	}
 	if u.Bundle != nil {
+		if *u.Bundle == "" {
+			return errors.New("the bundle image must be specified and can't be an empty string")
+		}
 		p.Bundle = *u.Bundle
 	}
 	if u.InstallFrom != nil {
@@ -144,7 +151,7 @@ func (cmd *ProcessBundleCommand) Run() error {
 		return err
 	}
 
-	if err := cmd.Updater.UpdateProductInstallation(productsInstallation.Products[productKey]); err != nil {
+	if err := cmd.Updater.UpdateProductInstallation(productsInstallation.Products[cmd.ProductKey]); err != nil {
 		return err
 	}
 
