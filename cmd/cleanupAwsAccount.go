@@ -268,6 +268,9 @@ func (c *cleanupAwsAccountCmd) fetchEC2Instances(ctx context.Context) error {
 
 	for _, reservation := range fetchedReservations.Reservations {
 		for _, ec2Instance := range reservation.Instances {
+			if aws.StringValue(ec2Instance.State.Name) == "terminated" {
+				continue
+			}
 			newEc2 := awsResourceObject{
 				ID:           aws.StringValue(ec2Instance.InstanceId),
 				resourceType: "ec2Instance",
