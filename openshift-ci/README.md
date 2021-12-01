@@ -8,6 +8,7 @@ Base image used on CI for all builds and test jobs. See [here](https://github.co
 
 ```
 $ docker build -t registry.svc.ci.openshift.org/integr8ly/delorean-base-image:latest - < Dockerfile.tools
+$ chmod +x test/run
 $ IMAGE_NAME=registry.svc.ci.openshift.org/integr8ly/delorean-base-image:latest test/run
 ShellCheck - shell script analysis tool
 version: 0.7.0
