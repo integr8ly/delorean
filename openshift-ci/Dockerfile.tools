@@ -7,3 +7,10 @@ RUN curl -L "https://github.com/koalaman/shellcheck/releases/download/${SHELLCHE
     && tar -xvf ./shellcheck.tar.xz \
     && mv ./shellcheck*/shellcheck /usr/local/bin \
     && rm -rf ./shellcheck*
+
+# Install oc
+RUN curl -L "https://mirror.openshift.com/pub/openshift-v4/clients/oc/latest/linux/oc.tar.gz" -o oc.tar.gz \
+    && mkdir -p oc-files \
+    && tar -xvzf ./oc.tar.gz -C oc-files \
+    && mv ./oc-files/oc /usr/local/bin \
+    && rm -rf ./oc*
