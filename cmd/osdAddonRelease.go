@@ -344,7 +344,6 @@ func (c *osdAddonReleaseCmd) run() error {
 		return err
 	}
 
-
 	// Copy the OLM manifests from the integreatly-operator repo to the the managed-tenats repo
 	manifestsDirectory, err := c.copyTheOLMManifests()
 	if err != nil {
@@ -440,6 +439,22 @@ func (c *osdAddonReleaseCmd) generateBundles(repoDir string) error {
 		return err
 	}
 
+	envs := []string{"BUNDLE_ONLY=true",fmt.Sprintf("BUNDLE_VERSIONS=%s", c.version.Base()), fmt.Sprintf("OLM_TYPE=%s", c.version.OlmType())}
+	releaseScript := &exec.Cmd{Dir: repoDir, Env: envs, Path: scriptPath, Stdout: os.Stdout, Stderr: os.Stderr}
+	err := releaseScript.Run()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *osdAddonReleaseCmd) removeEnvs(repoDir string) error {
+	scriptPath := "scripts/bundle-rhmi-operators.sh"
+	if err := os.Chmod(path.Join(repoDir, scriptPath), 0755); err != nil {
+		return err
+	}
+
 	envs := []string{"BUNDLE_ONLY=true", fmt.Sprintf("OLM_TYPE=%s", c.version.OlmType())}
 	releaseScript := &exec.Cmd{Dir: repoDir, Env: envs, Path: scriptPath, Stdout: os.Stdout, Stderr: os.Stderr}
 	err := releaseScript.Run()
@@ -479,20 +494,18 @@ func (c *osdAddonReleaseCmd) updateTheCSVManifest() (string, error) {
 		return "", err
 	}
 
-	// As these values will differ per environment and we are no longer allowed to use jinja format, this bit of logic is blocked by:
-	// https://issues.redhat.com/browse/MTSRE-244
-	// if c.addonConfig.Override != nil {
-	// 	_, deployment := utils.FindDeploymentByName(csv.Spec.InstallStrategy.StrategySpec.DeploymentSpecs, c.addonConfig.Override.Deployment.Name)
-	// 	if deployment != nil {
-	// 		i, container := utils.FindContainerByName(deployment.Spec.Template.Spec.Containers, c.addonConfig.Override.Deployment.Container.Name)
-	// 		if container != nil {
-	// 			for _, envVar := range c.addonConfig.Override.Deployment.Container.EnvVars {
-	// 				container.Env = utils.AddOrUpdateEnvVar(container.Env, envVar.Name, envVar.Value)
-	// 			}
-	// 		}
-	// 		deployment.Spec.Template.Spec.Containers[i] = *container
-	// 	}
-	// }
+	// We need to make sure that all envs present in the container are removed as they are going to be set directly from addon.yaml file instead, however,
+	// for development ease of use, envs should remain in the base CSV.
+	if c.addonConfig.Override != nil {
+		_, deployment := utils.FindDeploymentByName(csv.Spec.InstallStrategy.StrategySpec.DeploymentSpecs, c.addonConfig.Override.Deployment.Name)
+		if deployment != nil {
+			i, container := utils.FindContainerByName(deployment.Spec.Template.Spec.Containers, c.addonConfig.Override.Deployment.Container.Name)
+			if container != nil {
+				container.Env = nil
+			}
+			deployment.Spec.Template.Spec.Containers[i] = *container
+		}
+	}
 
 	//Set SingleNamespace install mode to true
 	mi, m := utils.FindInstallMode(csv.Spec.InstallModes, olmapiv1alpha1.InstallModeTypeSingleNamespace)

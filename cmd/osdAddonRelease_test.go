@@ -301,10 +301,10 @@ func TestOSDAddonRelease(t *testing.T) {
 				switch file.Path() {
 				case annotationsFile:
 					if found := len(p.Chunks()); found != 1 {
-						t.Fatalf("expected 1 but found %d chunk changes for %s", found, clusterServiceVersion)
+						t.Fatalf("expected 1 but found %d chunk changes for %s", found, annotationsFile)
 					}
 					if found := p.Chunks()[0].Type(); found != diff.Add {
-						t.Fatalf("the first and only chunk type should be Add but found %d for %s", found, clusterServiceVersion)
+						t.Fatalf("the first and only chunk type should be Add but found %d for %s", found, annotationsFile)
 					}
 				case clusterServiceVersion:
 					if found := len(p.Chunks()); found != 1 {
@@ -330,6 +330,10 @@ func TestOSDAddonRelease(t *testing.T) {
 					if container == nil {
 						t.Fatalf("can not find rhmi-operator container spec in csv file:\n%s", content)
 					}
+					if containerEnvFound := len(container.Env); containerEnvFound != 0 {
+						t.Fatalf("expected 0 envars to be found but found %v", len(container.Env))
+					}
+
 					storageEnvVarValueFound, alertEnvVarFound := false, false
 					for _, env := range container.Env {
 						if env.Name == envVarNameUseClusterStorage {

@@ -17,19 +17,8 @@ addons:
         directory: "rhoams"
         environment: "production"
         allow_pre_release: false
-    # override:
-    #   deployment:
-    #     name: "rhmi-operator"
-    #     container:
-    #       name: "rhmi-operator"
-    #       env_vars:
-    #         - name: "INSTALLATION_TYPE"
-    #           value: "managed-api"
-    #         - name: "USE_CLUSTER_STORAGE"
-    #           value: "{{ useClusterStorage }}"
-    #         - name: "ALERTING_EMAIL_ADDRESS"
-    #           value: "{{ alertingEmailAddress }}"
-    #         - name: "BU_ALERTING_EMAIL_ADDRESS"
-    #           value: "{{ buAlertingEmailAddress }}"
-    #         - name: "ALERT_SMTP_FROM"
-    #           value: "{{ alertSMTPFrom }}"
+    override:
+      deployment:
+        name: "rhmi-operator"
+        container:
+          name: "rhmi-operator"
