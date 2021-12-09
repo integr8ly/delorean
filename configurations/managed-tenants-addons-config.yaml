@@ -3,7 +3,7 @@ addons:
   - name: "integreatly-operator"
     csv:
       repo: "https://github.com/integr8ly/integreatly-operator.git"
-      path: "packagemanifests/integreatly-operator"
+      path: "bundles/integreatly-operator"
     channels:
       - name: "stage"
         directory: "integreatly-operator"

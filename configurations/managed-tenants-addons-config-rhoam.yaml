@@ -3,7 +3,7 @@ addons:
   - name: "managed-api-service"
     csv:
       repo: "https://github.com/MStokluska/integreatly-operator.git"
-      path: "packagemanifests/managed-api-service"
+      path: "bundles/managed-api-service"
     channels:
       - name: "stage"
         directory: "rhoams"

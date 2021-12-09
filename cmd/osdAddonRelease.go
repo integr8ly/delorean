@@ -2,12 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	// "io/ioutil"
-	"os"
-	"path"
-	"regexp"
-	"time"
-	"os/exec"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -19,6 +13,10 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/xanzy/go-gitlab"
+	"os"
+	"path"
+	"regexp"
+	"time"
 )
 
 const (
@@ -36,11 +34,11 @@ const (
 	managedTenantsMainBranch = "main"
 
 	// Info for the commit and merge request
-	branchNameTemplate               = "%s-%s-v%s"
-	commitMessageTemplate            = "update %s %s to %s"
-	commitAuthorName                 = "Delorean"
-	commitAuthorEmail                = "cloud-services-delorean@redhat.com"
-	mergeRequestTitleTemplate        = "Update %s %s to %s" // channel, version
+	branchNameTemplate        = "%s-%s-v%s"
+	commitMessageTemplate     = "update %s %s to %s"
+	commitAuthorName          = "Delorean"
+	commitAuthorEmail         = "cloud-services-delorean@redhat.com"
+	mergeRequestTitleTemplate = "Update %s %s to %s" // channel, version
 
 )
 
@@ -338,14 +336,8 @@ func (c *osdAddonReleaseCmd) run() error {
 		return err
 	}
 
-	// Generate OLM bundles and manifests
-	err = c.generateBundles(c.addonDir)
-	if err != nil {
-		return err
-	}
-
 	// Copy the OLM manifests from the integreatly-operator repo to the the managed-tenats repo
-	manifestsDirectory, err := c.copyTheOLMManifests()
+	manifestsDirectory, err := c.copyTheOLMBundles()
 	if err != nil {
 		return err
 	}
@@ -433,53 +425,28 @@ func (c *osdAddonReleaseCmd) run() error {
 	return nil
 }
 
-func (c *osdAddonReleaseCmd) generateBundles(repoDir string) error {
-	scriptPath := "scripts/bundle-rhmi-operators.sh"
-	if err := os.Chmod(path.Join(repoDir, scriptPath), 0755); err != nil {
-		return err
-	}
+func (c *osdAddonReleaseCmd) copyTheOLMBundles() (string, error) {
+	source := path.Join(c.addonDir, fmt.Sprintf("%s/%s", c.addonConfig.CSV.Path, c.version.Base()))
 
-	envs := []string{"BUNDLE_ONLY=true",fmt.Sprintf("BUNDLE_VERSIONS=%s", c.version.Base()), fmt.Sprintf("OLM_TYPE=%s", c.version.OlmType())}
-	releaseScript := &exec.Cmd{Dir: repoDir, Env: envs, Path: scriptPath, Stdout: os.Stdout, Stderr: os.Stderr}
-	err := releaseScript.Run()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (c *osdAddonReleaseCmd) removeEnvs(repoDir string) error {
-	scriptPath := "scripts/bundle-rhmi-operators.sh"
-	if err := os.Chmod(path.Join(repoDir, scriptPath), 0755); err != nil {
-		return err
-	}
-
-	envs := []string{"BUNDLE_ONLY=true", fmt.Sprintf("OLM_TYPE=%s", c.version.OlmType())}
-	releaseScript := &exec.Cmd{Dir: repoDir, Env: envs, Path: scriptPath, Stdout: os.Stdout, Stderr: os.Stderr}
-	err := releaseScript.Run()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (c *osdAddonReleaseCmd) copyTheOLMManifests() (string, error) {
-
-	source := path.Join(c.addonDir, fmt.Sprintf("%s/%s/%s", c.addonConfig.CSV.Path, c.version.Base(), c.version.Base()))
-
-	// Copy bundles 
+	// Copy bundles
 	relativeDestination := fmt.Sprintf("%s/%s", c.currentChannel.bundlesDirectory(), c.version.Base())
 	destination := path.Join(c.managedTenantsDir, relativeDestination)
 
 	fmt.Printf("copy files from %s to %s\n", source, destination)
 	err := utils.CopyDirectory(source, destination)
+
 	if err != nil {
 		return "", err
 	}
 
 	fmt.Print("Copied!")
+	// remove docker.Bundle file as it is not required in managed-tenants-bundles repo
+	err = os.Remove(path.Join(destination, "/bundle.Dockerfile"))
+	if err != nil {
+		return "", err
+	}
+
+	fmt.Print("Dockerfile removed")
 
 	return relativeDestination, nil
 }
@@ -520,4 +487,3 @@ func (c *osdAddonReleaseCmd) updateTheCSVManifest() (string, error) {
 	}
 	return relative, nil
 }
-

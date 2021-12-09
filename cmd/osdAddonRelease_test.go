@@ -26,23 +26,6 @@ const (
 	envVarNameAlertEmailAddressValue = "{{ alertingEmailAddress }}"
 )
 
-// func TestAddon(t *testing.T) {
-// 	basedir, err := os.Getwd()
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	addonFilePath := path.Join(basedir, "testdata", "osdAddonReleaseManagedTenantsBundles", "addons", "integreatly-operator", "metadata", "stage", "addon.yaml")
-// 	addonFile, err := newAddon(addonFilePath)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	newCSV := "test.v1.0.0"
-// 	addonFile.setCurrentCSV(newCSV)
-// 	if strings.Index(addonFile.content, fmt.Sprintf("currentCSV: %s", newCSV)) <= 0 {
-// 		t.Fatalf("can not find %s in %s", newCSV, addonFile.content)
-// 	}
-// }
-
 type gitlabMergeRequestMock struct {
 	createMergeRequest func(pid interface{}, opt *gitlab.CreateMergeRequestOptions, options ...gitlab.RequestOptionFunc) (*gitlab.MergeRequest, *gitlab.Response, error)
 }
@@ -283,7 +266,7 @@ func TestOSDAddonRelease(t *testing.T) {
 				}
 			case types.OlmTypeRhoam:
 				if found := len(patches); found != 3 {
-					t.Fatalf("expected 2 but found %d changed/added files", found)
+					t.Fatalf("expected 3 but found %d changed/added files", found)
 				}
 			}
 
