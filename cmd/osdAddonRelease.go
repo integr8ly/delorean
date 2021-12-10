@@ -15,7 +15,6 @@ import (
 	"github.com/xanzy/go-gitlab"
 	"os"
 	"path"
-	"regexp"
 	"time"
 )
 
@@ -49,7 +48,7 @@ type releaseChannel struct {
 	AllowPreRelease bool   `json:"allow_pre_release"`
 }
 
-type addonCSVConfig struct {
+type addonBundleConfig struct {
 	Repo string `json:"repo"`
 	Path string `json:"path"`
 }
@@ -74,10 +73,10 @@ type override struct {
 }
 
 type addonConfig struct {
-	Name     string           `json:"name"`
-	CSV      addonCSVConfig   `json:"csv"`
-	Channels []releaseChannel `json:"channels"`
-	Override *override        `json:"override,omitempty"`
+	Name     string            `json:"name"`
+	Bundle   addonBundleConfig `json:"bundle"`
+	Channels []releaseChannel  `json:"channels"`
+	Override *override         `json:"override,omitempty"`
 }
 
 type addons struct {
@@ -116,12 +115,6 @@ type osdAddonReleaseCmd struct {
 
 type addon struct {
 	content string
-}
-
-func (a *addon) setCurrentCSV(currentCSV string) {
-	r := regexp.MustCompile(`currentCSV: .*`)
-	s := r.ReplaceAllString(a.content, fmt.Sprintf("currentCSV: %s", currentCSV))
-	a.content = s
 }
 
 func init() {
@@ -274,16 +267,16 @@ func newOSDAddonReleaseCmd(flags *osdAddonReleaseFlags, gitlabToken string) (*os
 	}
 	fmt.Print("added the fork remote to the managed-tenants-bundle repo\n")
 
-	// Clone the repo to get the csv for the addon
-	csvDir, _, err := gitCloneService.CloneToTmpDir(
-		"addon-csv-",
-		currentAddon.CSV.Repo,
+	// Clone the repo to get the bundle for the addon
+	bundleDir, _, err := gitCloneService.CloneToTmpDir(
+		"addon-bundle-",
+		currentAddon.Bundle.Repo,
 		plumbing.NewTagReferenceName(version.TagName()),
 	)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("addon cloned to %s\n", csvDir)
+	fmt.Printf("addon cloned to %s\n", bundleDir)
 
 	return &osdAddonReleaseCmd{
 		flags:               flags,
@@ -296,7 +289,7 @@ func newOSDAddonReleaseCmd(flags *osdAddonReleaseFlags, gitlabToken string) (*os
 		gitPushService:      &services.DefaultGitPushService{},
 		currentChannel:      currentChannel,
 		addonConfig:         currentAddon,
-		addonDir:            csvDir,
+		addonDir:            bundleDir,
 	}, nil
 }
 
@@ -426,7 +419,7 @@ func (c *osdAddonReleaseCmd) run() error {
 }
 
 func (c *osdAddonReleaseCmd) copyTheOLMBundles() (string, error) {
-	source := path.Join(c.addonDir, fmt.Sprintf("%s/%s", c.addonConfig.CSV.Path, c.version.Base()))
+	source := path.Join(c.addonDir, fmt.Sprintf("%s/%s", c.addonConfig.Bundle.Path, c.version.Base()))
 
 	// Copy bundles
 	relativeDestination := fmt.Sprintf("%s/%s", c.currentChannel.bundlesDirectory(), c.version.Base())

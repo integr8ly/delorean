@@ -1,7 +1,7 @@
 ---
 addons:
   - name: "managed-api-service"
-    csv:
+    bundle:
       repo: "https://github.com/MStokluska/integreatly-operator.git"
       path: "bundles/managed-api-service"
     channels:

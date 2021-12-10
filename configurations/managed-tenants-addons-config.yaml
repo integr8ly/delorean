@@ -1,7 +1,7 @@
 ---
 addons:
   - name: "integreatly-operator"
-    csv:
+    bundle:
       repo: "https://github.com/integr8ly/integreatly-operator.git"
       path: "bundles/integreatly-operator"
     channels:
