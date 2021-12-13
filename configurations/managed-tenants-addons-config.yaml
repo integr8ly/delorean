@@ -2,7 +2,7 @@
 addons:
   - name: "integreatly-operator"
     bundle:
-      repo: "https://github.com/MStokluska/integreatly-operator.git"
+      repo: "https://github.com/integr8ly/integreatly-operator.git"
       path: "bundles/integreatly-operator"
     channels:
       - name: "stage"
@@ -22,10 +22,3 @@ addons:
         name: "rhmi-operator"
         container:
           name: "rhmi-operator"
-          env_vars:
-            - name: "USE_CLUSTER_STORAGE"
-              value: ""
-            - name: "ALERTING_EMAIL_ADDRESS"
-              value: "{{ alertingEmailAddress }}"
-            - name: "ALERT_SMTP_FROM"
-              value: "{{ alertSMTPFrom }}"
