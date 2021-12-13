@@ -422,7 +422,7 @@ func (c *osdAddonReleaseCmd) copyTheOLMBundles() (string, error) {
 	source := path.Join(c.addonDir, fmt.Sprintf("%s/%s", c.addonConfig.Bundle.Path, c.version.Base()))
 
 	// Copy bundles
-	relativeDestination := fmt.Sprintf("%s/%s", c.currentChannel.bundlesDirectory(), c.version.Base())
+	relativeDestination := fmt.Sprintf("%s/%s/", c.currentChannel.bundlesDirectory(), c.version.Base())
 	destination := path.Join(c.managedTenantsDir, relativeDestination)
 
 	fmt.Printf("copy files from %s to %s\n", source, destination)
@@ -432,7 +432,7 @@ func (c *osdAddonReleaseCmd) copyTheOLMBundles() (string, error) {
 		return "", err
 	}
 
-	fmt.Print("Copied!")
+	fmt.Println("Copied!")
 	// remove docker.Bundle file as it is not required in managed-tenants-bundles repo
 	err = os.Remove(path.Join(destination, "/bundle.Dockerfile"))
 	if err != nil {

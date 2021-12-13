@@ -131,7 +131,8 @@ func TestOSDAddonRelease(t *testing.T) {
 	}{
 		{version: "1.1.0-rc1", olmType: "managed-api-service", channel: "stage", expectError: false},
 		{version: "1.1.0-rc1", olmType: "managed-api-service", channel: "some", expectError: true},
-		{version: "1.1.0", olmType: "managed-api-service", channel: "stable", expectError: false},
+		{version: "1.1.0-rc1", olmType: "integreatly-operator", channel: "stage", expectError: false},
+		{version: "1.1.0-rc1", olmType: "integreatly-operator", channel: "some", expectError: true},
 	}
 
 	for _, c := range cases {
