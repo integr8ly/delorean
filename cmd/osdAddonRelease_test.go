@@ -131,8 +131,12 @@ func TestOSDAddonRelease(t *testing.T) {
 	}{
 		{version: "1.1.0-rc1", olmType: "managed-api-service", channel: "stage", expectError: false},
 		{version: "1.1.0-rc1", olmType: "managed-api-service", channel: "some", expectError: true},
+		{version: "1.1.0", olmType: "managed-api-service", channel: "stage", expectError: false},
+		{version: "1.1.0", olmType: "managed-api-service", channel: "some", expectError: true},
 		{version: "1.1.0-rc1", olmType: "integreatly-operator", channel: "stage", expectError: false},
 		{version: "1.1.0-rc1", olmType: "integreatly-operator", channel: "some", expectError: true},
+		{version: "1.1.0", olmType: "integreatly-operator", channel: "stage", expectError: false},
+		{version: "1.1.0", olmType: "integreatly-operator", channel: "some", expectError: true},
 	}
 
 	for _, c := range cases {
@@ -275,7 +279,6 @@ func TestOSDAddonRelease(t *testing.T) {
 			fmt.Println(version.Base())
 			fmt.Println(c.olmType)
 			fmt.Println(version.Base())
-			// addonFile := currentChannel.addonFile()
 			clusterServiceVersion := fmt.Sprintf("%s/%s/manifests/%s.clusterserviceversion.yaml", currentChannel.bundlesDirectory(), version.Base(), c.olmType)
 			customResourceDefinition := fmt.Sprintf("%s/%s/manifests/integreatly.org_rhmis_crd.yaml", currentChannel.bundlesDirectory(), version.Base())
 			annotationsFile := fmt.Sprintf("%s/%s/metadata/annotations.yaml", currentChannel.bundlesDirectory(), version.Base())

@@ -431,15 +431,31 @@ func (c *osdAddonReleaseCmd) copyTheOLMBundles() (string, error) {
 	if err != nil {
 		return "", err
 	}
+	fmt.Println("copied!")
 
-	fmt.Println("Copied!")
 	// remove docker.Bundle file as it is not required in managed-tenants-bundles repo
 	err = os.Remove(path.Join(destination, "/bundle.Dockerfile"))
 	if err != nil {
 		return "", err
 	}
-
 	fmt.Print("Dockerfile removed")
+
+	// check if scorecard tests are present (only present in RHOAM 1.15 +)
+	_, err = os.Stat(path.Join(destination, "/tests"))
+	if err != nil {
+		// if error is not exists skip
+		if os.IsNotExist(err) {
+			fmt.Println("tests scorecards not exists, skipping removal")
+		} else {
+			return "", err
+		}
+	} else {
+		// remove scorecard tests if scorecards are found
+		err = os.RemoveAll(path.Join(destination, "/tests"))
+		if err != nil {
+			return "", err
+		}
+	}
 
 	return relativeDestination, nil
 }
