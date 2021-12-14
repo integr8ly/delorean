@@ -9,6 +9,7 @@ import (
 func TestDoExtractBundle(t *testing.T) {
 	var (
 		invalidDir       = "./foo/bar"
+		validExtractDir  = "./testdata/extractBundleTest/3scale-bundle-extracted"
 		validSourceImage = "registry-proxy.engineering.redhat.com/rh-osbs/3scale-amp2-3scale-rhel7-operator-metadata@sha256:6c916f91899e1c280859ccc49aea9c16554d92e33857151b1050bffc905cb872"
 	)
 	type args struct {
@@ -25,12 +26,20 @@ func TestDoExtractBundle(t *testing.T) {
 			name: "valid source image and valid extract dir",
 			args: args{context.TODO(), mockExtractImageManifests, &extractManifestsCmdOptions{
 				srcImage:   validSourceImage,
+				extractDir: validExtractDir,
+			}},
+			wantErr: false,
+		},
+		{
+			name: "valid source image and empty extract dir",
+			args: args{context.TODO(), mockExtractImageManifests, &extractManifestsCmdOptions{
+				srcImage:   validSourceImage,
 				extractDir: "",
 			}},
 			wantErr: false,
 		},
 		{
-			name: "valid source image and missing extract dir",
+			name: "valid source image and invalid extract dir",
 			args: args{context.TODO(), ocExtractImage("/"), &extractManifestsCmdOptions{
 				srcImage:   validSourceImage,
 				extractDir: invalidDir,
@@ -41,12 +50,12 @@ func TestDoExtractBundle(t *testing.T) {
 			name: "missing source image and valid extract dir",
 			args: args{context.TODO(), ocExtractImage("/"), &extractManifestsCmdOptions{
 				srcImage:   "",
-				extractDir: "",
+				extractDir: validExtractDir,
 			}},
 			wantErr: true,
 		},
 		{
-			name: "missing source image and missing extract dir",
+			name: "missing source image and invalid extract dir",
 			args: args{context.TODO(), ocExtractImage("/"), &extractManifestsCmdOptions{
 				srcImage:   "",
 				extractDir: invalidDir,

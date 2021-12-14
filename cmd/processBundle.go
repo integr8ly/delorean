@@ -26,8 +26,18 @@ var (
 
 var processBundleCmd = &cobra.Command{
 	Use:   "process-bundle",
-	Short: "Process a given bundle image to be included in the products installation.",
-	Long:  "Process a given bundle image to be included in the products installation.",
+	Short: "Process OLM bundle image",
+	Long: `Process a given OLM bundle image to be included in the products installation.
+
+Example Usage:
+
+# Update the 3scale product's block in the integreatly-operator 'installation.yaml' file.
+export BUNDLE_IMAGE=<replace_me_with_valid_bundle>
+export BUNDLE_DIR=<replace_me_with_valid_directory>
+export PRODUCTS_PATH=../integreatly-operator/products/installation-cpaas.yaml
+export PRODUCT_NAME=3scale
+export CHANNEL=threescale-2.11
+./delorean ews process-bundle --bundle $BUNDLE_IMAGE --bundle-dir $BUNDLE_DIR --products-path $PRODUCTS_PATH --product $PRODUCT --channel $CHANNEL`,
 	Run: func(cmd *cobra.Command, args []string) {
 		updater := &ProductInstallationCompositeUpdater{
 			Updaters: []ProductInstallationUpdater{
@@ -216,7 +226,7 @@ func init() {
 		"products-path",
 		"f",
 		"products/installation-cpaas.yaml",
-		"Path to the installation.yaml file to update with the bundle.",
+		"Path to the installation.yaml file to update with the bundle",
 	)
 
 	processBundleCmd.Flags().StringVarP(
