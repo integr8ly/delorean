@@ -24,7 +24,7 @@ make ocm/login
 
 **BYOC/CCS**
 
-If you want to setup a BYOC (CCS) cluster, you will need an AWS root account with no OSD cluster running in it. The AWS account needs an IAM user named `osdCcsAdmin` and this user needs the AdministratorAccess permission.
+If you want to set up a BYOC (CCS) cluster, you will need an AWS root account with no OSD cluster running in it. The AWS account needs an IAM user named `osdCcsAdmin` and this user needs the AdministratorAccess permission.
 
 Once this user is in place and no other OSD cluster is running in the account, you will need the AWS credentials (`AWS_ACCOUNT_ID`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`) for the `osdCcsAdmin` user to use in your cluster request.
 
@@ -42,6 +42,25 @@ If you want your BYOC cluster to span multiple availability zones then set the `
 
 ```
 export MULTI_AZ=true
+```
+
+**BYOVPC/CCS**
+
+If you want to set up a BYOVCP (Bring Your Own VPC) cluster, you will need an AWS account where a VPC can be pre-created. The AWS account needs an IAM user named `osdCcsAdmin` and this user needs the AdministratorAccess permission.
+
+If you do not already have a VPC created go to aws and create a VPC using the VPC Wizard available from the VPC Dashboard.
+
+Create a VPC with Public and Private Subnets. Note the CIDR Range ip as you will need this for your machine CIDR, or alternatively use 10.11.0.0/16 which will satisfy the default machine_cidr
+
+Provide a name, chose an availability zone and update the subnets to suitable values. Chose an elastic ip allocation and chose CreateVPC
+
+Export the following values
+```
+export BYOVPC=true
+export PRIVATE_SUBNET_ID=<REPLACE_ME>
+export PUBLIC_SUBNET_ID=<REPLACE_ME>
+export AVAILABILITY_ZONES=<REPLACE,ME>
+export OCM_CLUSTER_REGION=<REPLACE_ME> - optional if not using default eu-west-1
 ```
 
 4. Create cluster template: `make ocm/cluster.json`
