@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"errors"
-	"io/fs"
 	"io/ioutil"
 	"os"
 	"path"
@@ -22,6 +21,7 @@ var (
 
 var (
 	bundleInstallFrom = "implicit"
+	modeAppend = 1073741824
 )
 
 var processBundleCmd = &cobra.Command{
@@ -198,7 +198,7 @@ func (cmd *ProcessBundleCommand) saveProductsInstallation(i *ProductsInstallatio
 		return err
 	}
 
-	return ioutil.WriteFile(cmd.ProductsInstallationPath, out, fs.ModeAppend)
+	return ioutil.WriteFile(cmd.ProductsInstallationPath, out, modeAppend)
 }
 
 func init() {
