@@ -13,8 +13,10 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/xanzy/go-gitlab"
+	"io/ioutil"
 	"os"
 	"path"
+	"regexp"
 	"time"
 )
 
@@ -53,9 +55,18 @@ type addonBundleConfig struct {
 	Path string `json:"path"`
 }
 
+type fieldPath struct {
+	FieldPath string `json:"fieldPath"`
+}
+
+type fieldRef struct {
+	FieldRef fieldPath `json:"fieldRef"`
+}
+
 type deploymentContainerEnvVar struct {
-	Name  string `json:"name"`
-	Value string `json:"value"`
+	Name      string   `json:"name"`
+	Value     string   `json:"value"`
+	ValueFrom fieldRef `json:"valueFrom"`
 }
 
 type deploymentContainer struct {
@@ -117,6 +128,42 @@ type addon struct {
 	content string
 }
 
+func newAddon(addonPath string) (*addon, error) {
+	c, err := ioutil.ReadFile(addonPath)
+	if err != nil {
+		return nil, err
+	}
+	return &addon{content: string(c)}, nil
+}
+
+func (c *releaseChannel) addonFile() string {
+	return fmt.Sprintf("addons/%s/metadata/%s/addon.yaml", c.Directory, c.Environment)
+}
+
+func (c *releaseChannel) stageAddonFile() string {
+	return fmt.Sprintf("addons/%s/metadata/stage/addon.yaml", c.Directory)
+}
+
+func (a *addon) setCurrentIndexImage(indexImage string) {
+	r := regexp.MustCompile(`indexImage: .*`)
+	s := r.ReplaceAllString(a.content, fmt.Sprintf("indexImage: %s", indexImage))
+	a.content = s
+}
+
+func getStageIndexImage(addonPath string) (string, error) {
+	type indexImage struct {
+		IndexImage string `json:"indexImage"`
+	}
+
+	data := indexImage{}
+	err := utils.PopulateObjectFromYAML(addonPath, &data)
+	if err != nil {
+		return "", err
+	}
+
+	return data.IndexImage, nil
+}
+
 func init() {
 
 	f := &osdAddonReleaseFlags{}
@@ -175,16 +222,26 @@ func init() {
 		"Optional merge request description that can be used to notify secific users (ex \"ping: @dbizzarr\")",
 	)
 
+	mtOrigin := ""
+	mtFork := ""
+	if f.channel == "stable" {
+		mtOrigin = "service/managed-tenants"
+		mtFork = "integreatly-qe/managed-tenants"
+	} else {
+		mtOrigin = "service/managed-tenants-bundles"
+		mtFork = "integreatly-qe/managed-tenants-bundles"
+	}
+
 	cmd.Flags().StringVar(
 		&f.managedTenantsOrigin,
 		"managed-tenants-origin",
-		"service/managed-tenants-bundles",
+		mtOrigin,
 		"managed-tenants origin repository from where to fork the main branch")
 
 	cmd.Flags().StringVar(
 		&f.managedTenantsFork,
 		"managed-tenants-fork",
-		"integreatly-qe/managed-tenants-bundles",
+		mtFork,
 		"managed-tenants fork repository where to push the release files")
 }
 
@@ -247,15 +304,22 @@ func newOSDAddonReleaseCmd(flags *osdAddonReleaseFlags, gitlabToken string) (*os
 	gitCloneService := &services.DefaultGitCloneService{}
 	// Clone the managed tenants
 	// TODO: Move the clone functions inside the run() method to improve the test covered code
+	repoPrefix := ""
+	if flags.channel == "stable" {
+		repoPrefix = "managed-tenants"
+	} else {
+		repoPrefix = "managed-tenants-bundles"
+	}
+
 	managedTenantsDir, managedTenantsRepo, err := gitCloneService.CloneToTmpDir(
-		"managed-tenants-bundles",
+		repoPrefix,
 		fmt.Sprintf("%s/%s", gitlabURL, flags.managedTenantsOrigin),
 		plumbing.NewBranchReferenceName(managedTenantsMainBranch),
 	)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("managed-tenants-bundles repo cloned to %s\n", managedTenantsDir)
+	fmt.Printf("managed-tenants repo cloned to %s\n", managedTenantsDir)
 
 	// Add the fork remote to the managed-tenats repo
 	_, err = managedTenantsRepo.CreateRemote(&config.RemoteConfig{
@@ -265,9 +329,10 @@ func newOSDAddonReleaseCmd(flags *osdAddonReleaseFlags, gitlabToken string) (*os
 	if err != nil {
 		return nil, err
 	}
-	fmt.Print("added the fork remote to the managed-tenants-bundle repo\n")
+	fmt.Print("added the fork remote to the managed-tenants repo\n")
 
 	// Clone the repo to get the bundle for the addon
+	// Can be left as it is for promoting to prod as it won't be required.
 	bundleDir, _, err := gitCloneService.CloneToTmpDir(
 		"addon-bundle-",
 		currentAddon.Bundle.Repo,
@@ -308,7 +373,7 @@ func (c *osdAddonReleaseCmd) run() error {
 
 	// Verify that the repo is on master
 	if managedTenantsHead.Name() != plumbing.NewBranchReferenceName(managedTenantsMainBranch) {
-		return fmt.Errorf("the managed-tenants-bundle repo is pointing to %s instead of main", managedTenantsHead.Name())
+		return fmt.Errorf("the managed-tenants repo is pointing to %s instead of main", managedTenantsHead.Name())
 	}
 
 	managedTenantsTree, err := c.managedTenantsRepo.Worktree()
@@ -320,7 +385,7 @@ func (c *osdAddonReleaseCmd) run() error {
 	managedTenantsBranch := fmt.Sprintf(branchNameTemplate, c.addonConfig.Name, c.currentChannel.Name, c.version)
 	branchRef := plumbing.NewBranchReferenceName(managedTenantsBranch)
 
-	fmt.Printf("create the branch %s in the managed-tenants-bundle repo\n", managedTenantsBranch)
+	fmt.Printf("create the branch %s in the managed-tenants repo\n", managedTenantsBranch)
 	err = managedTenantsTree.Checkout(&git.CheckoutOptions{
 		Branch: branchRef,
 		Create: true,
@@ -330,21 +395,36 @@ func (c *osdAddonReleaseCmd) run() error {
 	}
 
 	// Copy the OLM manifests from the integreatly-operator repo to the the managed-tenats repo
-	manifestsDirectory, err := c.copyTheOLMBundles()
-	if err != nil {
-		return err
-	}
+	if c.flags.channel == "stage" || c.flags.channel == "edge" {
+		manifestsDirectory, err := c.copyTheOLMBundles()
+		if err != nil {
+			return err
+		}
 
-	// Add all changes
-	err = managedTenantsTree.AddGlob(fmt.Sprintf("%s/*", manifestsDirectory))
-	if err != nil {
-		return err
-	}
+		// Add all changes
+		err = managedTenantsTree.AddGlob(fmt.Sprintf("%s/*", manifestsDirectory))
+		if err != nil {
+			return err
+		}
 
-	//Update the integreatly-operator.vx.x.x.clusterserviceversion.yaml
-	_, err = c.updateTheCSVManifest()
-	if err != nil {
-		return err
+		//Update the integreatly-operator.vx.x.x.clusterserviceversion.yaml
+		_, err = c.updateTheCSVManifest()
+		if err != nil {
+			return err
+		}
+	} else if c.flags.channel == "stable" {
+		// Copy stage indexImage to production indexImage
+		addonFile, err := c.copyTheIndexImage()
+		if err != nil {
+			return err
+		}
+		// Add the addon.yaml file
+		_, err = managedTenantsTree.Add(addonFile)
+		if err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("channel provided is %s instead of stage, edge or stable", c.flags.channel)
 	}
 
 	// Commit
@@ -460,6 +540,34 @@ func (c *osdAddonReleaseCmd) copyTheOLMBundles() (string, error) {
 	return relativeDestination, nil
 }
 
+func (c *osdAddonReleaseCmd) copyTheIndexImage() (string, error) {
+	// Get stage IndexImage
+	stageAddonFilePath := path.Join(c.managedTenantsDir, c.currentChannel.stageAddonFile())
+	stageIndexImage, err := getStageIndexImage(stageAddonFilePath)
+	if err != nil {
+		return "", err
+	}
+
+	relative := c.currentChannel.addonFile()
+	addonFilePath := path.Join(c.managedTenantsDir, relative)
+
+	fmt.Printf("update the currentCSV value in addon file %s to %s\n", relative, c.version)
+	addon, err := newAddon(addonFilePath)
+	if err != nil {
+		return "", err
+	}
+
+	// Set currentCSV value
+	addon.setCurrentIndexImage(stageIndexImage)
+
+	err = ioutil.WriteFile(addonFilePath, []byte(addon.content), os.ModePerm)
+	if err != nil {
+		return "", err
+	}
+
+	return relative, nil
+}
+
 func (c *osdAddonReleaseCmd) updateTheCSVManifest() (string, error) {
 	relative := fmt.Sprintf("%s/%s/manifests/%s.clusterserviceversion.yaml", c.currentChannel.bundlesDirectory(), c.version.Base(), c.addonConfig.Name)
 	csvFile := path.Join(c.managedTenantsDir, relative)
@@ -478,6 +586,9 @@ func (c *osdAddonReleaseCmd) updateTheCSVManifest() (string, error) {
 			i, container := utils.FindContainerByName(deployment.Spec.Template.Spec.Containers, c.addonConfig.Override.Deployment.Container.Name)
 			if container != nil {
 				container.Env = nil
+				for _, envVar := range c.addonConfig.Override.Deployment.Container.EnvVars {
+					container.Env = utils.AddOrUpdateEnvVarWithSource(container.Env, envVar.Name, envVar.Value, envVar.ValueFrom.FieldRef.FieldPath)
+				}
 			}
 			deployment.Spec.Template.Spec.Containers[i] = *container
 		}

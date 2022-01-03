@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-	// "strings"
+	"strings"
 	"testing"
 
 	"github.com/ghodss/yaml"
@@ -80,8 +80,17 @@ func initRepoFromTestDir(prefix string, testDir string) (string, *git.Repository
 	return dir, repo, nil
 }
 
-func prepareManagedTenants(t *testing.T, basedir string) (string, *git.Repository) {
-	dir, repo, err := initRepoFromTestDir("managed-tenants-bundles", path.Join(basedir, "testdata/osdAddonReleaseManagedTenantsBundles"))
+func prepareManagedTenants(t *testing.T, basedir string, channel string) (string, *git.Repository) {
+	repoPrefix := ""
+	repoTestDir := ""
+	if channel != "stable" {
+		repoPrefix = "managed-tenants-bundles"
+		repoTestDir = "testdata/osdAddonReleaseManagedTenantsBundles"
+	} else {
+		repoPrefix = "managed-tenants"
+		repoTestDir = "testdata/osdAddonReleaseManagedTenants"
+	}
+	dir, repo, err := initRepoFromTestDir(repoPrefix, path.Join(basedir, repoTestDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,12 +138,15 @@ func TestOSDAddonRelease(t *testing.T) {
 		shouldHaveUseClusterStorage bool
 		expectError                 bool
 	}{
+		{version: "1.1.0", olmType: "managed-api-service", channel: "stable", expectError: false},
 		{version: "1.1.0-rc1", olmType: "managed-api-service", channel: "stage", expectError: false},
 		{version: "1.1.0-rc1", olmType: "managed-api-service", channel: "some", expectError: true},
+		{version: "1.1.0", olmType: "managed-api-service", channel: "edge", expectError: false},
 		{version: "1.1.0", olmType: "managed-api-service", channel: "stage", expectError: false},
 		{version: "1.1.0", olmType: "managed-api-service", channel: "some", expectError: true},
 		{version: "1.1.0-rc1", olmType: "integreatly-operator", channel: "stage", expectError: false},
 		{version: "1.1.0-rc1", olmType: "integreatly-operator", channel: "some", expectError: true},
+		{version: "1.1.0", olmType: "integreatly-operator", channel: "stable", expectError: false},
 		{version: "1.1.0", olmType: "integreatly-operator", channel: "stage", expectError: false},
 		{version: "1.1.0", olmType: "integreatly-operator", channel: "some", expectError: true},
 	}
@@ -159,7 +171,7 @@ func TestOSDAddonRelease(t *testing.T) {
 			integreatlyOperatorDir := path.Join(basedir, fmt.Sprintf("testdata/osdAddonReleaseIntegreatlyOperator%s", version))
 
 			// Prepare the managed-tenants repo and dir
-			managedTenantsDir, managedTenantsRepo := prepareManagedTenants(t, basedir)
+			managedTenantsDir, managedTenantsRepo := prepareManagedTenants(t, basedir, c.channel)
 			var managedTenantsMainBranch string = "main"
 			var managedTenantsRef plumbing.ReferenceName = "refs/heads/main"
 
@@ -264,14 +276,39 @@ func TestOSDAddonRelease(t *testing.T) {
 			// Verify the committed changes
 			patches := managedTenantsPatch.FilePatches()
 
-			switch c.olmType {
-			case types.OlmTypeRhmi:
-				if found := len(patches); found != 3 {
-					t.Fatalf("expected 3 but found %d changed/added files", found)
+			switch c.channel {
+			case "stable":
+				switch c.olmType {
+				case types.OlmTypeRhmi:
+					if found := len(patches); found != 1 {
+						t.Fatalf("expected 1 but found %d changed/added files", found)
+					}
+				case types.OlmTypeRhoam:
+					if found := len(patches); found != 1 {
+						t.Fatalf("expected 1 but found %d changed/added files", found)
+					}
 				}
-			case types.OlmTypeRhoam:
-				if found := len(patches); found != 3 {
-					t.Fatalf("expected 3 but found %d changed/added files", found)
+			case "edge":
+				switch c.olmType {
+				case types.OlmTypeRhmi:
+					if found := len(patches); found != 3 {
+						t.Fatalf("expected 3 but found %d changed/added files", found)
+					}
+				case types.OlmTypeRhoam:
+					if found := len(patches); found != 3 {
+						t.Fatalf("expected 3 but found %d changed/added files", found)
+					}
+				}
+			case "stage":
+				switch c.olmType {
+				case types.OlmTypeRhmi:
+					if found := len(patches); found != 3 {
+						t.Fatalf("expected 3 but found %d changed/added files", found)
+					}
+				case types.OlmTypeRhoam:
+					if found := len(patches); found != 3 {
+						t.Fatalf("expected 3 but found %d changed/added files", found)
+					}
 				}
 			}
 
@@ -279,6 +316,7 @@ func TestOSDAddonRelease(t *testing.T) {
 			fmt.Println(version.Base())
 			fmt.Println(c.olmType)
 			fmt.Println(version.Base())
+			addonFile := currentChannel.addonFile()
 			clusterServiceVersion := fmt.Sprintf("%s/%s/manifests/%s.clusterserviceversion.yaml", currentChannel.bundlesDirectory(), version.Base(), c.olmType)
 			customResourceDefinition := fmt.Sprintf("%s/%s/manifests/integreatly.org_rhmis_crd.yaml", currentChannel.bundlesDirectory(), version.Base())
 			annotationsFile := fmt.Sprintf("%s/%s/metadata/annotations.yaml", currentChannel.bundlesDirectory(), version.Base())
@@ -286,6 +324,22 @@ func TestOSDAddonRelease(t *testing.T) {
 			for _, p := range patches {
 				_, file := p.Files()
 				switch file.Path() {
+				case addonFile:
+					if found := len(p.Chunks()); found != 4 {
+						t.Fatalf("expected 4 but found %d chunk changes for %s", found, addonFile)
+					}
+					expected := fmt.Sprintf("indexImage: rhoamsCoolNewIndexImage")
+					chunks := p.Chunks()
+					found := false
+					for _, c := range chunks {
+						if strings.Index(c.Content(), expected) > -1 {
+							found = true
+						}
+					}
+					if !found {
+						t.Fatalf("can not find expected change: %s", expected)
+					}
+
 				case annotationsFile:
 					if found := len(p.Chunks()); found != 1 {
 						t.Fatalf("expected 1 but found %d chunk changes for %s", found, annotationsFile)
@@ -317,7 +371,7 @@ func TestOSDAddonRelease(t *testing.T) {
 					if container == nil {
 						t.Fatalf("can not find rhmi-operator container spec in csv file:\n%s", content)
 					}
-					if containerEnvFound := len(container.Env); containerEnvFound != 0 {
+					if containerEnvFound := len(container.Env); containerEnvFound != 2 {
 						t.Fatalf("expected 0 envars to be found but found %v", len(container.Env))
 					}
 
