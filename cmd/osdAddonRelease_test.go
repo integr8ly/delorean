@@ -21,9 +21,8 @@ import (
 )
 
 const (
-	envVarNameUseClusterStorage      = "USE_CLUSTER_STORAGE"
-	envVarNameAlertEmailAddress      = "ALERTING_EMAIL_ADDRESS"
-	envVarNameAlertEmailAddressValue = "{{ alertingEmailAddress }}"
+	envVarNameUseClusterStorage = "USE_CLUSTER_STORAGE"
+	envVarNameAlertEmailAddress = "ALERTING_EMAIL_ADDRESS"
 )
 
 type gitlabMergeRequestMock struct {
