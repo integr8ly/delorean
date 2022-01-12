@@ -17,6 +17,7 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"strings"
 	"time"
 )
 
@@ -592,6 +593,14 @@ func (c *osdAddonReleaseCmd) updateTheCSVManifest() (string, error) {
 			}
 			deployment.Spec.Template.Spec.Containers[i] = *container
 		}
+	}
+
+	if c.currentChannel.Name == "edge" && c.addonConfig.Name == "managed-api-service" {
+		nameVersion := strings.Split(csv.Name, ".v")[1]
+		csv.Name = fmt.Sprintf("%v-internal.v%v", c.addonConfig.Name, nameVersion)
+
+		replacesVersion := strings.Split(csv.Spec.Replaces, ".v")[1]
+		csv.Spec.Replaces = fmt.Sprintf("%v-internal.v%v", c.addonConfig.Name, replacesVersion)
 	}
 
 	//Set SingleNamespace install mode to true

@@ -375,6 +375,44 @@ func TestOSDAddonRelease(t *testing.T) {
 						t.Fatalf("expected 0 envars to be found but found %v", len(container.Env))
 					}
 
+					switch c.olmType {
+					case "managed-api-service":
+						switch c.channel {
+						case "edge":
+							if csv.Name != "managed-api-service-internal.v1.1.0" {
+								t.Fatalf("CSV name for edge has not been updated correctly, expected managed-api-service-internal.v1.1.0; got: %v", csv.Name)
+							}
+							if csv.Spec.Replaces != "managed-api-service-internal.v1.0.1" {
+								t.Fatalf("CSV replaces for edge has not been updated correctly, expected managed-api-service-internal.v1.0.1; got: %v", csv.Spec.Replaces)
+							}
+						case "stage":
+							if csv.Name != "managed-api-service.v1.1.0" {
+								t.Fatalf("CSV name for edge has not been updated correctly, expected managed-api-service-internal.v1.1.0; got: %v", csv.Name)
+							}
+							if csv.Spec.Replaces != "managed-api-service.v1.0.1" {
+								t.Fatalf("CSV replaces for edge has not been updated correctly, expected managed-api-service-internal.v1.0.1; got: %v", csv.Spec.Replaces)
+							}
+						case "stable":
+							if csv.Name != "managed-api-service.v1.1.0" {
+								t.Fatalf("CSV name for edge has not been updated correctly, expected managed-api-service-internal.v1.1.0; got: %v", csv.Name)
+							}
+							if csv.Spec.Replaces != "managed-api-service.v1.0.1" {
+								t.Fatalf("CSV replaces for edge has not been updated correctly, expected managed-api-service-internal.v1.0.1; got: %v", csv.Spec.Replaces)
+							}
+						default:
+							t.Fatalf("unexpected channel %s", c.channel)
+						}
+					case "integreatly-operator":
+						if csv.Name != "integreatly-operator.v1.1.0" {
+							t.Fatalf("CSV name for edge has not been updated correctly, expected integreatly-operator.v1.1.0; got: %v", csv.Name)
+						}
+						if csv.Spec.Replaces != "integreatly-operator.v1.0.1" {
+							t.Fatalf("CSV replaces for edge has not been updated correctly, expected integreatly-operator.v1.0.1; got: %v", csv.Spec.Replaces)
+						}
+					default:
+						t.Fatalf("unexpected olmType %s", c.olmType)
+					}
+
 					storageEnvVarValueFound, alertEnvVarFound := false, false
 					for _, env := range container.Env {
 						if env.Name == envVarNameUseClusterStorage {

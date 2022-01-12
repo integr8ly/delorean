@@ -50,7 +50,7 @@ metadata:
     description: RHOAM integration suite of tools
     serviceAffecting: "true"
     support: RHOAM
-  name: managed-api-service.v1.1.0
+  name: integreatly-operator.v1.1.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -542,7 +542,7 @@ spec:
   maturity: alpha
   provider:
     name: rhoam
-  replaces: managed-api-service.v1.0.1
+  replaces: integreatly-operator.v1.0.1
   selector:
     matchLabels:
       alm-owner-rhoam: rhoam-operator
