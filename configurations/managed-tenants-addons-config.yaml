@@ -1,9 +1,9 @@
 ---
 addons:
   - name: "integreatly-operator"
-    csv:
+    bundle:
       repo: "https://github.com/integr8ly/integreatly-operator.git"
-      path: "packagemanifests/integreatly-operator"
+      path: "bundles/integreatly-operator"
     channels:
       - name: "stage"
         directory: "integreatly-operator"
@@ -23,9 +23,11 @@ addons:
         container:
           name: "rhmi-operator"
           env_vars:
-            - name: "USE_CLUSTER_STORAGE"
-              value: ""
-            - name: "ALERTING_EMAIL_ADDRESS"
-              value: "{{ alertingEmailAddress }}"
-            - name: "ALERT_SMTP_FROM"
-              value: "{{ alertSMTPFrom }}"
+            - name: WATCH_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.annotations['olm.targetNamespaces']
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name

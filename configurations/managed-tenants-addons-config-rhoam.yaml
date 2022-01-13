@@ -1,9 +1,9 @@
 ---
 addons:
   - name: "managed-api-service"
-    csv:
+    bundle:
       repo: "https://github.com/integr8ly/integreatly-operator.git"
-      path: "packagemanifests/managed-api-service"
+      path: "bundles/managed-api-service"
     channels:
       - name: "stage"
         directory: "rhoams"
@@ -23,13 +23,11 @@ addons:
         container:
           name: "rhmi-operator"
           env_vars:
-            - name: "INSTALLATION_TYPE"
-              value: "managed-api"
-            - name: "USE_CLUSTER_STORAGE"
-              value: "{{ useClusterStorage }}"
-            - name: "ALERTING_EMAIL_ADDRESS"
-              value: "{{ alertingEmailAddress }}"
-            - name: "BU_ALERTING_EMAIL_ADDRESS"
-              value: "{{ buAlertingEmailAddress }}"
-            - name: "ALERT_SMTP_FROM"
-              value: "{{ alertSMTPFrom }}"
+            - name: WATCH_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.annotations['olm.targetNamespaces']
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name

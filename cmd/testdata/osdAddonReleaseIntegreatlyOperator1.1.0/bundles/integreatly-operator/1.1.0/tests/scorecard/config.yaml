@@ -1,0 +1,2 @@
+apiVersion: scorecard.operatorframework.io/v1alpha3
+kind: Configuration

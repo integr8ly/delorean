@@ -161,7 +161,7 @@ func (c *createReleaseCmd) commitAndPushChanges(gitRepo *git.Repository, gitRepo
 	if err := gitRepoTree.AddGlob("."); err != nil {
 		return err
 	}
-	if _, err := gitRepoTree.Commit(fmt.Sprintf("prepare for release %s", c.version.TagName()), &git.CommitOptions{
+	if _, err := gitRepoTree.Commit(fmt.Sprintf("MGDAPI-3209 prepare for release %s", c.version.TagName()), &git.CommitOptions{
 		All: true,
 		Author: &object.Signature{
 			Name:  commitAuthorName,
