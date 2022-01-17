@@ -31,3 +31,9 @@ addons:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
+            - name: INSTALLATION_TYPE
+              value: managed
+            - name: OPERATOR_NAME
+              value: rhmi-operator
+            - name: LOG_LEVEL
+              value: info

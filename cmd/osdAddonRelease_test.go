@@ -371,8 +371,8 @@ func TestOSDAddonRelease(t *testing.T) {
 					if container == nil {
 						t.Fatalf("can not find rhmi-operator container spec in csv file:\n%s", content)
 					}
-					if containerEnvFound := len(container.Env); containerEnvFound != 2 {
-						t.Fatalf("expected 0 envars to be found but found %v", len(container.Env))
+					if containerEnvFound := len(container.Env); containerEnvFound != 5 {
+						t.Fatalf("expected 5 envars to be found but found %v", len(container.Env))
 					}
 
 					switch c.olmType {

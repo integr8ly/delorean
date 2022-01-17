@@ -588,7 +588,11 @@ func (c *osdAddonReleaseCmd) updateTheCSVManifest() (string, error) {
 			if container != nil {
 				container.Env = nil
 				for _, envVar := range c.addonConfig.Override.Deployment.Container.EnvVars {
-					container.Env = utils.AddOrUpdateEnvVarWithSource(container.Env, envVar.Name, envVar.Value, envVar.ValueFrom.FieldRef.FieldPath)
+					if envVar.Name == "WATCH_NAMESPACE" || envVar.Name == "POD_NAME" {
+						container.Env = utils.AddOrUpdateEnvVarWithSource(container.Env, envVar.Name, envVar.Value, envVar.ValueFrom.FieldRef.FieldPath)
+					} else {
+						container.Env = utils.AddOrUpdateEnvVar(container.Env, envVar.Name, envVar.Value)
+					}
 				}
 			}
 			deployment.Spec.Template.Spec.Containers[i] = *container
