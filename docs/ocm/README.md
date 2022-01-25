@@ -63,6 +63,8 @@ export AVAILABILITY_ZONES=<REPLACE,ME>
 export OCM_CLUSTER_REGION=<REPLACE_ME> - optional if not using default eu-west-1
 ```
 
+To create the cluster.json correctly, please make sure you have exported the variables mentioned in BYOVPC/CCS section above also.
+
 4. Create cluster template: `make ocm/cluster.json`
 
 This command will generate `ocm/cluster.json` file with generated cluster name. This file will be used as a template to create your cluster via OCM CLI.
