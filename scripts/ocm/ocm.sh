@@ -59,6 +59,7 @@ create_cluster_configuration_file() {
     : "${OCM_CLUSTER_NAME:=rhmi-$(date +"%y%m%d-%H%M")}"
     : "${OCM_CLUSTER_REGION:=eu-west-1}"
     : "${BYOC:=false}"
+    : "${BYOVPC:=false}"
     : "${OPENSHIFT_VERSION:=}"
     : "${PRIVATE:=false}"
     : "${MULTI_AZ:=false}"
@@ -88,6 +89,12 @@ create_cluster_configuration_file() {
     if [ "${BYOC}" = true ]; then
         check_aws_credentials_exported
         update_configuration "aws"
+    fi
+
+    if [ "$BYOVPC" = true ]; then
+        check_aws_credentials_exported
+        update_configuration "aws"
+        update_configuration "byovpc"
     fi
 
     if [[ -n "${OPENSHIFT_VERSION}" ]]; then
@@ -404,6 +411,10 @@ update_configuration() {
 
     case $param in
 
+    byovpc)
+        updated_configuration=$(jq ".aws.subnet_ids = [\"${PRIVATE_SUBNET_ID}\", \"${PUBLIC_SUBNET_ID}\"] | .aws.private_link = false | .nodes.availability_zones = [\"${AVAILABILITY_ZONES}\"]" < "${CLUSTER_CONFIGURATION_FILE}")
+        ;;
+
     aws)
         updated_configuration=$(jq ".ccs.enabled = true | .aws.access_key_id = \"${AWS_ACCESS_KEY_ID}\" | .aws.secret_access_key = \"${AWS_SECRET_ACCESS_KEY}\" | .aws.account_id = \"${AWS_ACCOUNT_ID}\"" < "${CLUSTER_CONFIGURATION_FILE}")
         ;;
@@ -468,6 +479,10 @@ Optional exported variables:
 - OCM_CLUSTER_NAME                  e.g. my-cluster (lowercase, numbers, hyphens)
 - OCM_CLUSTER_REGION                e.g. eu-west-1
 - BYOC                              Cloud Customer Subscription: true/false (default: false)
+- BYOVPC                            Customer Provided VPC: true/false (default: false)
+- PRIVATE_SUBNET_ID                 Required for BYOVPC - private subnet id from pre-created vpc
+- PUBLIC_SUBNET_ID                  Required for BYOVPC - public subnet id from pre-created vpc
+- AVAILABILITY_ZONES                Required for BYOVPC - String separated list availability zone of subnets, should be in the same region as as OCM_CLUSTER_REGION
 - OPENSHIFT_VERSION                 to get OpenShift versions, run: ocm cluster versions
 - PRIVATE                           Cluster's API and router will be private
 - MULTI_AZ                          true/false (default: false)
