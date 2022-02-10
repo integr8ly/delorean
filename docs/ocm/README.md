@@ -55,12 +55,13 @@ Create a VPC with Public and Private Subnets. Note the CIDR Range ip as you will
 Provide a name, chose an availability zone and update the subnets to suitable values. Chose an elastic ip allocation and chose CreateVPC
 
 Export the following values
-```
+```bash
 export BYOVPC=true
-export PRIVATE_SUBNET_ID=<REPLACE_ME>
-export PUBLIC_SUBNET_ID=<REPLACE_ME>
-export AVAILABILITY_ZONES=<REPLACE,ME>
-export OCM_CLUSTER_REGION=<REPLACE_ME> - optional if not using default eu-west-1
+export CREATE_CUSTOM_VPC=<true/false>   # optional - let the script create a custom VPC for you
+export PRIVATE_SUBNET_ID=<REPLACE_ME>   # not required if CREATE_CUSTOM_VPC=true
+export PUBLIC_SUBNET_ID=<REPLACE_ME>    # not required if CREATE_CUSTOM_VPC=true
+export AVAILABILITY_ZONES=<REPLACE_ME>  # not required if CREATE_CUSTOM_VPC=true
+export OCM_CLUSTER_REGION=<REPLACE_ME>  # optional - default eu-west-1
 ```
 
 To create the cluster.json correctly, please make sure you have exported the variables mentioned in BYOVPC/CCS section above also.
@@ -69,6 +70,7 @@ To create the cluster.json correctly, please make sure you have exported the var
 
 This command will generate `ocm/cluster.json` file with generated cluster name. This file will be used as a template to create your cluster via OCM CLI.
 By default, it will set the expiration timestamp for a cluster for 4 hours, meaning your cluster will be automatically deleted after 4 hours after you generated this template. If you want to change the default timestamp, you can update it in `ocm/cluster.json` or delete the whole line from the file if you don't want your cluster to be deleted automatically at all.
+If you are creating BYOVPC cluster and exported `CREATE_CUSTOM_VPC=true`, this command will also create a custom VPC from cloudforms template in specified AWS region
 
 **/BYOC (CCS)**
 

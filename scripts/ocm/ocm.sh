@@ -571,6 +571,8 @@ Optional exported variables:
 - COMPUTE_NODES_COUNT               number of cluster's compute nodes (default: 8 in cluster-template. Can be specified otherwise)
 - COMPUTE_MACHINE_TYPE              node type of cluster's compute nodes (default: m5.xlarge, can be specified otherwise)
 - OSD_TRIAL                         true/false (default: false)
+- CREATE_CUSTOM_VPC                 true/false - create custom VPC ${CUSTOM_VPC_STACK_NAME} from cloudforms template
+                                    this function will also create temporary user ${CUSTOM_VPC_STACK_NAME} for manipulation with VPC stack and delete it afterwards
 ==========================================================================================================
 create_cluster                    - spin up OSD cluster
 ----------------------------------------------------------------------------------------------------------
@@ -599,6 +601,11 @@ Optional exported variables:
 - AWS_ACCOUNT_ID
 - AWS_ACCESS_KEY_ID
 - AWS_SECRET_ACCESS_KEY
+==========================================================================================================
+delete_custom_vpc                 - delete custom VPC ${CUSTOM_VPC_STACK_NAME} in specified AWS region
+----------------------------------------------------------------------------------------------------------
+Required variables:
+- OCM_CLUSTER_REGION              - AWS region where custom VPC ${CUSTOM_VPC_STACK_NAME} is deployed
 ==========================================================================================================
 get_cluster_logs                  - save cluster install logs and subscription details to ${OCM_DIR}
 ==========================================================================================================
