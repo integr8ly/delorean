@@ -58,9 +58,9 @@ Export the following values
 ```bash
 export BYOVPC=true
 export CREATE_CUSTOM_VPC=<true/false>   # optional - let the script create a custom VPC for you
-export PRIVATE_SUBNET_ID=<REPLACE_ME>   # not required if CREATE_CUSTOM_VPC=true
-export PUBLIC_SUBNET_ID=<REPLACE_ME>    # not required if CREATE_CUSTOM_VPC=true
-export AVAILABILITY_ZONES=<REPLACE_ME>  # not required if CREATE_CUSTOM_VPC=true
+export PRIVATE_SUBNET_IDS=<REPLACE_ME>  # string with subnet ids separated by comma - not required if CREATE_CUSTOM_VPC=true
+export PUBLIC_SUBNET_IDS=<REPLACE_ME>   # string with subnet ids separated by comma - not required if CREATE_CUSTOM_VPC=true
+export AVAILABILITY_ZONES=<REPLACE_ME>  # string with AZ names separated by comma - not required if CREATE_CUSTOM_VPC=true
 export OCM_CLUSTER_REGION=<REPLACE_ME>  # optional - default eu-west-1
 ```
 

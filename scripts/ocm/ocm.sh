@@ -133,6 +133,8 @@ create_cluster_configuration_file() {
 create_custom_vpc() {
     
     local stack_details
+    local subnet
+    local az_count
  
     create_custom_vpc_user
 
@@ -141,23 +143,34 @@ create_custom_vpc() {
         echo "Stack with name $CUSTOM_VPC_STACK_NAME already exists. It will be reused. If you want to delete it, run \`make ocm/cluster/delete_custom_vpc\`"
         sleep 10
     else
+        if [ $MULTI_AZ = true ]; then az_count=3; else az_count=1; fi
         echo "Creating a new VPC stack $CUSTOM_VPC_STACK_NAME"
         aws cloudformation create-stack --region $OCM_CLUSTER_REGION --stack-name $CUSTOM_VPC_STACK_NAME \
             --template-body "file://${CUSTOM_VPC_TEMPLATE_FILE}" --profile $CUSTOM_VPC_USERNAME \
             --parameters ParameterKey=VpcCidr,ParameterValue="$(jq -r '.network.machine_cidr' <"${CLUSTER_TEMPLATE_FILE}")" ParameterKey=SubnetBits,ParameterValue=5 \
+            ParameterKey=AvailabilityZoneCount,ParameterValue="${az_count}" \
             > /dev/null
         wait_for "aws cloudformation describe-stacks --region $OCM_CLUSTER_REGION --profile $CUSTOM_VPC_USERNAME | jq -er '.Stacks[] | select(.StackName==\"$CUSTOM_VPC_STACK_NAME\") | select(.StackStatus==\"CREATE_COMPLETE\")' > /dev/null" "vpc stack creation" "10m" "30"
     fi    
 
     stack_details=$(aws cloudformation describe-stacks --region $OCM_CLUSTER_REGION --profile $CUSTOM_VPC_USERNAME | jq -er ".Stacks[] | select(.StackName==\"$CUSTOM_VPC_STACK_NAME\")")
 
-    PUBLIC_SUBNET_ID=$(jq -r '.Outputs[] | select(.OutputKey=="PublicSubnetIds") | .OutputValue' <<< "$stack_details")
-    PRIVATE_SUBNET_ID=$(jq -r '.Outputs[] | select(.OutputKey=="PrivateSubnetIds") | .OutputValue' <<< "$stack_details")
-
-    AVAILABILITY_ZONES=$(aws ec2 describe-subnets --region $OCM_CLUSTER_REGION | jq -r ".Subnets[] | select(.SubnetId==\"${PUBLIC_SUBNET_ID}\") | .AvailabilityZone")
+    PUBLIC_SUBNET_IDS=$(jq -r '.Outputs[] | select(.OutputKey=="PublicSubnetIds") | .OutputValue' <<< "$stack_details")
+    PRIVATE_SUBNET_IDS=$(jq -r '.Outputs[] | select(.OutputKey=="PrivateSubnetIds") | .OutputValue' <<< "$stack_details")
+    AVAILABILITY_ZONES="$(get_az_from_subnets "${PUBLIC_SUBNET_IDS}" )"
 
     delete_custom_vpc_user
+}
 
+get_az_from_subnets() {
+    local subnets=$1
+    local az
+    for subnet in  ${subnets//,/ }
+    do
+        if [[ -n $az ]]; then az+=","; fi
+        az+=$(aws ec2 describe-subnets --region $OCM_CLUSTER_REGION | jq -r ".Subnets[] | select(.SubnetId==\"${subnet}\") | .AvailabilityZone")
+    done
+    echo "$az"
 }
 
 create_custom_vpc_user() {
@@ -198,7 +211,7 @@ delete_custom_vpc() {
     create_custom_vpc_user
 
     aws cloudformation delete-stack --stack-name $CUSTOM_VPC_STACK_NAME --region $OCM_CLUSTER_REGION --profile $CUSTOM_VPC_USERNAME
-    wait_for "! aws cloudformation describe-stacks --region $OCM_CLUSTER_REGION --profile $CUSTOM_VPC_USERNAME | jq -er '.Stacks[] | select(.StackName==\"$CUSTOM_VPC_STACK_NAME\") | .StackStatus'" "vpc stack deletion" "10m" "10"
+    wait_for "! aws cloudformation describe-stacks --region $OCM_CLUSTER_REGION --profile $CUSTOM_VPC_USERNAME | jq -er '.Stacks[] | select(.StackName==\"$CUSTOM_VPC_STACK_NAME\") | .StackStatus' > /dev/null" "vpc stack deletion" "30m" "30"
 
     delete_custom_vpc_user
 }
@@ -487,6 +500,15 @@ get_expiration_timestamp() {
     fi
 }
 
+string_to_json_array() {
+    local str=$1
+    local res
+
+    IFS="," read -r -a res <<< "${str}"
+    printf -v res "\"%s\"," "${res[@]}"
+    echo "[${res%,}]"
+}
+
 update_configuration() {
     local param="${1}"
     local updated_configuration
@@ -494,7 +516,7 @@ update_configuration() {
     case $param in
 
     byovpc)
-        updated_configuration=$(jq ".aws.subnet_ids = [\"${PRIVATE_SUBNET_ID}\", \"${PUBLIC_SUBNET_ID}\"] | .aws.private_link = false | .nodes.availability_zones = [\"${AVAILABILITY_ZONES}\"]" < "${CLUSTER_CONFIGURATION_FILE}")
+        updated_configuration=$(jq ".aws.subnet_ids = $(string_to_json_array "${PRIVATE_SUBNET_IDS},${PUBLIC_SUBNET_IDS}") | .aws.private_link = false | .nodes.availability_zones = $(string_to_json_array "${AVAILABILITY_ZONES}")" < "${CLUSTER_CONFIGURATION_FILE}")
         ;;
 
     aws)
@@ -562,9 +584,9 @@ Optional exported variables:
 - OCM_CLUSTER_REGION                e.g. eu-west-1
 - BYOC                              Cloud Customer Subscription: true/false (default: false)
 - BYOVPC                            Customer Provided VPC: true/false (default: false)
-- PRIVATE_SUBNET_ID                 Required for BYOVPC - private subnet id from pre-created vpc
-- PUBLIC_SUBNET_ID                  Required for BYOVPC - public subnet id from pre-created vpc
-- AVAILABILITY_ZONES                Required for BYOVPC - String separated list availability zone of subnets, should be in the same region as as OCM_CLUSTER_REGION
+- PRIVATE_SUBNET_IDS                Required for BYOVPC - private subnet ids from pre-created vpc (string with subnet ids separated by comma)
+- PUBLIC_SUBNET_IDS                 Required for BYOVPC - public subnet ids from pre-created vpc (string with subnet ids separated by comma)
+- AVAILABILITY_ZONES                Required for BYOVPC - availability zones of subnets (string with AZ names separated by comma), should be in the same region as as OCM_CLUSTER_REGION
 - OPENSHIFT_VERSION                 to get OpenShift versions, run: ocm cluster versions
 - PRIVATE                           Cluster's API and router will be private
 - MULTI_AZ                          true/false (default: false)
