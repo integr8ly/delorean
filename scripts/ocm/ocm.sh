@@ -164,7 +164,7 @@ create_custom_vpc() {
 
 get_az_from_subnets() {
     local subnets=$1
-    local az
+    local az=""
     for subnet in  ${subnets//,/ }
     do
         if [[ -n $az ]]; then az+=","; fi
@@ -193,7 +193,7 @@ create_custom_vpc_user() {
         "$(jq -r '.AccessKey.SecretAccessKey' <<< "$access_key")" \
         > "$AWS_CONFIG_FILE"
 
-    wait_for "aws iam get-user --profile ${CUSTOM_VPC_USERNAME} &> /dev/null" "$CUSTOM_VPC_USERNAME access key validation" "1m" "5"
+    wait_for "aws cloudformation describe-stacks --region ${OCM_CLUSTER_REGION} --profile ${CUSTOM_VPC_USERNAME} &> /dev/null" "$CUSTOM_VPC_USERNAME access key validation" "1m" "5"
 }
 
 delete_custom_vpc_user() {
