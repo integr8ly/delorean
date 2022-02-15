@@ -366,7 +366,7 @@ send_cluster_create_request() {
     if [ "$LOCAL_RUN" = true ]; then 
        while [ "$LOOP" = true ]; 
        do 
-       read -p "Will a cluster with $(get_cluster_node_count) nodes be enough (Y/N)? " -n 1 -r 
+       read -p "Are you sure you need a $(get_cluster_node_count) node cluster (Y/N)? Please consider a smaller cluster if it will satisfy your development needs. " -n 1 -r 
        if [[ $REPLY =~ ^[Yy]$ ]]; then 
           echo $'\nCluster with '"$(get_cluster_node_count)"' nodes will be created.' 
           LOOP=false 
