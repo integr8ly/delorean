@@ -32,6 +32,8 @@ readonly ERROR_MISSING_CLUSTER_ID="ERROR: OCM_CLUSTER_ID was not specified"
 
 readonly WARNING_CLUSTER_HEALTH_CHECK_FAILED="WARNING: Cluster was not reported as healthy. You might expect some issues while working with the cluster."
 
+LOCAL_RUN=${LOCAL_RUN:-true}
+
 check_aws_credentials_exported() {
     if [[ -z "${AWS_ACCOUNT_ID:-}" || -z "${AWS_SECRET_ACCESS_KEY:-}" || -z "${AWS_ACCESS_KEY_ID:-}" ]]; then
         printf "%s\n" "${ERROR_MISSING_AWS_ENV_VARS}"
@@ -419,6 +421,10 @@ get_cluster_name() {
     jq -r .name < "${CLUSTER_CONFIGURATION_FILE}"
 }
 
+get_cluster_node_count() {
+    jq -r .nodes.compute < "${CLUSTER_TEMPLATE_FILE}"
+}
+
 get_cluster_subscription_id() {
     jq -r .subscription.id < "${CLUSTER_DETAILS_FILE}"
 }
@@ -449,6 +455,26 @@ send_cluster_create_request() {
     local existing_cluster_id
     local ocm_command
 
+    LOOP=${LOOP:-true}
+    tmp=$(mktemp)
+
+    if [ "$LOCAL_RUN" = true ]; then 
+       while [ "$LOOP" = true ]; 
+       do 
+       read -p "Are you sure you need a $(get_cluster_node_count) node cluster (Y/N)? Please consider a smaller cluster if it will satisfy your development needs. " -n 1 -r 
+       if [[ $REPLY =~ ^[Yy]$ ]]; then 
+          echo $'\nCluster with '"$(get_cluster_node_count)"' nodes will be created.' 
+          LOOP=false 
+       elif [[ "$REPLY" =~ ^[Nn]$ ]]; then 
+          echo "" 
+          read -p "How many nodes would you like? " -n 1 -r 
+          echo $'\nCluster with '"$REPLY"' nodes will be created.' 
+          jq '.nodes.compute = '"${REPLY}"'' "${CLUSTER_CONFIGURATION_FILE}" > "$tmp" && mv "$tmp" "${CLUSTER_CONFIGURATION_FILE}" 
+          LOOP=false 
+        else echo $'\nPlease input either "Y" or "N"' 
+       fi 
+       done 
+    fi
     ocm_command="ocm post /api/clusters_mgmt/v1/clusters --body='${CLUSTER_CONFIGURATION_FILE}'"
     # Get existing cluster details if exists to avoid DuplicateClusterName error
     existing_cluster_id=$(get_existing_cluster_id)
@@ -590,7 +616,7 @@ Optional exported variables:
 - OPENSHIFT_VERSION                 to get OpenShift versions, run: ocm cluster versions
 - PRIVATE                           Cluster's API and router will be private
 - MULTI_AZ                          true/false (default: false)
-- COMPUTE_NODES_COUNT               number of cluster's compute nodes (default: 8 in cluster-template. Can be specified otherwise)
+- COMPUTE_NODES_COUNT               number of cluster's compute nodes (default: 5 in cluster-template. Can be specified otherwise)
 - COMPUTE_MACHINE_TYPE              node type of cluster's compute nodes (default: m5.xlarge, can be specified otherwise)
 - OSD_TRIAL                         true/false (default: false)
 - CREATE_CUSTOM_VPC                 true/false - create custom VPC ${CUSTOM_VPC_STACK_NAME} from cloudforms template
