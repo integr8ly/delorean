@@ -53,8 +53,14 @@ ocm/cluster/delete:
 	@${OCM_SH} delete_cluster
 
 .PHONY: ocm/cluster.json
+ocm/cluster.json: export AWS_CONFIG_FILE := $(shell mktemp)
 ocm/cluster.json:
 	@${OCM_SH} create_cluster_configuration_file
+
+.PHONY: ocm/cluster/delete_custom_vpc
+ocm/cluster/delete_custom_vpc: export AWS_CONFIG_FILE := $(shell mktemp)
+ocm/cluster/delete_custom_vpc:
+	@${OCM_SH} delete_custom_vpc
 
 .PHONY: ocm/aws/create_access_key
 ocm/aws/create_access_key:

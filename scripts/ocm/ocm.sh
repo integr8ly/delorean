@@ -9,6 +9,7 @@ readonly REPO_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 readonly OCM_DIR="${REPO_DIR}/ocm"
 
 readonly TEMPLATES_DIR="${REPO_DIR}/templates/ocm"
+readonly CUSTOM_VPC_TEMPLATE_FILE="${TEMPLATES_DIR}/vpc-template.yaml"
 readonly CLUSTER_TEMPLATE_FILE="${TEMPLATES_DIR}/cluster-template.json"
 readonly CR_AWS_STRATEGIES_CONFIGMAP_FILE="${TEMPLATES_DIR}/cr-aws-strategies.yml"
 readonly LB_CLUSTER_QUOTA_FILE="${TEMPLATES_DIR}/load-balancer-cluster-quota.json"
@@ -19,6 +20,10 @@ readonly CLUSTER_DETAILS_FILE="${OCM_DIR}/cluster-details.json"
 readonly CLUSTER_CREDENTIALS_FILE="${OCM_DIR}/cluster-credentials.json"
 readonly CLUSTER_INSTALLATION_LOGS_FILE="${OCM_DIR}/cluster-installation.log"
 readonly CLUSTER_SUBSCRIPTION_DETAILS_FILE="${OCM_DIR}/cluster-subscription.json"
+
+readonly CUSTOM_VPC_USERNAME="cf-vpc-admin"
+readonly CUSTOM_VPC_STACK_NAME="delorean-custom-vpc"
+readonly AWS_ADMIN_POLICY_ARN="arn:aws:iam::aws:policy/AdministratorAccess"
 
 readonly ERROR_MISSING_AWS_ENV_VARS="ERROR: Not all required AWS environment are set. Please make sure you've exported all following env vars:"
 readonly ERROR_MISSING_CLUSTER_JSON="ERROR: ${CLUSTER_CONFIGURATION_FILE} file does not exist. Please run 'make ocm/cluster.json' first"
@@ -62,6 +67,7 @@ create_cluster_configuration_file() {
     : "${OCM_CLUSTER_REGION:=eu-west-1}"
     : "${BYOC:=false}"
     : "${BYOVPC:=false}"
+    : "${CREATE_CUSTOM_VPC:=false}"
     : "${OPENSHIFT_VERSION:=}"
     : "${PRIVATE:=false}"
     : "${MULTI_AZ:=false}"
@@ -96,6 +102,9 @@ create_cluster_configuration_file() {
     if [ "$BYOVPC" = true ]; then
         check_aws_credentials_exported
         update_configuration "aws"
+        if [ "$CREATE_CUSTOM_VPC" = true ]; then
+            create_custom_vpc
+        fi
         update_configuration "byovpc"
     fi
 
@@ -119,8 +128,94 @@ create_cluster_configuration_file() {
     fi
 
 
-
+    echo "Cluster configuration:"
     cat "${CLUSTER_CONFIGURATION_FILE}"
+}
+
+create_custom_vpc() {
+    
+    local stack_details
+    local subnet
+    local az_count
+ 
+    create_custom_vpc_user
+
+    if aws cloudformation describe-stacks --region $OCM_CLUSTER_REGION --profile $CUSTOM_VPC_USERNAME | jq -er ".Stacks[] | select(.StackName==\"${CUSTOM_VPC_STACK_NAME}\")" > /dev/null
+    then
+        echo "Stack with name $CUSTOM_VPC_STACK_NAME already exists. It will be reused. If you want to delete it, run \`make ocm/cluster/delete_custom_vpc\`"
+        sleep 10
+    else
+        if [ $MULTI_AZ = true ]; then az_count=3; else az_count=1; fi
+        echo "Creating a new VPC stack $CUSTOM_VPC_STACK_NAME"
+        aws cloudformation create-stack --region $OCM_CLUSTER_REGION --stack-name $CUSTOM_VPC_STACK_NAME \
+            --template-body "file://${CUSTOM_VPC_TEMPLATE_FILE}" --profile $CUSTOM_VPC_USERNAME \
+            --parameters ParameterKey=VpcCidr,ParameterValue="$(jq -r '.network.machine_cidr' <"${CLUSTER_TEMPLATE_FILE}")" ParameterKey=SubnetBits,ParameterValue=5 \
+            ParameterKey=AvailabilityZoneCount,ParameterValue="${az_count}" \
+            > /dev/null
+        wait_for "aws cloudformation describe-stacks --region $OCM_CLUSTER_REGION --profile $CUSTOM_VPC_USERNAME | jq -er '.Stacks[] | select(.StackName==\"$CUSTOM_VPC_STACK_NAME\") | select(.StackStatus==\"CREATE_COMPLETE\")' > /dev/null" "vpc stack creation" "10m" "30"
+    fi    
+
+    stack_details=$(aws cloudformation describe-stacks --region $OCM_CLUSTER_REGION --profile $CUSTOM_VPC_USERNAME | jq -er ".Stacks[] | select(.StackName==\"$CUSTOM_VPC_STACK_NAME\")")
+
+    PUBLIC_SUBNET_IDS=$(jq -r '.Outputs[] | select(.OutputKey=="PublicSubnetIds") | .OutputValue' <<< "$stack_details")
+    PRIVATE_SUBNET_IDS=$(jq -r '.Outputs[] | select(.OutputKey=="PrivateSubnetIds") | .OutputValue' <<< "$stack_details")
+    AVAILABILITY_ZONES="$(get_az_from_subnets "${PUBLIC_SUBNET_IDS}" )"
+
+    delete_custom_vpc_user
+}
+
+get_az_from_subnets() {
+    local subnets=$1
+    local az=""
+    for subnet in  ${subnets//,/ }
+    do
+        if [[ -n $az ]]; then az+=","; fi
+        az+=$(aws ec2 describe-subnets --region $OCM_CLUSTER_REGION | jq -r ".Subnets[] | select(.SubnetId==\"${subnet}\") | .AvailabilityZone")
+    done
+    echo "$az"
+}
+
+create_custom_vpc_user() {
+    local access_key
+    echo "Creating temporary user ${CUSTOM_VPC_USERNAME}"
+    aws iam create-user --user-name $CUSTOM_VPC_USERNAME &> /dev/null || true
+    echo "Attaching admin policy to temporary user ${CUSTOM_VPC_USERNAME}"
+    aws iam attach-user-policy --user-name $CUSTOM_VPC_USERNAME --policy-arn $AWS_ADMIN_POLICY_ARN
+    for akid in $(aws iam list-access-keys --user-name $CUSTOM_VPC_USERNAME | jq -r '.AccessKeyMetadata[].AccessKeyId'); 
+    do
+        echo "Deleting $CUSTOM_VPC_USERNAME temporary user's access key"
+        aws iam delete-access-key --access-key-id "$akid" --user-name $CUSTOM_VPC_USERNAME
+    done
+
+    echo "Generating access key for temporary user $CUSTOM_VPC_USERNAME"
+    access_key=$(aws iam create-access-key --user-name $CUSTOM_VPC_USERNAME)
+    printf "[profile %s] \naws_access_key_id=%s \naws_secret_access_key=%s" \
+        $CUSTOM_VPC_USERNAME \
+        "$(jq -r '.AccessKey.AccessKeyId' <<< "$access_key")" \
+        "$(jq -r '.AccessKey.SecretAccessKey' <<< "$access_key")" \
+        > "$AWS_CONFIG_FILE"
+
+    wait_for "aws cloudformation describe-stacks --region ${OCM_CLUSTER_REGION} --profile ${CUSTOM_VPC_USERNAME} &> /dev/null" "$CUSTOM_VPC_USERNAME access key validation" "1m" "5"
+}
+
+delete_custom_vpc_user() {
+    echo "Deleting temporary custom VPC user $CUSTOM_VPC_USERNAME"
+    aws iam detach-user-policy --user-name $CUSTOM_VPC_USERNAME --policy-arn $AWS_ADMIN_POLICY_ARN
+    for akid in $(aws iam list-access-keys --user-name $CUSTOM_VPC_USERNAME | jq -r '.AccessKeyMetadata[].AccessKeyId'); 
+    do
+        aws iam delete-access-key --access-key-id "$akid" --user-name $CUSTOM_VPC_USERNAME
+    done
+    aws iam delete-user --user-name $CUSTOM_VPC_USERNAME
+}
+
+delete_custom_vpc() {
+    echo "Deleting custom VPC stack $CUSTOM_VPC_STACK_NAME from region $OCM_CLUSTER_REGION"
+    create_custom_vpc_user
+
+    aws cloudformation delete-stack --stack-name $CUSTOM_VPC_STACK_NAME --region $OCM_CLUSTER_REGION --profile $CUSTOM_VPC_USERNAME
+    wait_for "! aws cloudformation describe-stacks --region $OCM_CLUSTER_REGION --profile $CUSTOM_VPC_USERNAME | jq -er '.Stacks[] | select(.StackName==\"$CUSTOM_VPC_STACK_NAME\") | .StackStatus' > /dev/null" "vpc stack deletion" "30m" "30"
+
+    delete_custom_vpc_user
 }
 
 create_cluster() {
@@ -432,6 +527,15 @@ get_expiration_timestamp() {
     fi
 }
 
+string_to_json_array() {
+    local str=$1
+    local res
+
+    IFS="," read -r -a res <<< "${str}"
+    printf -v res "\"%s\"," "${res[@]}"
+    echo "[${res%,}]"
+}
+
 update_configuration() {
     local param="${1}"
     local updated_configuration
@@ -439,7 +543,7 @@ update_configuration() {
     case $param in
 
     byovpc)
-        updated_configuration=$(jq ".aws.subnet_ids = [\"${PRIVATE_SUBNET_ID}\", \"${PUBLIC_SUBNET_ID}\"] | .aws.private_link = false | .nodes.availability_zones = [\"${AVAILABILITY_ZONES}\"]" < "${CLUSTER_CONFIGURATION_FILE}")
+        updated_configuration=$(jq ".aws.subnet_ids = $(string_to_json_array "${PRIVATE_SUBNET_IDS},${PUBLIC_SUBNET_IDS}") | .aws.private_link = false | .nodes.availability_zones = $(string_to_json_array "${AVAILABILITY_ZONES}")" < "${CLUSTER_CONFIGURATION_FILE}")
         ;;
 
     aws)
@@ -507,15 +611,17 @@ Optional exported variables:
 - OCM_CLUSTER_REGION                e.g. eu-west-1
 - BYOC                              Cloud Customer Subscription: true/false (default: false)
 - BYOVPC                            Customer Provided VPC: true/false (default: false)
-- PRIVATE_SUBNET_ID                 Required for BYOVPC - private subnet id from pre-created vpc
-- PUBLIC_SUBNET_ID                  Required for BYOVPC - public subnet id from pre-created vpc
-- AVAILABILITY_ZONES                Required for BYOVPC - String separated list availability zone of subnets, should be in the same region as as OCM_CLUSTER_REGION
+- PRIVATE_SUBNET_IDS                Required for BYOVPC - private subnet ids from pre-created vpc (string with subnet ids separated by comma)
+- PUBLIC_SUBNET_IDS                 Required for BYOVPC - public subnet ids from pre-created vpc (string with subnet ids separated by comma)
+- AVAILABILITY_ZONES                Required for BYOVPC - availability zones of subnets (string with AZ names separated by comma), should be in the same region as as OCM_CLUSTER_REGION
 - OPENSHIFT_VERSION                 to get OpenShift versions, run: ocm cluster versions
 - PRIVATE                           Cluster's API and router will be private
 - MULTI_AZ                          true/false (default: false)
 - COMPUTE_NODES_COUNT               number of cluster's compute nodes (default: 5 in cluster-template. Can be specified otherwise)
 - COMPUTE_MACHINE_TYPE              node type of cluster's compute nodes (default: m5.xlarge, can be specified otherwise)
 - OSD_TRIAL                         true/false (default: false)
+- CREATE_CUSTOM_VPC                 true/false - create custom VPC ${CUSTOM_VPC_STACK_NAME} from cloudforms template
+                                    this function will also create temporary user ${CUSTOM_VPC_STACK_NAME} for manipulation with VPC stack and delete it afterwards
 ==========================================================================================================
 create_cluster                    - spin up OSD cluster
 ----------------------------------------------------------------------------------------------------------
@@ -544,6 +650,11 @@ Optional exported variables:
 - AWS_ACCOUNT_ID
 - AWS_ACCESS_KEY_ID
 - AWS_SECRET_ACCESS_KEY
+==========================================================================================================
+delete_custom_vpc                 - delete custom VPC ${CUSTOM_VPC_STACK_NAME} in specified AWS region
+----------------------------------------------------------------------------------------------------------
+Required variables:
+- OCM_CLUSTER_REGION              - AWS region where custom VPC ${CUSTOM_VPC_STACK_NAME} is deployed
 ==========================================================================================================
 get_cluster_logs                  - save cluster install logs and subscription details to ${OCM_DIR}
 ==========================================================================================================
@@ -584,6 +695,10 @@ main() {
             ;;
         delete_cluster)
             delete_cluster
+            exit 0
+            ;;
+        delete_custom_vpc)
+            delete_custom_vpc
             exit 0
             ;;
         upgrade_cluster)
