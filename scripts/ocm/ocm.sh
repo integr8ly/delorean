@@ -422,7 +422,7 @@ get_cluster_name() {
 }
 
 get_cluster_node_count() {
-    jq -r .nodes.compute < "${CLUSTER_TEMPLATE_FILE}"
+    jq -r .nodes.compute < "${CLUSTER_CONFIGURATION_FILE}"
 }
 
 get_cluster_subscription_id() {
@@ -457,13 +457,14 @@ send_cluster_create_request() {
 
     LOOP=${LOOP:-true}
     tmp=$(mktemp)
-
+    NODE_AMOUNT=$(get_cluster_node_count)
     if [ "$LOCAL_RUN" = true ]; then 
        while [ "$LOOP" = true ]; 
        do 
-       read -p "Are you sure you need a $(get_cluster_node_count) node cluster (Y/N)? Please consider a smaller cluster if it will satisfy your development needs. " -n 1 -r 
+       read -p "Are you sure you need a ${NODE_AMOUNT} node cluster (Y/N)? Please consider a smaller cluster if it will satisfy your development needs." -n 1 -r 
        if [[ $REPLY =~ ^[Yy]$ ]]; then 
-          echo $'\nCluster with '"$(get_cluster_node_count)"' nodes will be created.' 
+          jq '.nodes.compute = '"${NODE_AMOUNT}"'' "${CLUSTER_CONFIGURATION_FILE}" > "$tmp" && mv "$tmp" "${CLUSTER_CONFIGURATION_FILE}"
+          echo $'\nCluster with '"${NODE_AMOUNT}"' nodes will be created.' 
           LOOP=false 
        elif [[ "$REPLY" =~ ^[Nn]$ ]]; then 
           echo "" 
