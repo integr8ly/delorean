@@ -263,7 +263,7 @@ func getTestContainerJob(namespace string, t *TestContainer) *batchv1.Job {
 								},
 							},
 							Env: t.EnvVars,
-							//Command: []string{"/integreatly-operator-test-harness.test"},
+							Command: assignEntrypoint(t),
 							Args: assignArguments(t),
 						},
 						{
@@ -327,9 +327,17 @@ func (c *runTestsCmd) completeJob(pod v1.Pod) error {
 func parseSecretName(pullSecret string) string {
 	return strings.ToLower(strings.ReplaceAll(pullSecret, "_", "-"))
 }
+
+func assignEntrypoint(t *TestContainer) []string {
+	if t.Argument != "" {
+		return []string{"sh"}
+	}
+	return []string{"/integreatly-operator-test-harness.test"}
+}
+
 func assignArguments(t *TestContainer) []string {
 	if t.Argument != "" {
-		return []string{t.Argument}
+		return []string{"-c", fmt.Sprintf("oc project redhat-rhoam-3scale; make %s", t.Argument)}
 	}
 	return []string{"-ginkgo.focus", t.RegExpFilter}
 }
