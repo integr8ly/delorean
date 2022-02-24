@@ -262,9 +262,9 @@ func getTestContainerJob(namespace string, t *TestContainer) *batchv1.Job {
 									MountPath: "/test-run-results",
 								},
 							},
-							Env: t.EnvVars,
+							Env:     t.EnvVars,
 							Command: assignEntrypoint(t),
-							Args: assignArguments(t),
+							Args:    assignArguments(t),
 						},
 						{
 							Name:  "sidecar",
