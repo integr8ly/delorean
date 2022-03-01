@@ -36,8 +36,9 @@ type TestContainer struct {
 	Timeout         int64       `json:"timeout,omitempty"`
 	ImagePullSecret string      `json:"ImagePullSecretEnvVar,omitempty"`
 	EnvVars         []v1.EnvVar `json:"envVars,omitempty"`
-	RegExpFilter    string      `json:"regExpFilter,omitempty`
-	Argument        string      `json:"argument, omitempty`
+	RegExpFilter    string      `json:"regExpFilter,omitempty"`
+	Entrypoint      []string    `json:"entrypoint, omitempty"`
+	Argument        []string    `json:"argument, omitempty"`
 	Success         bool
 }
 
@@ -263,7 +264,7 @@ func getTestContainerJob(namespace string, t *TestContainer) *batchv1.Job {
 								},
 							},
 							Env:     t.EnvVars,
-							Command: assignEntrypoint(t),
+							Command: t.Entrypoint,
 							Args:    assignArguments(t),
 						},
 						{
@@ -328,16 +329,9 @@ func parseSecretName(pullSecret string) string {
 	return strings.ToLower(strings.ReplaceAll(pullSecret, "_", "-"))
 }
 
-func assignEntrypoint(t *TestContainer) []string {
-	if t.Argument != "" {
-		return []string{"sh"}
-	}
-	return []string{"/integreatly-operator-test-harness.test"}
-}
-
 func assignArguments(t *TestContainer) []string {
-	if t.Argument != "" {
-		return []string{"-c", fmt.Sprintf("oc project redhat-rhoam-3scale; make %s", t.Argument)}
+	if len(t.Argument) > 0 {
+		return t.Argument
 	}
 	return []string{"-ginkgo.focus", t.RegExpFilter}
 }
