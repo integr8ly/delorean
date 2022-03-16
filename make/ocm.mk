@@ -2,6 +2,7 @@
 #OCM=docker run --rm -it -u 1000 -v "/home/mnairn/go/src/github.com/integr8ly/integreatly-operator:/integreatly-operator/" -w "/integreatly-operator" -v "${HOME}/tmp-home:/myhome:z" -e "HOME=/myhome" --entrypoint=/usr/local/bin/ocm ${OCM_IMAGE}
 OCM=ocm
 OCM_SH=scripts/ocm/ocm.sh
+STS_SH=scripts/sts/sts.sh
 
 .PHONY: ocm/version
 ocm/version:
@@ -73,3 +74,16 @@ ocm/cluster/upgrade:
 .PHONY: ocm/help
 ocm/help:
 	@${OCM_SH} -h
+
+.PHONY: ocm/provision_sts_cluster
+ocm/sts/cluster/create:
+	@${STS_SH} provision_sts_cluster
+
+.PHONY: ocm/delete_sts_cluster
+ocm/sts/cluster/delete:
+	@${STS_SH} delete_sts_cluster
+
+.PHONY: ocm/rhoam-prerequisites
+ocm/sts/rhoam-prerequisites:
+	@${STS_SH} rhoam-prerequisites
+

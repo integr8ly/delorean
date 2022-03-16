@@ -25,3 +25,6 @@ scripts/jenkins-reports/report.txt
 .idea/
 
 .kube
+
+# Generated roles
+rhoam_role.json
