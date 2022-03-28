@@ -26,5 +26,6 @@ scripts/jenkins-reports/report.txt
 
 .kube
 
-# Generated roles
+# Generated files
 rhoam_role.json
+rhoam_role_minimal_policy.json
