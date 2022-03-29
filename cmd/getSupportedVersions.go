@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/blang/semver"
 	"github.com/go-git/go-git/v5"
@@ -10,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"sort"
@@ -27,7 +29,12 @@ type getSupportedVersionsCmd struct {
 	olmType                string
 	supportedMajorVersions int
 	supportedMinorVersions int
-	manageTenants          string
+	managedTenants         string
+}
+
+type olmPaths struct {
+	bundleFolder  string
+	addonFilePath string
 }
 
 func init() {
@@ -45,7 +52,7 @@ func init() {
 				handleError(err)
 			}
 
-			if _, err := c.run(cmd.Context()); err != nil {
+			if _, err = c.run(cmd.Context()); err != nil {
 				handleError(err)
 			}
 		},
@@ -54,13 +61,12 @@ func init() {
 	cmd.Flags().StringVar(&f.olmType, "olmType", types.OlmTypeRhoam, fmt.Sprintf("OlM Type to get the versions of. Supported Values [%s, %s]", types.OlmTypeRhmi, types.OlmTypeRhoam))
 	cmd.Flags().StringVarP(&f.supportedMinorVersions, "minor", "m", "3", "Supported number of minor versions")
 	cmd.Flags().StringVarP(&f.supportedMajorVersions, "major", "M", "1", "Supported number of major versions")
-	cmd.Flags().StringVar(&f.managedTenants, "managedTenants", "https://gitlab.cee.redhat.com/service/managed-tenants.git", "https link for the managed tenants repo to clone")
+	cmd.Flags().StringVar(&f.managedTenants, "managedTenants", "https://gitlab.cee.redhat.com/service/managed-tenants.git", "https link for the managed tenants repository to clone")
 	pipelineCmd.AddCommand(cmd)
 
 }
 
 func newGetSupportedVersions(f *getSupportedVersionsFlags) (*getSupportedVersionsCmd, error) {
-
 	var majorVersions int
 	var minorVersions int
 
@@ -71,30 +77,40 @@ func newGetSupportedVersions(f *getSupportedVersionsFlags) (*getSupportedVersion
 		olmType:                f.olmType,
 		supportedMajorVersions: majorVersions,
 		supportedMinorVersions: minorVersions,
-		manageTenants:          f.managedTenants,
+		managedTenants:         f.managedTenants,
 	}, err
 }
 
-func (c *getSupportedVersionsCmd) run(ctx context.Context) ([]string, error) {
-	olmBundlePath, olmFilePath, err := getOlmTypePaths(c.olmType)
+func (c *getSupportedVersionsCmd) run(_ context.Context) ([]string, error) {
+	paths, err := getOlmTypePaths(c.olmType)
 	if err != nil {
 		return nil, err
 	}
 
 	// Download the manged tenants repo
-	repoDir, err := downloadManagedTenants(c.manageTenants)
-	if err != nil {
-		return nil, err
-	}
-	// read the bundle folder names
-	bundles, err := getBundleFolders(repoDir, olmBundlePath)
+	repoDir, err := downloadManagedTenants(c.managedTenants)
 	if err != nil {
 		return nil, err
 	}
 
+	// in case of RHOAM bundles would contain no CSV but the reference to an index image with bundles inside
+	// Pull and unpack the index
+	if c.olmType == types.OlmTypeRhoam {
+		err = extractRhoamCSV(&paths, repoDir)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// get the current production version
 	var productionVersion semver.Version
-	productionVersion, err = getProductionVersion(repoDir, olmFilePath)
+	productionVersion, err = getProductionVersion(repoDir, paths)
+	if err != nil {
+		return nil, err
+	}
+
+	// read the bundle folder names
+	bundles, err := getBundleFolders(repoDir, paths.bundleFolder)
 	if err != nil {
 		return nil, err
 	}
@@ -134,6 +150,31 @@ func (c *getSupportedVersionsCmd) run(ctx context.Context) ([]string, error) {
 	return patchVersions, nil
 }
 
+func extractRhoamCSV(paths *olmPaths, repoDir string) error {
+	// get index image
+	root := path.Join(repoDir, paths.addonFilePath)
+
+	type indexFiled struct {
+		IndexImage string `json:"indexImage"`
+	}
+
+	data := indexFiled{}
+	err := utils.PopulateObjectFromYAML(root, &data)
+	if err != nil {
+		return err
+	}
+	indexSha := data.IndexImage
+	// assuming opm is installed
+	cmd := exec.Command("opm", "index", "export", fmt.Sprintf("--index=%s", indexSha), fmt.Sprintf("--download-folder=%s", repoDir))
+	err = cmd.Run()
+	if err != nil {
+		return errors.New(fmt.Sprintf("Error when executing \"%s\": %s", cmd.String(), err))
+	}
+	// update paths with CSV location
+	paths.addonFilePath = "managed-api-service/package.yaml"
+	return nil
+}
+
 func trimSemverVersions(versions []semver.Version, productionVersion semver.Version) ([]semver.Version, error) {
 	var result []semver.Version
 
@@ -154,18 +195,18 @@ func trimSemverVersions(versions []semver.Version, productionVersion semver.Vers
 	return result, nil
 }
 
-func getProductionVersion(dir string, filePath string) (semver.Version, error) {
-	root := path.Join(dir, filePath)
+func getProductionVersion(dir string, paths olmPaths) (semver.Version, error) {
+	root := path.Join(dir, paths.addonFilePath)
 
 	type channelType struct {
 		Name       string `json:"name"`
 		CurrentCSV string `json:"currentCSV"`
 	}
-	type channel struct {
+	type channelField struct {
 		Channels []channelType `json:"channels"`
 	}
 
-	data := channel{}
+	data := channelField{}
 	err := utils.PopulateObjectFromYAML(root, &data)
 	if err != nil {
 		return semver.Version{}, err
@@ -196,15 +237,21 @@ func downloadManagedTenants(url string) (string, error) {
 	return dir, nil
 }
 
-func getOlmTypePaths(olmType string) (string, string, error) {
+func getOlmTypePaths(olmType string) (olmPaths, error) {
 
 	switch olmType {
 	case types.OlmTypeRhoam:
-		return "addons/rhoams/bundles", "addons/rhoams/metadata/production/addon.yaml", nil
+		return olmPaths{
+			bundleFolder:  "managed-api-service",
+			addonFilePath: "addons/rhoams/metadata/production/addon.yaml",
+		}, nil
 	case types.OlmTypeRhmi:
-		return "addons/integreatly-operator/bundles", "addons/integreatly-operator/metadata/production/addon.yaml", nil
+		return olmPaths{
+			bundleFolder:  "addons/integreatly-operator/bundles",
+			addonFilePath: "addons/integreatly-operator/metadata/production/addon.yaml",
+		}, nil
 	default:
-		return "", "", fmt.Errorf("Unsupported OLM type, Please use --help to see supported types.")
+		return olmPaths{}, fmt.Errorf("Unsupported OLM type, Please use --help to see supported types.")
 	}
 }
 

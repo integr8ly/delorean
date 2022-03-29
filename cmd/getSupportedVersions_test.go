@@ -52,7 +52,7 @@ func TestGetSupportedVersionsCmd(t *testing.T) {
 				olmType:                c.olmType,
 				supportedMajorVersions: c.majorVersions,
 				supportedMinorVersions: c.minorVersions,
-				manageTenants:          c.repo,
+				managedTenants:         c.repo,
 			}
 
 			result, err := cmd.run(context.TODO())
@@ -361,7 +361,7 @@ func TestGetOlmTypePath(t *testing.T) {
 		{
 			description:        "Get values for RHOAM",
 			olmType:            types.OlmTypeRhoam,
-			expectedBundlePath: "addons/rhoams/bundles",
+			expectedBundlePath: "managed-api-service",
 			expectedFilePath:   "addons/rhoams/metadata/production/addon.yaml",
 			hasError:           false,
 		},
@@ -383,25 +383,22 @@ func TestGetOlmTypePath(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.description, func(t *testing.T) {
-			resultBundlePath, resultFilePath, err := getOlmTypePaths(c.olmType)
+			paths, err := getOlmTypePaths(c.olmType)
 			if err != nil {
 				if c.hasError && err.Error() != c.expectedError {
 					t.Fatalf("Did not get expected error. Expected: %s, Recived: %s", c.expectedError, err)
-				} else if c.hasError && err.Error() == c.expectedError {
-
-				} else {
+				} else if !c.hasError {
 					t.Fatalf("Unexpected Error, %s", err)
 				}
-			}
+			} else {
+				if paths.bundleFolder != c.expectedBundlePath && !c.hasError {
+					t.Fatalf("Wrong path returned. Expected: %s, Recived: %s", c.expectedBundlePath, paths.bundleFolder)
+				}
 
-			if resultBundlePath != c.expectedBundlePath && !c.hasError {
-				t.Fatalf("Wrong path returned. Expected: %s, Recived: %s", c.expectedBundlePath, resultBundlePath)
+				if paths.addonFilePath != c.expectedFilePath && !c.hasError {
+					t.Fatalf("Wrong path returned. Expected: %s, Recived: %s", c.expectedFilePath, paths.addonFilePath)
+				}
 			}
-
-			if resultFilePath != c.expectedFilePath && !c.hasError {
-				t.Fatalf("Wrong path returned. Expected: %s, Recived: %s", c.expectedFilePath, resultBundlePath)
-			}
-
 		})
 	}
 }
@@ -446,25 +443,29 @@ func TestGetProductionVersion(t *testing.T) {
 	var cases = []struct {
 		description string
 		repoDir     string
-		filePath    string
+		paths       olmPaths
 		expected    semver.Version
 	}{
 		{
 			description: "Get production version for rhoam",
 			repoDir:     path.Join(basedir, "testdata/getSupportedVersions/managed-tenants"),
-			filePath:    "addons/rhoams/metadata/production/addon.yaml",
-			expected:    semver.Version{Major: 1, Minor: 6, Patch: 1},
+			paths: olmPaths{
+				addonFilePath: "addons/rhoams/metadata/production/addon.yaml",
+			},
+			expected: semver.Version{Major: 1, Minor: 6, Patch: 1},
 		},
 		{
 			description: "Get production version for rhmi",
 			repoDir:     path.Join(basedir, "testdata/getSupportedVersions/managed-tenants"),
-			filePath:    "addons/integreatly-operator/metadata/production/addon.yaml",
-			expected:    semver.Version{Major: 2, Minor: 8, Patch: 0},
+			paths: olmPaths{
+				addonFilePath: "addons/integreatly-operator/metadata/production/addon.yaml",
+			},
+			expected: semver.Version{Major: 2, Minor: 8, Patch: 0},
 		},
 	}
 	for _, c := range cases {
 		t.Run(c.description, func(t *testing.T) {
-			result, err := getProductionVersion(c.repoDir, c.filePath)
+			result, err := getProductionVersion(c.repoDir, c.paths)
 			if err != nil {
 				t.Fatalf("Unexpected Error: %s", err)
 			}
