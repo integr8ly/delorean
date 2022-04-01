@@ -50,6 +50,7 @@ type runTestsCmdFlags struct {
 	outputDir       string
 	timout          int64
 	namespace       string
+	cleanup         bool
 	testsConfigFile string
 }
 
@@ -58,6 +59,7 @@ type runTestsCmd struct {
 	tests     []*TestContainer
 	outputDir string
 	namespace string
+	cleanup   bool
 	oc        utils.OCInterface
 }
 
@@ -85,6 +87,7 @@ func init() {
 	cmd.Flags().StringVarP(&f.outputDir, "output", "o", "", "Absolute path of the output directory to save reports")
 	cmd.MarkFlagRequired("output")
 	cmd.Flags().StringVarP(&f.namespace, "namespace", "n", defaultNamespace, "The namespace to run the test containers")
+	cmd.Flags().BoolVar(&f.cleanup, "post-cleanup", false, "Delete the namespace after test containers finish")
 	cmd.Flags().StringVar(&f.testsConfigFile, "test-config", "", "Path to the tests configuration file")
 	cmd.MarkFlagRequired("test-config")
 }
@@ -114,6 +117,7 @@ func newRunTestsCmd(kubeconfig string, f *runTestsCmdFlags) (*runTestsCmd, error
 		tests:     testList.Tests,
 		outputDir: outputDir,
 		namespace: f.namespace,
+		cleanup:   f.cleanup,
 		oc:        utils.NewOC(kubeconfig),
 	}, nil
 }
@@ -168,10 +172,12 @@ func (c *runTestsCmd) run(ctx context.Context) error {
 	}
 	wg.Wait()
 	fmt.Println(fmt.Sprintf("[Reporting] Tests completed. Results can be found in %s", c.outputDir))
-	fmt.Println("[TearDown] Delete namespace", c.namespace)
-	err = c.clientset.CoreV1().Namespaces().Delete(ctx, c.namespace, metav1.DeleteOptions{})
-	if err != nil {
-		return err
+	if c.cleanup {
+		fmt.Println("[TearDown] Delete namespace", c.namespace)
+		err = c.clientset.CoreV1().Namespaces().Delete(ctx, c.namespace, metav1.DeleteOptions{})
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
