@@ -258,6 +258,21 @@ func getTestContainerJob(namespace string, t *TestContainer) *batchv1.Job {
 						{
 							Name: "test-run-results",
 						},
+						{
+							Name: "bound-sa-token",
+							VolumeSource: v1.VolumeSource{
+								Projected: &v1.ProjectedVolumeSource{
+									Sources: []v1.VolumeProjection{
+										{
+											ServiceAccountToken: &v1.ServiceAccountTokenProjection{
+												Audience: "openshift",
+												Path:     "token",
+											},
+										},
+									},
+								},
+							},
+						},
 					},
 					Containers: []v1.Container{
 						{
@@ -267,6 +282,10 @@ func getTestContainerJob(namespace string, t *TestContainer) *batchv1.Job {
 								{
 									Name:      "test-run-results",
 									MountPath: "/test-run-results",
+								},
+								{
+									Name:      "bound-sa-token",
+									MountPath: "/var/run/secrets/openshift/serviceaccount",
 								},
 							},
 							Env:     t.EnvVars,
@@ -280,6 +299,10 @@ func getTestContainerJob(namespace string, t *TestContainer) *batchv1.Job {
 								{
 									Name:      "test-run-results",
 									MountPath: "/test-run-results",
+								},
+								{
+									Name:      "bound-sa-token",
+									MountPath: "/var/run/secrets/openshift/serviceaccount",
 								},
 							},
 							Command: []string{"sh"},
