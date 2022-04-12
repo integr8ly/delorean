@@ -39,7 +39,7 @@ set -eux
 export AWS_PAGER=""
 ROLE_NAME="rhoam_role"
 MINIMAL_POLICY_NAME="${ROLE_NAME}_minimal_policy"
-OCM_ENV="${OCM_ENV:-production}"
+OCM_ENV="${OCM_ENV:-staging}"
 CLUSTER_NAME="${CLUSTER_NAME:-defaultsts}"
 AWS_REGION="${AWS_REGION:-eu-west-1}"
 PREFIX="${PREFIX:-ManagedOpenShift}"
@@ -79,6 +79,14 @@ get_role_arn() {
     echo "arn:aws:iam::$(get_account_id):role/$ROLE_NAME"
 }
 
+get_oidc_provider_env() {
+  if [[ "$OCM_ENV" == "staging" ]]; then
+      echo "rh-oidc-staging"
+  else
+    echo "rh-oidc"
+  fi
+}
+
 rhoam-prerequisites() {
     # Delete policy and role
     aws iam delete-role-policy --role-name $ROLE_NAME --policy-name $MINIMAL_POLICY_NAME || true
@@ -99,7 +107,7 @@ rhoam-prerequisites() {
               "arn:aws:iam::$(get_account_id):user/osdCcsAdmin"
           ],
           "Federated": [
-              "arn:aws:iam::$(get_account_id):oidc-provider/rh-oidc.s3.us-east-1.amazonaws.com/$(get_cluster_id)"
+              "arn:aws:iam::$(get_account_id):oidc-provider/$(get_oidc_provider_env).s3.us-east-1.amazonaws.com/$(get_cluster_id)"
           ]
       },
       "Action": ["sts:AssumeRole", "sts:AssumeRoleWithWebIdentity"],
