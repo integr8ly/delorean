@@ -355,7 +355,7 @@ func (c *RDS) AddTagsToResourceRequest(input *AddTagsToResourceInput) (req *requ
 //
 //   * ErrCodeDBProxyNotFoundFault "DBProxyNotFoundFault"
 //   The specified proxy name doesn't correspond to a proxy owned by your AWS
-//   accoutn in the specified AWS Region.
+//   account in the specified AWS Region.
 //
 //   * ErrCodeDBProxyTargetGroupNotFoundFault "DBProxyTargetGroupNotFoundFault"
 //   The specified target group isn't available for a proxy owned by your AWS
@@ -1113,7 +1113,7 @@ func (c *RDS) CopyDBSnapshotRequest(input *CopyDBSnapshotInput) (req *request.Re
 
 // CopyDBSnapshot API operation for Amazon Relational Database Service.
 //
-// Copies the specified DB snapshot. The source DB snapshot must be in the "available"
+// Copies the specified DB snapshot. The source DB snapshot must be in the available
 // state.
 //
 // You can copy a snapshot from one AWS Region to another. In that case, the
@@ -2236,10 +2236,6 @@ func (c *RDS) CreateDBProxyRequest(input *CreateDBProxyInput) (req *request.Requ
 
 // CreateDBProxy API operation for Amazon Relational Database Service.
 //
-//
-// This is prerelease documentation for the RDS Database Proxy feature in preview
-// release. It is subject to change.
-//
 // Creates a new DB proxy.
 //
 // Returns awserr.Error for service API and SDK errors. Use runtime type assertions
@@ -2419,7 +2415,8 @@ func (c *RDS) CreateDBSnapshotRequest(input *CreateDBSnapshotInput) (req *reques
 
 // CreateDBSnapshot API operation for Amazon Relational Database Service.
 //
-// Creates a DBSnapshot. The source DBInstance must be in "available" state.
+// Creates a snapshot of a DB instance. The source DB instance must be in the
+// available or storage-optimizationstate.
 //
 // Returns awserr.Error for service API and SDK errors. Use runtime type assertions
 // with awserr.Error's Code and Message methods to get detailed information about
@@ -2608,11 +2605,12 @@ func (c *RDS) CreateEventSubscriptionRequest(input *CreateEventSubscriptionInput
 // or the SNS API. To obtain an ARN with SNS, you must create a topic in Amazon
 // SNS and subscribe to the topic. The ARN is displayed in the SNS console.
 //
-// You can specify the type of source (SourceType) you want to be notified of,
-// provide a list of RDS sources (SourceIds) that triggers the events, and provide
-// a list of event categories (EventCategories) for events you want to be notified
-// of. For example, you can specify SourceType = db-instance, SourceIds = mydbinstance1,
-// mydbinstance2 and EventCategories = Availability, Backup.
+// You can specify the type of source (SourceType) that you want to be notified
+// of and provide a list of RDS sources (SourceIds) that triggers the events.
+// You can also provide a list of event categories (EventCategories) for events
+// that you want to be notified of. For example, you can specify SourceType
+// = db-instance, SourceIds = mydbinstance1, mydbinstance2 and EventCategories
+// = Availability, Backup.
 //
 // If you specify both the SourceType and SourceIds, such as SourceType = db-instance
 // and SourceIdentifier = myDBInstance1, you are notified of all the db-instance
@@ -2720,9 +2718,9 @@ func (c *RDS) CreateGlobalClusterRequest(input *CreateGlobalClusterInput) (req *
 
 // CreateGlobalCluster API operation for Amazon Relational Database Service.
 //
-// Creates an Aurora global database spread across multiple regions. The global
-// database contains a single primary cluster with read-write capability, and
-// a read-only secondary cluster that receives data from the primary cluster
+// Creates an Aurora global database spread across multiple AWS Regions. The
+// global database contains a single primary cluster with read-write capability,
+// and a read-only secondary cluster that receives data from the primary cluster
 // through high-speed replication performed by the Aurora storage subsystem.
 //
 // You can create a global database that is initially empty, and then add a
@@ -3645,10 +3643,6 @@ func (c *RDS) DeleteDBProxyRequest(input *DeleteDBProxyInput) (req *request.Requ
 
 // DeleteDBProxy API operation for Amazon Relational Database Service.
 //
-//
-// This is prerelease documentation for the RDS Database Proxy feature in preview
-// release. It is subject to change.
-//
 // Deletes an existing proxy.
 //
 // Returns awserr.Error for service API and SDK errors. Use runtime type assertions
@@ -3661,7 +3655,7 @@ func (c *RDS) DeleteDBProxyRequest(input *DeleteDBProxyInput) (req *request.Requ
 // Returned Error Codes:
 //   * ErrCodeDBProxyNotFoundFault "DBProxyNotFoundFault"
 //   The specified proxy name doesn't correspond to a proxy owned by your AWS
-//   accoutn in the specified AWS Region.
+//   account in the specified AWS Region.
 //
 //   * ErrCodeInvalidDBProxyStateFault "InvalidDBProxyStateFault"
 //   The requested operation can't be performed while the proxy is in this state.
@@ -4320,10 +4314,6 @@ func (c *RDS) DeregisterDBProxyTargetsRequest(input *DeregisterDBProxyTargetsInp
 
 // DeregisterDBProxyTargets API operation for Amazon Relational Database Service.
 //
-//
-// This is prerelease documentation for the RDS Database Proxy feature in preview
-// release. It is subject to change.
-//
 // Remove the association between one or more DBProxyTarget data structures
 // and a DBProxyTargetGroup.
 //
@@ -4345,7 +4335,7 @@ func (c *RDS) DeregisterDBProxyTargetsRequest(input *DeregisterDBProxyTargetsInp
 //
 //   * ErrCodeDBProxyNotFoundFault "DBProxyNotFoundFault"
 //   The specified proxy name doesn't correspond to a proxy owned by your AWS
-//   accoutn in the specified AWS Region.
+//   account in the specified AWS Region.
 //
 //   * ErrCodeInvalidDBProxyStateFault "InvalidDBProxyStateFault"
 //   The requested operation can't be performed while the proxy is in this state.
@@ -4482,6 +4472,12 @@ func (c *RDS) DescribeCertificatesRequest(input *DescribeCertificatesInput) (req
 		Name:       opDescribeCertificates,
 		HTTPMethod: "POST",
 		HTTPPath:   "/",
+		Paginator: &request.Paginator{
+			InputTokens:     []string{"Marker"},
+			OutputTokens:    []string{"Marker"},
+			LimitToken:      "MaxRecords",
+			TruncationToken: "",
+		},
 	}
 
 	if input == nil {
@@ -4528,6 +4524,58 @@ func (c *RDS) DescribeCertificatesWithContext(ctx aws.Context, input *DescribeCe
 	req.SetContext(ctx)
 	req.ApplyOptions(opts...)
 	return out, req.Send()
+}
+
+// DescribeCertificatesPages iterates over the pages of a DescribeCertificates operation,
+// calling the "fn" function with the response data for each page. To stop
+// iterating, return false from the fn function.
+//
+// See DescribeCertificates method for more information on how to use this operation.
+//
+// Note: This operation can generate multiple requests to a service.
+//
+//    // Example iterating over at most 3 pages of a DescribeCertificates operation.
+//    pageNum := 0
+//    err := client.DescribeCertificatesPages(params,
+//        func(page *rds.DescribeCertificatesOutput, lastPage bool) bool {
+//            pageNum++
+//            fmt.Println(page)
+//            return pageNum <= 3
+//        })
+//
+func (c *RDS) DescribeCertificatesPages(input *DescribeCertificatesInput, fn func(*DescribeCertificatesOutput, bool) bool) error {
+	return c.DescribeCertificatesPagesWithContext(aws.BackgroundContext(), input, fn)
+}
+
+// DescribeCertificatesPagesWithContext same as DescribeCertificatesPages except
+// it takes a Context and allows setting request options on the pages.
+//
+// The context must be non-nil and will be used for request cancellation. If
+// the context is nil a panic will occur. In the future the SDK may create
+// sub-contexts for http.Requests. See https://golang.org/pkg/context/
+// for more information on using Contexts.
+func (c *RDS) DescribeCertificatesPagesWithContext(ctx aws.Context, input *DescribeCertificatesInput, fn func(*DescribeCertificatesOutput, bool) bool, opts ...request.Option) error {
+	p := request.Pagination{
+		NewRequest: func() (*request.Request, error) {
+			var inCpy *DescribeCertificatesInput
+			if input != nil {
+				tmp := *input
+				inCpy = &tmp
+			}
+			req, _ := c.DescribeCertificatesRequest(inCpy)
+			req.SetContext(ctx)
+			req.ApplyOptions(opts...)
+			return req, nil
+		},
+	}
+
+	for p.Next() {
+		if !fn(p.Page().(*DescribeCertificatesOutput), !p.HasNextPage()) {
+			break
+		}
+	}
+
+	return p.Err()
 }
 
 const opDescribeCustomAvailabilityZones = "DescribeCustomAvailabilityZones"
@@ -4705,6 +4753,12 @@ func (c *RDS) DescribeDBClusterBacktracksRequest(input *DescribeDBClusterBacktra
 		Name:       opDescribeDBClusterBacktracks,
 		HTTPMethod: "POST",
 		HTTPPath:   "/",
+		Paginator: &request.Paginator{
+			InputTokens:     []string{"Marker"},
+			OutputTokens:    []string{"Marker"},
+			LimitToken:      "MaxRecords",
+			TruncationToken: "",
+		},
 	}
 
 	if input == nil {
@@ -4761,6 +4815,58 @@ func (c *RDS) DescribeDBClusterBacktracksWithContext(ctx aws.Context, input *Des
 	return out, req.Send()
 }
 
+// DescribeDBClusterBacktracksPages iterates over the pages of a DescribeDBClusterBacktracks operation,
+// calling the "fn" function with the response data for each page. To stop
+// iterating, return false from the fn function.
+//
+// See DescribeDBClusterBacktracks method for more information on how to use this operation.
+//
+// Note: This operation can generate multiple requests to a service.
+//
+//    // Example iterating over at most 3 pages of a DescribeDBClusterBacktracks operation.
+//    pageNum := 0
+//    err := client.DescribeDBClusterBacktracksPages(params,
+//        func(page *rds.DescribeDBClusterBacktracksOutput, lastPage bool) bool {
+//            pageNum++
+//            fmt.Println(page)
+//            return pageNum <= 3
+//        })
+//
+func (c *RDS) DescribeDBClusterBacktracksPages(input *DescribeDBClusterBacktracksInput, fn func(*DescribeDBClusterBacktracksOutput, bool) bool) error {
+	return c.DescribeDBClusterBacktracksPagesWithContext(aws.BackgroundContext(), input, fn)
+}
+
+// DescribeDBClusterBacktracksPagesWithContext same as DescribeDBClusterBacktracksPages except
+// it takes a Context and allows setting request options on the pages.
+//
+// The context must be non-nil and will be used for request cancellation. If
+// the context is nil a panic will occur. In the future the SDK may create
+// sub-contexts for http.Requests. See https://golang.org/pkg/context/
+// for more information on using Contexts.
+func (c *RDS) DescribeDBClusterBacktracksPagesWithContext(ctx aws.Context, input *DescribeDBClusterBacktracksInput, fn func(*DescribeDBClusterBacktracksOutput, bool) bool, opts ...request.Option) error {
+	p := request.Pagination{
+		NewRequest: func() (*request.Request, error) {
+			var inCpy *DescribeDBClusterBacktracksInput
+			if input != nil {
+				tmp := *input
+				inCpy = &tmp
+			}
+			req, _ := c.DescribeDBClusterBacktracksRequest(inCpy)
+			req.SetContext(ctx)
+			req.ApplyOptions(opts...)
+			return req, nil
+		},
+	}
+
+	for p.Next() {
+		if !fn(p.Page().(*DescribeDBClusterBacktracksOutput), !p.HasNextPage()) {
+			break
+		}
+	}
+
+	return p.Err()
+}
+
 const opDescribeDBClusterEndpoints = "DescribeDBClusterEndpoints"
 
 // DescribeDBClusterEndpointsRequest generates a "aws/request.Request" representing the
@@ -4792,6 +4898,12 @@ func (c *RDS) DescribeDBClusterEndpointsRequest(input *DescribeDBClusterEndpoint
 		Name:       opDescribeDBClusterEndpoints,
 		HTTPMethod: "POST",
 		HTTPPath:   "/",
+		Paginator: &request.Paginator{
+			InputTokens:     []string{"Marker"},
+			OutputTokens:    []string{"Marker"},
+			LimitToken:      "MaxRecords",
+			TruncationToken: "",
+		},
 	}
 
 	if input == nil {
@@ -4842,6 +4954,58 @@ func (c *RDS) DescribeDBClusterEndpointsWithContext(ctx aws.Context, input *Desc
 	return out, req.Send()
 }
 
+// DescribeDBClusterEndpointsPages iterates over the pages of a DescribeDBClusterEndpoints operation,
+// calling the "fn" function with the response data for each page. To stop
+// iterating, return false from the fn function.
+//
+// See DescribeDBClusterEndpoints method for more information on how to use this operation.
+//
+// Note: This operation can generate multiple requests to a service.
+//
+//    // Example iterating over at most 3 pages of a DescribeDBClusterEndpoints operation.
+//    pageNum := 0
+//    err := client.DescribeDBClusterEndpointsPages(params,
+//        func(page *rds.DescribeDBClusterEndpointsOutput, lastPage bool) bool {
+//            pageNum++
+//            fmt.Println(page)
+//            return pageNum <= 3
+//        })
+//
+func (c *RDS) DescribeDBClusterEndpointsPages(input *DescribeDBClusterEndpointsInput, fn func(*DescribeDBClusterEndpointsOutput, bool) bool) error {
+	return c.DescribeDBClusterEndpointsPagesWithContext(aws.BackgroundContext(), input, fn)
+}
+
+// DescribeDBClusterEndpointsPagesWithContext same as DescribeDBClusterEndpointsPages except
+// it takes a Context and allows setting request options on the pages.
+//
+// The context must be non-nil and will be used for request cancellation. If
+// the context is nil a panic will occur. In the future the SDK may create
+// sub-contexts for http.Requests. See https://golang.org/pkg/context/
+// for more information on using Contexts.
+func (c *RDS) DescribeDBClusterEndpointsPagesWithContext(ctx aws.Context, input *DescribeDBClusterEndpointsInput, fn func(*DescribeDBClusterEndpointsOutput, bool) bool, opts ...request.Option) error {
+	p := request.Pagination{
+		NewRequest: func() (*request.Request, error) {
+			var inCpy *DescribeDBClusterEndpointsInput
+			if input != nil {
+				tmp := *input
+				inCpy = &tmp
+			}
+			req, _ := c.DescribeDBClusterEndpointsRequest(inCpy)
+			req.SetContext(ctx)
+			req.ApplyOptions(opts...)
+			return req, nil
+		},
+	}
+
+	for p.Next() {
+		if !fn(p.Page().(*DescribeDBClusterEndpointsOutput), !p.HasNextPage()) {
+			break
+		}
+	}
+
+	return p.Err()
+}
+
 const opDescribeDBClusterParameterGroups = "DescribeDBClusterParameterGroups"
 
 // DescribeDBClusterParameterGroupsRequest generates a "aws/request.Request" representing the
@@ -4873,6 +5037,12 @@ func (c *RDS) DescribeDBClusterParameterGroupsRequest(input *DescribeDBClusterPa
 		Name:       opDescribeDBClusterParameterGroups,
 		HTTPMethod: "POST",
 		HTTPPath:   "/",
+		Paginator: &request.Paginator{
+			InputTokens:     []string{"Marker"},
+			OutputTokens:    []string{"Marker"},
+			LimitToken:      "MaxRecords",
+			TruncationToken: "",
+		},
 	}
 
 	if input == nil {
@@ -4928,6 +5098,58 @@ func (c *RDS) DescribeDBClusterParameterGroupsWithContext(ctx aws.Context, input
 	return out, req.Send()
 }
 
+// DescribeDBClusterParameterGroupsPages iterates over the pages of a DescribeDBClusterParameterGroups operation,
+// calling the "fn" function with the response data for each page. To stop
+// iterating, return false from the fn function.
+//
+// See DescribeDBClusterParameterGroups method for more information on how to use this operation.
+//
+// Note: This operation can generate multiple requests to a service.
+//
+//    // Example iterating over at most 3 pages of a DescribeDBClusterParameterGroups operation.
+//    pageNum := 0
+//    err := client.DescribeDBClusterParameterGroupsPages(params,
+//        func(page *rds.DescribeDBClusterParameterGroupsOutput, lastPage bool) bool {
+//            pageNum++
+//            fmt.Println(page)
+//            return pageNum <= 3
+//        })
+//
+func (c *RDS) DescribeDBClusterParameterGroupsPages(input *DescribeDBClusterParameterGroupsInput, fn func(*DescribeDBClusterParameterGroupsOutput, bool) bool) error {
+	return c.DescribeDBClusterParameterGroupsPagesWithContext(aws.BackgroundContext(), input, fn)
+}
+
+// DescribeDBClusterParameterGroupsPagesWithContext same as DescribeDBClusterParameterGroupsPages except
+// it takes a Context and allows setting request options on the pages.
+//
+// The context must be non-nil and will be used for request cancellation. If
+// the context is nil a panic will occur. In the future the SDK may create
+// sub-contexts for http.Requests. See https://golang.org/pkg/context/
+// for more information on using Contexts.
+func (c *RDS) DescribeDBClusterParameterGroupsPagesWithContext(ctx aws.Context, input *DescribeDBClusterParameterGroupsInput, fn func(*DescribeDBClusterParameterGroupsOutput, bool) bool, opts ...request.Option) error {
+	p := request.Pagination{
+		NewRequest: func() (*request.Request, error) {
+			var inCpy *DescribeDBClusterParameterGroupsInput
+			if input != nil {
+				tmp := *input
+				inCpy = &tmp
+			}
+			req, _ := c.DescribeDBClusterParameterGroupsRequest(inCpy)
+			req.SetContext(ctx)
+			req.ApplyOptions(opts...)
+			return req, nil
+		},
+	}
+
+	for p.Next() {
+		if !fn(p.Page().(*DescribeDBClusterParameterGroupsOutput), !p.HasNextPage()) {
+			break
+		}
+	}
+
+	return p.Err()
+}
+
 const opDescribeDBClusterParameters = "DescribeDBClusterParameters"
 
 // DescribeDBClusterParametersRequest generates a "aws/request.Request" representing the
@@ -4959,6 +5181,12 @@ func (c *RDS) DescribeDBClusterParametersRequest(input *DescribeDBClusterParamet
 		Name:       opDescribeDBClusterParameters,
 		HTTPMethod: "POST",
 		HTTPPath:   "/",
+		Paginator: &request.Paginator{
+			InputTokens:     []string{"Marker"},
+			OutputTokens:    []string{"Marker"},
+			LimitToken:      "MaxRecords",
+			TruncationToken: "",
+		},
 	}
 
 	if input == nil {
@@ -5011,6 +5239,58 @@ func (c *RDS) DescribeDBClusterParametersWithContext(ctx aws.Context, input *Des
 	req.SetContext(ctx)
 	req.ApplyOptions(opts...)
 	return out, req.Send()
+}
+
+// DescribeDBClusterParametersPages iterates over the pages of a DescribeDBClusterParameters operation,
+// calling the "fn" function with the response data for each page. To stop
+// iterating, return false from the fn function.
+//
+// See DescribeDBClusterParameters method for more information on how to use this operation.
+//
+// Note: This operation can generate multiple requests to a service.
+//
+//    // Example iterating over at most 3 pages of a DescribeDBClusterParameters operation.
+//    pageNum := 0
+//    err := client.DescribeDBClusterParametersPages(params,
+//        func(page *rds.DescribeDBClusterParametersOutput, lastPage bool) bool {
+//            pageNum++
+//            fmt.Println(page)
+//            return pageNum <= 3
+//        })
+//
+func (c *RDS) DescribeDBClusterParametersPages(input *DescribeDBClusterParametersInput, fn func(*DescribeDBClusterParametersOutput, bool) bool) error {
+	return c.DescribeDBClusterParametersPagesWithContext(aws.BackgroundContext(), input, fn)
+}
+
+// DescribeDBClusterParametersPagesWithContext same as DescribeDBClusterParametersPages except
+// it takes a Context and allows setting request options on the pages.
+//
+// The context must be non-nil and will be used for request cancellation. If
+// the context is nil a panic will occur. In the future the SDK may create
+// sub-contexts for http.Requests. See https://golang.org/pkg/context/
+// for more information on using Contexts.
+func (c *RDS) DescribeDBClusterParametersPagesWithContext(ctx aws.Context, input *DescribeDBClusterParametersInput, fn func(*DescribeDBClusterParametersOutput, bool) bool, opts ...request.Option) error {
+	p := request.Pagination{
+		NewRequest: func() (*request.Request, error) {
+			var inCpy *DescribeDBClusterParametersInput
+			if input != nil {
+				tmp := *input
+				inCpy = &tmp
+			}
+			req, _ := c.DescribeDBClusterParametersRequest(inCpy)
+			req.SetContext(ctx)
+			req.ApplyOptions(opts...)
+			return req, nil
+		},
+	}
+
+	for p.Next() {
+		if !fn(p.Page().(*DescribeDBClusterParametersOutput), !p.HasNextPage()) {
+			break
+		}
+	}
+
+	return p.Err()
 }
 
 const opDescribeDBClusterSnapshotAttributes = "DescribeDBClusterSnapshotAttributes"
@@ -5136,6 +5416,12 @@ func (c *RDS) DescribeDBClusterSnapshotsRequest(input *DescribeDBClusterSnapshot
 		Name:       opDescribeDBClusterSnapshots,
 		HTTPMethod: "POST",
 		HTTPPath:   "/",
+		Paginator: &request.Paginator{
+			InputTokens:     []string{"Marker"},
+			OutputTokens:    []string{"Marker"},
+			LimitToken:      "MaxRecords",
+			TruncationToken: "",
+		},
 	}
 
 	if input == nil {
@@ -5188,6 +5474,58 @@ func (c *RDS) DescribeDBClusterSnapshotsWithContext(ctx aws.Context, input *Desc
 	req.SetContext(ctx)
 	req.ApplyOptions(opts...)
 	return out, req.Send()
+}
+
+// DescribeDBClusterSnapshotsPages iterates over the pages of a DescribeDBClusterSnapshots operation,
+// calling the "fn" function with the response data for each page. To stop
+// iterating, return false from the fn function.
+//
+// See DescribeDBClusterSnapshots method for more information on how to use this operation.
+//
+// Note: This operation can generate multiple requests to a service.
+//
+//    // Example iterating over at most 3 pages of a DescribeDBClusterSnapshots operation.
+//    pageNum := 0
+//    err := client.DescribeDBClusterSnapshotsPages(params,
+//        func(page *rds.DescribeDBClusterSnapshotsOutput, lastPage bool) bool {
+//            pageNum++
+//            fmt.Println(page)
+//            return pageNum <= 3
+//        })
+//
+func (c *RDS) DescribeDBClusterSnapshotsPages(input *DescribeDBClusterSnapshotsInput, fn func(*DescribeDBClusterSnapshotsOutput, bool) bool) error {
+	return c.DescribeDBClusterSnapshotsPagesWithContext(aws.BackgroundContext(), input, fn)
+}
+
+// DescribeDBClusterSnapshotsPagesWithContext same as DescribeDBClusterSnapshotsPages except
+// it takes a Context and allows setting request options on the pages.
+//
+// The context must be non-nil and will be used for request cancellation. If
+// the context is nil a panic will occur. In the future the SDK may create
+// sub-contexts for http.Requests. See https://golang.org/pkg/context/
+// for more information on using Contexts.
+func (c *RDS) DescribeDBClusterSnapshotsPagesWithContext(ctx aws.Context, input *DescribeDBClusterSnapshotsInput, fn func(*DescribeDBClusterSnapshotsOutput, bool) bool, opts ...request.Option) error {
+	p := request.Pagination{
+		NewRequest: func() (*request.Request, error) {
+			var inCpy *DescribeDBClusterSnapshotsInput
+			if input != nil {
+				tmp := *input
+				inCpy = &tmp
+			}
+			req, _ := c.DescribeDBClusterSnapshotsRequest(inCpy)
+			req.SetContext(ctx)
+			req.ApplyOptions(opts...)
+			return req, nil
+		},
+	}
+
+	for p.Next() {
+		if !fn(p.Page().(*DescribeDBClusterSnapshotsOutput), !p.HasNextPage()) {
+			break
+		}
+	}
+
+	return p.Err()
 }
 
 const opDescribeDBClusters = "DescribeDBClusters"
@@ -6212,10 +6550,6 @@ func (c *RDS) DescribeDBProxiesRequest(input *DescribeDBProxiesInput) (req *requ
 
 // DescribeDBProxies API operation for Amazon Relational Database Service.
 //
-//
-// This is prerelease documentation for the RDS Database Proxy feature in preview
-// release. It is subject to change.
-//
 // Returns information about DB proxies.
 //
 // Returns awserr.Error for service API and SDK errors. Use runtime type assertions
@@ -6228,7 +6562,7 @@ func (c *RDS) DescribeDBProxiesRequest(input *DescribeDBProxiesInput) (req *requ
 // Returned Error Codes:
 //   * ErrCodeDBProxyNotFoundFault "DBProxyNotFoundFault"
 //   The specified proxy name doesn't correspond to a proxy owned by your AWS
-//   accoutn in the specified AWS Region.
+//   account in the specified AWS Region.
 //
 // See also, https://docs.aws.amazon.com/goto/WebAPI/rds-2014-10-31/DescribeDBProxies
 func (c *RDS) DescribeDBProxies(input *DescribeDBProxiesInput) (*DescribeDBProxiesOutput, error) {
@@ -6354,10 +6688,6 @@ func (c *RDS) DescribeDBProxyTargetGroupsRequest(input *DescribeDBProxyTargetGro
 
 // DescribeDBProxyTargetGroups API operation for Amazon Relational Database Service.
 //
-//
-// This is prerelease documentation for the RDS Database Proxy feature in preview
-// release. It is subject to change.
-//
 // Returns information about DB proxy target groups, represented by DBProxyTargetGroup
 // data structures.
 //
@@ -6371,7 +6701,7 @@ func (c *RDS) DescribeDBProxyTargetGroupsRequest(input *DescribeDBProxyTargetGro
 // Returned Error Codes:
 //   * ErrCodeDBProxyNotFoundFault "DBProxyNotFoundFault"
 //   The specified proxy name doesn't correspond to a proxy owned by your AWS
-//   accoutn in the specified AWS Region.
+//   account in the specified AWS Region.
 //
 //   * ErrCodeDBProxyTargetGroupNotFoundFault "DBProxyTargetGroupNotFoundFault"
 //   The specified target group isn't available for a proxy owned by your AWS
@@ -6504,10 +6834,6 @@ func (c *RDS) DescribeDBProxyTargetsRequest(input *DescribeDBProxyTargetsInput) 
 
 // DescribeDBProxyTargets API operation for Amazon Relational Database Service.
 //
-//
-// This is prerelease documentation for the RDS Database Proxy feature in preview
-// release. It is subject to change.
-//
 // Returns information about DBProxyTarget objects. This API supports pagination.
 //
 // Returns awserr.Error for service API and SDK errors. Use runtime type assertions
@@ -6520,7 +6846,7 @@ func (c *RDS) DescribeDBProxyTargetsRequest(input *DescribeDBProxyTargetsInput) 
 // Returned Error Codes:
 //   * ErrCodeDBProxyNotFoundFault "DBProxyNotFoundFault"
 //   The specified proxy name doesn't correspond to a proxy owned by your AWS
-//   accoutn in the specified AWS Region.
+//   account in the specified AWS Region.
 //
 //   * ErrCodeDBProxyTargetNotFoundFault "DBProxyTargetNotFoundFault"
 //   The specified RDS DB instance or Aurora DB cluster isn't available for a
@@ -7370,8 +7696,8 @@ func (c *RDS) DescribeEventCategoriesRequest(input *DescribeEventCategoriesInput
 //
 // Displays a list of categories for all event source types, or, if specified,
 // for a specified source type. You can see a list of the event categories and
-// source types in the Events (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_Events.html)
-// topic in the Amazon RDS User Guide.
+// source types in Events (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_Events.html)
+// in the Amazon RDS User Guide.
 //
 // Returns awserr.Error for service API and SDK errors. Use runtime type assertions
 // with awserr.Error's Code and Message methods to get detailed information about
@@ -7592,11 +7918,13 @@ func (c *RDS) DescribeEventsRequest(input *DescribeEventsInput) (req *request.Re
 
 // DescribeEvents API operation for Amazon Relational Database Service.
 //
-// Returns events related to DB instances, DB security groups, DB snapshots,
-// and DB parameter groups for the past 14 days. Events specific to a particular
-// DB instance, DB security group, database snapshot, or DB parameter group
-// can be obtained by providing the name as a parameter. By default, the past
-// hour of events are returned.
+// Returns events related to DB instances, DB clusters, DB parameter groups,
+// DB security groups, DB snapshots, and DB cluster snapshots for the past 14
+// days. Events specific to a particular DB instances, DB clusters, DB parameter
+// groups, DB security groups, DB snapshots, and DB cluster snapshots group
+// can be obtained by providing the name as a parameter.
+//
+// By default, the past hour of events are returned.
 //
 // Returns awserr.Error for service API and SDK errors. Use runtime type assertions
 // with awserr.Error's Code and Message methods to get detailed information about
@@ -8528,6 +8856,12 @@ func (c *RDS) DescribePendingMaintenanceActionsRequest(input *DescribePendingMai
 		Name:       opDescribePendingMaintenanceActions,
 		HTTPMethod: "POST",
 		HTTPPath:   "/",
+		Paginator: &request.Paginator{
+			InputTokens:     []string{"Marker"},
+			OutputTokens:    []string{"Marker"},
+			LimitToken:      "MaxRecords",
+			TruncationToken: "",
+		},
 	}
 
 	if input == nil {
@@ -8575,6 +8909,58 @@ func (c *RDS) DescribePendingMaintenanceActionsWithContext(ctx aws.Context, inpu
 	req.SetContext(ctx)
 	req.ApplyOptions(opts...)
 	return out, req.Send()
+}
+
+// DescribePendingMaintenanceActionsPages iterates over the pages of a DescribePendingMaintenanceActions operation,
+// calling the "fn" function with the response data for each page. To stop
+// iterating, return false from the fn function.
+//
+// See DescribePendingMaintenanceActions method for more information on how to use this operation.
+//
+// Note: This operation can generate multiple requests to a service.
+//
+//    // Example iterating over at most 3 pages of a DescribePendingMaintenanceActions operation.
+//    pageNum := 0
+//    err := client.DescribePendingMaintenanceActionsPages(params,
+//        func(page *rds.DescribePendingMaintenanceActionsOutput, lastPage bool) bool {
+//            pageNum++
+//            fmt.Println(page)
+//            return pageNum <= 3
+//        })
+//
+func (c *RDS) DescribePendingMaintenanceActionsPages(input *DescribePendingMaintenanceActionsInput, fn func(*DescribePendingMaintenanceActionsOutput, bool) bool) error {
+	return c.DescribePendingMaintenanceActionsPagesWithContext(aws.BackgroundContext(), input, fn)
+}
+
+// DescribePendingMaintenanceActionsPagesWithContext same as DescribePendingMaintenanceActionsPages except
+// it takes a Context and allows setting request options on the pages.
+//
+// The context must be non-nil and will be used for request cancellation. If
+// the context is nil a panic will occur. In the future the SDK may create
+// sub-contexts for http.Requests. See https://golang.org/pkg/context/
+// for more information on using Contexts.
+func (c *RDS) DescribePendingMaintenanceActionsPagesWithContext(ctx aws.Context, input *DescribePendingMaintenanceActionsInput, fn func(*DescribePendingMaintenanceActionsOutput, bool) bool, opts ...request.Option) error {
+	p := request.Pagination{
+		NewRequest: func() (*request.Request, error) {
+			var inCpy *DescribePendingMaintenanceActionsInput
+			if input != nil {
+				tmp := *input
+				inCpy = &tmp
+			}
+			req, _ := c.DescribePendingMaintenanceActionsRequest(inCpy)
+			req.SetContext(ctx)
+			req.ApplyOptions(opts...)
+			return req, nil
+		},
+	}
+
+	for p.Next() {
+		if !fn(p.Page().(*DescribePendingMaintenanceActionsOutput), !p.HasNextPage()) {
+			break
+		}
+	}
+
+	return p.Err()
 }
 
 const opDescribeReservedDBInstances = "DescribeReservedDBInstances"
@@ -8883,6 +9269,12 @@ func (c *RDS) DescribeSourceRegionsRequest(input *DescribeSourceRegionsInput) (r
 		Name:       opDescribeSourceRegions,
 		HTTPMethod: "POST",
 		HTTPPath:   "/",
+		Paginator: &request.Paginator{
+			InputTokens:     []string{"Marker"},
+			OutputTokens:    []string{"Marker"},
+			LimitToken:      "MaxRecords",
+			TruncationToken: "",
+		},
 	}
 
 	if input == nil {
@@ -8926,6 +9318,58 @@ func (c *RDS) DescribeSourceRegionsWithContext(ctx aws.Context, input *DescribeS
 	req.SetContext(ctx)
 	req.ApplyOptions(opts...)
 	return out, req.Send()
+}
+
+// DescribeSourceRegionsPages iterates over the pages of a DescribeSourceRegions operation,
+// calling the "fn" function with the response data for each page. To stop
+// iterating, return false from the fn function.
+//
+// See DescribeSourceRegions method for more information on how to use this operation.
+//
+// Note: This operation can generate multiple requests to a service.
+//
+//    // Example iterating over at most 3 pages of a DescribeSourceRegions operation.
+//    pageNum := 0
+//    err := client.DescribeSourceRegionsPages(params,
+//        func(page *rds.DescribeSourceRegionsOutput, lastPage bool) bool {
+//            pageNum++
+//            fmt.Println(page)
+//            return pageNum <= 3
+//        })
+//
+func (c *RDS) DescribeSourceRegionsPages(input *DescribeSourceRegionsInput, fn func(*DescribeSourceRegionsOutput, bool) bool) error {
+	return c.DescribeSourceRegionsPagesWithContext(aws.BackgroundContext(), input, fn)
+}
+
+// DescribeSourceRegionsPagesWithContext same as DescribeSourceRegionsPages except
+// it takes a Context and allows setting request options on the pages.
+//
+// The context must be non-nil and will be used for request cancellation. If
+// the context is nil a panic will occur. In the future the SDK may create
+// sub-contexts for http.Requests. See https://golang.org/pkg/context/
+// for more information on using Contexts.
+func (c *RDS) DescribeSourceRegionsPagesWithContext(ctx aws.Context, input *DescribeSourceRegionsInput, fn func(*DescribeSourceRegionsOutput, bool) bool, opts ...request.Option) error {
+	p := request.Pagination{
+		NewRequest: func() (*request.Request, error) {
+			var inCpy *DescribeSourceRegionsInput
+			if input != nil {
+				tmp := *input
+				inCpy = &tmp
+			}
+			req, _ := c.DescribeSourceRegionsRequest(inCpy)
+			req.SetContext(ctx)
+			req.ApplyOptions(opts...)
+			return req, nil
+		},
+	}
+
+	for p.Next() {
+		if !fn(p.Page().(*DescribeSourceRegionsOutput), !p.HasNextPage()) {
+			break
+		}
+	}
+
+	return p.Err()
 }
 
 const opDescribeValidDBInstanceModifications = "DescribeValidDBInstanceModifications"
@@ -9405,7 +9849,7 @@ func (c *RDS) ListTagsForResourceRequest(input *ListTagsForResourceInput) (req *
 //
 //   * ErrCodeDBProxyNotFoundFault "DBProxyNotFoundFault"
 //   The specified proxy name doesn't correspond to a proxy owned by your AWS
-//   accoutn in the specified AWS Region.
+//   account in the specified AWS Region.
 //
 //   * ErrCodeDBProxyTargetGroupNotFoundFault "DBProxyTargetGroupNotFoundFault"
 //   The specified target group isn't available for a proxy owned by your AWS
@@ -10194,6 +10638,12 @@ func (c *RDS) ModifyDBInstanceRequest(input *ModifyDBInstanceInput) (req *reques
 //
 //   * ErrCodeBackupPolicyNotFoundFault "BackupPolicyNotFoundFault"
 //
+//   * ErrCodeKMSKeyNotAccessibleFault "KMSKeyNotAccessibleFault"
+//   An error occurred accessing an AWS KMS key.
+//
+//   * ErrCodeInvalidDBClusterStateFault "InvalidDBClusterStateFault"
+//   The requested operation can't be performed while the cluster is in this state.
+//
 // See also, https://docs.aws.amazon.com/goto/WebAPI/rds-2014-10-31/ModifyDBInstance
 func (c *RDS) ModifyDBInstance(input *ModifyDBInstanceInput) (*ModifyDBInstanceOutput, error) {
 	req, out := c.ModifyDBInstanceRequest(input)
@@ -10361,10 +10811,6 @@ func (c *RDS) ModifyDBProxyRequest(input *ModifyDBProxyInput) (req *request.Requ
 
 // ModifyDBProxy API operation for Amazon Relational Database Service.
 //
-//
-// This is prerelease documentation for the RDS Database Proxy feature in preview
-// release. It is subject to change.
-//
 // Changes the settings for an existing DB proxy.
 //
 // Returns awserr.Error for service API and SDK errors. Use runtime type assertions
@@ -10377,7 +10823,7 @@ func (c *RDS) ModifyDBProxyRequest(input *ModifyDBProxyInput) (req *request.Requ
 // Returned Error Codes:
 //   * ErrCodeDBProxyNotFoundFault "DBProxyNotFoundFault"
 //   The specified proxy name doesn't correspond to a proxy owned by your AWS
-//   accoutn in the specified AWS Region.
+//   account in the specified AWS Region.
 //
 //   * ErrCodeDBProxyAlreadyExistsFault "DBProxyTargetExistsFault"
 //   The specified proxy name must be unique for all proxies owned by your AWS
@@ -10452,10 +10898,6 @@ func (c *RDS) ModifyDBProxyTargetGroupRequest(input *ModifyDBProxyTargetGroupInp
 
 // ModifyDBProxyTargetGroup API operation for Amazon Relational Database Service.
 //
-//
-// This is prerelease documentation for the RDS Database Proxy feature in preview
-// release. It is subject to change.
-//
 // Modifies the properties of a DBProxyTargetGroup.
 //
 // Returns awserr.Error for service API and SDK errors. Use runtime type assertions
@@ -10468,7 +10910,7 @@ func (c *RDS) ModifyDBProxyTargetGroupRequest(input *ModifyDBProxyTargetGroupInp
 // Returned Error Codes:
 //   * ErrCodeDBProxyNotFoundFault "DBProxyNotFoundFault"
 //   The specified proxy name doesn't correspond to a proxy owned by your AWS
-//   accoutn in the specified AWS Region.
+//   account in the specified AWS Region.
 //
 //   * ErrCodeDBProxyTargetGroupNotFoundFault "DBProxyTargetGroupNotFoundFault"
 //   The specified target group isn't available for a proxy owned by your AWS
@@ -10829,10 +11271,9 @@ func (c *RDS) ModifyEventSubscriptionRequest(input *ModifyEventSubscriptionInput
 // a subscription, use the AddSourceIdentifierToSubscription and RemoveSourceIdentifierFromSubscription
 // calls.
 //
-// You can see a list of the event categories for a given SourceType in the
-// Events (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_Events.html)
-// topic in the Amazon RDS User Guide or by using the DescribeEventCategories
-// action.
+// You can see a list of the event categories for a given source type (SourceType)
+// in Events (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_Events.html)
+// in the Amazon RDS User Guide or by using the DescribeEventCategories operation.
 //
 // Returns awserr.Error for service API and SDK errors. Use runtime type assertions
 // with awserr.Error's Code and Message methods to get detailed information about
@@ -11448,10 +11889,6 @@ func (c *RDS) RegisterDBProxyTargetsRequest(input *RegisterDBProxyTargetsInput) 
 
 // RegisterDBProxyTargets API operation for Amazon Relational Database Service.
 //
-//
-// This is prerelease documentation for the RDS Database Proxy feature in preview
-// release. It is subject to change.
-//
 // Associate one or more DBProxyTarget data structures with a DBProxyTargetGroup.
 //
 // Returns awserr.Error for service API and SDK errors. Use runtime type assertions
@@ -11464,7 +11901,7 @@ func (c *RDS) RegisterDBProxyTargetsRequest(input *RegisterDBProxyTargetsInput) 
 // Returned Error Codes:
 //   * ErrCodeDBProxyNotFoundFault "DBProxyNotFoundFault"
 //   The specified proxy name doesn't correspond to a proxy owned by your AWS
-//   accoutn in the specified AWS Region.
+//   account in the specified AWS Region.
 //
 //   * ErrCodeDBProxyTargetGroupNotFoundFault "DBProxyTargetGroupNotFoundFault"
 //   The specified target group isn't available for a proxy owned by your AWS
@@ -11488,6 +11925,11 @@ func (c *RDS) RegisterDBProxyTargetsRequest(input *RegisterDBProxyTargetsInput) 
 //
 //   * ErrCodeInvalidDBProxyStateFault "InvalidDBProxyStateFault"
 //   The requested operation can't be performed while the proxy is in this state.
+//
+//   * ErrCodeInsufficientAvailableIPsInSubnetFault "InsufficientAvailableIPsInSubnetFault"
+//   The requested operation can't be performed because there aren't enough available
+//   IP addresses in the proxy's subnets. Add more CIDR blocks to the VPC or remove
+//   IP address that aren't required from the subnets.
 //
 // See also, https://docs.aws.amazon.com/goto/WebAPI/rds-2014-10-31/RegisterDBProxyTargets
 func (c *RDS) RegisterDBProxyTargets(input *RegisterDBProxyTargetsInput) (*RegisterDBProxyTargetsOutput, error) {
@@ -11931,7 +12373,7 @@ func (c *RDS) RemoveTagsFromResourceRequest(input *RemoveTagsFromResourceInput) 
 //
 //   * ErrCodeDBProxyNotFoundFault "DBProxyNotFoundFault"
 //   The specified proxy name doesn't correspond to a proxy owned by your AWS
-//   accoutn in the specified AWS Region.
+//   account in the specified AWS Region.
 //
 //   * ErrCodeDBProxyTargetGroupNotFoundFault "DBProxyTargetGroupNotFoundFault"
 //   The specified target group isn't available for a proxy owned by your AWS
@@ -12191,10 +12633,10 @@ func (c *RDS) RestoreDBClusterFromS3Request(input *RestoreDBClusterFromS3Input) 
 
 // RestoreDBClusterFromS3 API operation for Amazon Relational Database Service.
 //
-// Creates an Amazon Aurora DB cluster from data stored in an Amazon S3 bucket.
-// Amazon RDS must be authorized to access the Amazon S3 bucket and the data
-// must be created using the Percona XtraBackup utility as described in Migrating
-// Data to an Amazon Aurora MySQL DB Cluster (https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/AuroraMySQL.Migrating.html)
+// Creates an Amazon Aurora DB cluster from MySQL data stored in an Amazon S3
+// bucket. Amazon RDS must be authorized to access the Amazon S3 bucket and
+// the data must be created using the Percona XtraBackup utility as described
+// in Migrating Data from MySQL by Using an Amazon S3 Bucket (https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/AuroraMySQL.Migrating.ExtMySQL.html#AuroraMySQL.Migrating.ExtMySQL.S3)
 // in the Amazon Aurora User Guide.
 //
 // This action only restores the DB cluster, not the DB instances for that DB
@@ -12206,7 +12648,8 @@ func (c *RDS) RestoreDBClusterFromS3Request(input *RestoreDBClusterFromS3Input) 
 // For more information on Amazon Aurora, see What Is Amazon Aurora? (https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/CHAP_AuroraOverview.html)
 // in the Amazon Aurora User Guide.
 //
-// This action only applies to Aurora DB clusters.
+// This action only applies to Aurora DB clusters. The source DB engine must
+// be MySQL.
 //
 // Returns awserr.Error for service API and SDK errors. Use runtime type assertions
 // with awserr.Error's Code and Message methods to get detailed information about
@@ -13925,8 +14368,13 @@ func (c *RDS) StopDBInstanceWithContext(ctx aws.Context, input *StopDBInstanceIn
 //    * EventSubscriptions - The number of event subscriptions per account.
 //    The used value is the count of the event subscriptions in the account.
 //
-//    * ManualSnapshots - The number of manual DB snapshots per account. The
-//    used value is the count of the manual DB snapshots in the account.
+//    * ManualClusterSnapshots - The number of manual DB cluster snapshots per
+//    account. The used value is the count of the manual DB cluster snapshots
+//    in the account.
+//
+//    * ManualSnapshots - The number of manual DB instance snapshots per account.
+//    The used value is the count of the manual DB instance snapshots in the
+//    account.
 //
 //    * OptionGroups - The number of DB option groups per account, excluding
 //    default option groups. The used value is the count of nondefault DB option
@@ -14156,17 +14604,23 @@ type AddSourceIdentifierToSubscriptionInput struct {
 	//
 	// Constraints:
 	//
-	//    * If the source type is a DB instance, then a DBInstanceIdentifier must
+	//    * If the source type is a DB instance, a DBInstanceIdentifier value must
 	//    be supplied.
 	//
-	//    * If the source type is a DB security group, a DBSecurityGroupName must
+	//    * If the source type is a DB cluster, a DBClusterIdentifier value must
 	//    be supplied.
 	//
-	//    * If the source type is a DB parameter group, a DBParameterGroupName must
+	//    * If the source type is a DB parameter group, a DBParameterGroupName value
+	//    must be supplied.
+	//
+	//    * If the source type is a DB security group, a DBSecurityGroupName value
+	//    must be supplied.
+	//
+	//    * If the source type is a DB snapshot, a DBSnapshotIdentifier value must
 	//    be supplied.
 	//
-	//    * If the source type is a DB snapshot, a DBSnapshotIdentifier must be
-	//    supplied.
+	//    * If the source type is a DB cluster snapshot, a DBClusterSnapshotIdentifier
+	//    value must be supplied.
 	//
 	// SourceIdentifier is a required field
 	SourceIdentifier *string `type:"string" required:"true"`
@@ -15110,9 +15564,15 @@ func (s *CharacterSet) SetCharacterSetName(v string) *CharacterSet {
 //
 // The EnableLogTypes and DisableLogTypes arrays determine which logs will be
 // exported (or not exported) to CloudWatch Logs. The values within these arrays
-// depend on the DB engine being used. For more information, see Publishing
-// Database Logs to Amazon CloudWatch Logs (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_LogAccess.html#USER_LogAccess.Procedural.UploadtoCloudWatch)
+// depend on the DB engine being used.
+//
+// For more information about exporting CloudWatch Logs for Amazon RDS DB instances,
+// see Publishing Database Logs to Amazon CloudWatch Logs (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_LogAccess.html#USER_LogAccess.Procedural.UploadtoCloudWatch)
 // in the Amazon RDS User Guide.
+//
+// For more information about exporting CloudWatch Logs for Amazon Aurora DB
+// clusters, see Publishing Database Logs to Amazon CloudWatch Logs (https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/USER_LogAccess.html#USER_LogAccess.Procedural.UploadtoCloudWatch)
+// in the Amazon Aurora User Guide.
 type CloudwatchLogsExportConfiguration struct {
 	_ struct{} `type:"structure"`
 
@@ -15145,10 +15605,6 @@ func (s *CloudwatchLogsExportConfiguration) SetEnableLogTypes(v []*string) *Clou
 	return s
 }
 
-//
-// This is prerelease documentation for the RDS Database Proxy feature in preview
-// release. It is subject to change.
-//
 // Specifies the settings that control the size and behavior of the connection
 // pool associated with a DBProxyTargetGroup.
 type ConnectionPoolConfiguration struct {
@@ -15168,8 +15624,6 @@ type ConnectionPoolConfiguration struct {
 	// has identical settings such as time zone and character set. For multiple
 	// statements, use semicolons as the separator. You can also include multiple
 	// variables in a single SET statement, such as SET x=1, y=2.
-	//
-	// InitQuery is not currently supported for PostgreSQL.
 	//
 	// Default: no initialization query
 	InitQuery *string `type:"string"`
@@ -15244,10 +15698,6 @@ func (s *ConnectionPoolConfiguration) SetSessionPinningFilters(v []*string) *Con
 	return s
 }
 
-//
-// This is prerelease documentation for the RDS Database Proxy feature in preview
-// release. It is subject to change.
-//
 // Displays the settings that control the size and behavior of the connection
 // pool associated with a DBProxyTarget.
 type ConnectionPoolConfigurationInfo struct {
@@ -15264,8 +15714,6 @@ type ConnectionPoolConfigurationInfo struct {
 	// is empty by default. For multiple statements, use semicolons as the separator.
 	// You can also include multiple variables in a single SET statement, such as
 	// SET x=1, y=2.
-	//
-	// InitQuery is not currently supported for PostgreSQL.
 	InitQuery *string `type:"string"`
 
 	// The maximum size of the connection pool for each target in a target group.
@@ -16042,20 +16490,11 @@ func (s *CopyDBSnapshotOutput) SetDBSnapshot(v *DBSnapshot) *CopyDBSnapshotOutpu
 type CopyOptionGroupInput struct {
 	_ struct{} `type:"structure"`
 
-	// The identifier or ARN for the source option group. For information about
-	// creating an ARN, see Constructing an ARN for Amazon RDS (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_Tagging.ARN.html#USER_Tagging.ARN.Constructing)
-	// in the Amazon RDS User Guide.
+	// The identifier for the source option group.
 	//
 	// Constraints:
 	//
 	//    * Must specify a valid option group.
-	//
-	//    * If the source option group is in the same AWS Region as the copy, specify
-	//    a valid option group identifier, for example my-option-group, or a valid
-	//    ARN.
-	//
-	//    * If the source option group is in a different AWS Region than the copy,
-	//    specify a valid option group ARN, for example arn:aws:rds:us-west-2:123456789012:og:special-options.
 	//
 	// SourceOptionGroupIdentifier is a required field
 	SourceOptionGroupIdentifier *string `type:"string" required:"true"`
@@ -16408,7 +16847,9 @@ type CreateDBClusterEndpointOutput struct {
 	StaticMembers []*string `type:"list"`
 
 	// The current status of the endpoint. One of: creating, available, deleting,
-	// modifying.
+	// inactive, modifying. The inactive state applies to an endpoint that can't
+	// be used for a certain kind of cluster, such as a writer endpoint for a read-only
+	// secondary cluster in a global database.
 	Status *string `type:"string"`
 }
 
@@ -16583,6 +17024,14 @@ type CreateDBClusterInput struct {
 	// Logs. The values in the list depend on the DB engine being used. For more
 	// information, see Publishing Database Logs to Amazon CloudWatch Logs (https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/USER_LogAccess.html#USER_LogAccess.Procedural.UploadtoCloudWatch)
 	// in the Amazon Aurora User Guide.
+	//
+	// Aurora MySQL
+	//
+	// Possible values are audit, error, general, and slowquery.
+	//
+	// Aurora PostgreSQL
+	//
+	// Possible values are postgresql and upgrade.
 	EnableCloudwatchLogsExports []*string `type:"list"`
 
 	// A value that indicates whether to enable write operations to be forwarded
@@ -16618,12 +17067,20 @@ type CreateDBClusterInput struct {
 	// Engine is a required field
 	Engine *string `type:"string" required:"true"`
 
-	// The DB engine mode of the DB cluster, either provisioned, serverless, parallelquery,
+	// The DB engine mode of the DB cluster, either provisioned serverless, parallelquery,
 	// global, or multimaster.
 	//
-	// global engine mode only applies for global database clusters created with
-	// Aurora MySQL version 5.6.10a. For higher Aurora MySQL versions, the clusters
-	// in a global database use provisioned engine mode.
+	// The parallelquery engine mode isn't required for Aurora MySQL version 1.23
+	// and higher 1.x versions, and version 2.09 and higher 2.x versions.
+	//
+	// The global engine mode isn't required for Aurora MySQL version 1.22 and higher
+	// 1.x versions, and global engine mode isn't required for any 2.x versions.
+	//
+	// The multimaster engine mode only applies for DB clusters created with Aurora
+	// MySQL version 5.6.10a.
+	//
+	// For Aurora PostgreSQL, the global engine mode isn't required, and both the
+	// parallelquery and the multimaster engine modes currently aren't supported.
 	//
 	// Limitations and requirements apply to some DB engine modes. For more information,
 	// see the following sections in the Amazon Aurora User Guide:
@@ -16632,7 +17089,7 @@ type CreateDBClusterInput struct {
 	//
 	//    * Limitations of Parallel Query (https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-mysql-parallel-query.html#aurora-mysql-parallel-query-limitations)
 	//
-	//    * Requirements for Aurora Global Databases (https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-global-database.html#aurora-global-database.limitations)
+	//    * Limitations of Aurora Global Databases (https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-global-database.html#aurora-global-database.limitations)
 	//
 	//    * Limitations of Multi-Master Clusters (https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-multi-master.html#aurora-multi-master-limitations)
 	EngineMode *string `type:"string"`
@@ -17470,6 +17927,9 @@ type CreateDBInstanceInput struct {
 	//
 	//    * Must contain 1 to 64 letters or numbers.
 	//
+	//    * Must begin with a letter. Subsequent characters can be letters, underscores,
+	//    or digits (0-9).
+	//
 	//    * Can't be a word reserved by the specified database engine
 	//
 	// MariaDB
@@ -17480,6 +17940,9 @@ type CreateDBInstanceInput struct {
 	// Constraints:
 	//
 	//    * Must contain 1 to 64 letters or numbers.
+	//
+	//    * Must begin with a letter. Subsequent characters can be letters, underscores,
+	//    or digits (0-9).
 	//
 	//    * Can't be a word reserved by the specified database engine
 	//
@@ -17493,8 +17956,8 @@ type CreateDBInstanceInput struct {
 	//
 	//    * Must contain 1 to 63 letters, numbers, or underscores.
 	//
-	//    * Must begin with a letter or an underscore. Subsequent characters can
-	//    be letters, underscores, or digits (0-9).
+	//    * Must begin with a letter. Subsequent characters can be letters, underscores,
+	//    or digits (0-9).
 	//
 	//    * Can't be a word reserved by the specified database engine
 	//
@@ -17564,18 +18027,10 @@ type CreateDBInstanceInput struct {
 	DeletionProtection *bool `type:"boolean"`
 
 	// The Active Directory directory ID to create the DB instance in. Currently,
-	// only Microsoft SQL Server and Oracle DB instances can be created in an Active
-	// Directory Domain.
+	// only MySQL, Microsoft SQL Server, Oracle, and PostgreSQL DB instances can
+	// be created in an Active Directory Domain.
 	//
-	// For Microsoft SQL Server DB instances, Amazon RDS can use Windows Authentication
-	// to authenticate users that connect to the DB instance. For more information,
-	// see Using Windows Authentication with an Amazon RDS DB Instance Running Microsoft
-	// SQL Server (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_SQLServerWinAuth.html)
-	// in the Amazon RDS User Guide.
-	//
-	// For Oracle DB instances, Amazon RDS can use Kerberos Authentication to authenticate
-	// users that connect to the DB instance. For more information, see Using Kerberos
-	// Authentication with Amazon RDS for Oracle (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/oracle-kerberos.html)
+	// For more information, see Kerberos Authentication (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/kerberos-authentication.html)
 	// in the Amazon RDS User Guide.
 	Domain *string `type:"string"`
 
@@ -17587,33 +18042,37 @@ type CreateDBInstanceInput struct {
 	// Logs. The values in the list depend on the DB engine being used. For more
 	// information, see Publishing Database Logs to Amazon CloudWatch Logs (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_LogAccess.html#USER_LogAccess.Procedural.UploadtoCloudWatch)
 	// in the Amazon Relational Database Service User Guide.
+	//
+	// Amazon Aurora
+	//
+	// Not applicable. CloudWatch Logs exports are managed by the DB cluster.
+	//
+	// MariaDB
+	//
+	// Possible values are audit, error, general, and slowquery.
+	//
+	// Microsoft SQL Server
+	//
+	// Possible values are agent and error.
+	//
+	// MySQL
+	//
+	// Possible values are audit, error, general, and slowquery.
+	//
+	// Oracle
+	//
+	// Possible values are alert, audit, listener, and trace.
+	//
+	// PostgreSQL
+	//
+	// Possible values are postgresql and upgrade.
 	EnableCloudwatchLogsExports []*string `type:"list"`
 
 	// A value that indicates whether to enable mapping of AWS Identity and Access
 	// Management (IAM) accounts to database accounts. By default, mapping is disabled.
 	//
-	// You can enable IAM database authentication for the following database engines:
-	//
-	// Amazon Aurora
-	//
-	// Not applicable. Mapping AWS IAM accounts to database accounts is managed
-	// by the DB cluster.
-	//
-	// MySQL
-	//
-	//    * For MySQL 5.6, minor version 5.6.34 or higher
-	//
-	//    * For MySQL 5.7, minor version 5.7.16 or higher
-	//
-	//    * For MySQL 8.0, minor version 8.0.16 or higher
-	//
-	// PostgreSQL
-	//
-	//    * For PostgreSQL 9.5, minor version 9.5.15 or higher
-	//
-	//    * For PostgreSQL 9.6, minor version 9.6.11 or higher
-	//
-	//    * PostgreSQL 10.6, 10.7, and 10.9
+	// This setting doesn't apply to Amazon Aurora. Mapping AWS IAM accounts to
+	// database accounts is managed by the DB cluster.
 	//
 	// For more information, see IAM Database Authentication for MySQL and PostgreSQL
 	// (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.IAMDBAuth.html)
@@ -17684,7 +18143,7 @@ type CreateDBInstanceInput struct {
 	//
 	// Microsoft SQL Server
 	//
-	// See Version and Feature Support on Amazon RDS (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_SQLServer.html#SQLServer.Concepts.General.FeatureSupport)
+	// See Microsoft SQL Server Versions on Amazon RDS (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_SQLServer.html#SQLServer.Concepts.General.VersionSupport)
 	// in the Amazon RDS User Guide.
 	//
 	// MySQL
@@ -17858,6 +18317,9 @@ type CreateDBInstanceInput struct {
 	// You can't set the AvailabilityZone parameter if the DB instance is a Multi-AZ
 	// deployment.
 	MultiAZ *bool `type:"boolean"`
+
+	// The name of the NCHAR character set for the Oracle DB instance.
+	NcharCharacterSetName *string `type:"string"`
 
 	// Indicates that the DB instance should be associated with the specified option
 	// group.
@@ -18268,6 +18730,12 @@ func (s *CreateDBInstanceInput) SetMultiAZ(v bool) *CreateDBInstanceInput {
 	return s
 }
 
+// SetNcharCharacterSetName sets the NcharCharacterSetName field's value.
+func (s *CreateDBInstanceInput) SetNcharCharacterSetName(v string) *CreateDBInstanceInput {
+	s.NcharCharacterSetName = &v
+	return s
+}
+
 // SetOptionGroupName sets the OptionGroupName field's value.
 func (s *CreateDBInstanceInput) SetOptionGroupName(v string) *CreateDBInstanceInput {
 	s.OptionGroupName = &v
@@ -18476,17 +18944,11 @@ type CreateDBInstanceReadReplicaInput struct {
 	// DestinationRegion is used for presigning the request to a given region.
 	DestinationRegion *string `type:"string"`
 
-	// The Active Directory directory ID to create the DB instance in.
+	// The Active Directory directory ID to create the DB instance in. Currently,
+	// only MySQL, Microsoft SQL Server, Oracle, and PostgreSQL DB instances can
+	// be created in an Active Directory Domain.
 	//
-	// For Oracle DB instances, Amazon RDS can use Kerberos Authentication to authenticate
-	// users that connect to the DB instance. For more information, see Using Kerberos
-	// Authentication with Amazon RDS for Oracle (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/oracle-kerberos.html)
-	// in the Amazon RDS User Guide.
-	//
-	// For Microsoft SQL Server DB instances, Amazon RDS can use Windows Authentication
-	// to authenticate users that connect to the DB instance. For more information,
-	// see Using Windows Authentication with an Amazon RDS DB Instance Running Microsoft
-	// SQL Server (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_SQLServerWinAuth.html)
+	// For more information, see Kerberos Authentication (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/kerberos-authentication.html)
 	// in the Amazon RDS User Guide.
 	Domain *string `type:"string"`
 
@@ -18502,7 +18964,6 @@ type CreateDBInstanceReadReplicaInput struct {
 
 	// A value that indicates whether to enable mapping of AWS Identity and Access
 	// Management (IAM) accounts to database accounts. By default, mapping is disabled.
-	// For information about the supported DB engines, see CreateDBInstance.
 	//
 	// For more information about IAM database authentication, see IAM Database
 	// Authentication for MySQL and PostgreSQL (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.IAMDBAuth.html)
@@ -18535,6 +18996,10 @@ type CreateDBInstanceReadReplicaInput struct {
 	//
 	// You can't create an encrypted read replica from an unencrypted DB instance.
 	KmsKeyId *string `type:"string"`
+
+	// The upper limit to which Amazon RDS can automatically scale the storage of
+	// the DB instance.
+	MaxAllocatedStorage *int64 `type:"integer"`
 
 	// The interval, in seconds, between points when Enhanced Monitoring metrics
 	// are collected for the read replica. To disable collecting Enhanced Monitoring
@@ -18657,6 +19122,22 @@ type CreateDBInstanceReadReplicaInput struct {
 	//
 	// For more information, see CreateDBInstance.
 	PubliclyAccessible *bool `type:"boolean"`
+
+	// The open mode of the replica database: mounted or read-only.
+	//
+	// This parameter is only supported for Oracle DB instances.
+	//
+	// Mounted DB replicas are included in Oracle Enterprise Edition. The main use
+	// case for mounted replicas is cross-Region disaster recovery. The primary
+	// database doesn't use Active Data Guard to transmit information to the mounted
+	// replica. Because it doesn't accept user connections, a mounted replica can't
+	// serve a read-only workload.
+	//
+	// You can create a combination of mounted and read-only DB replicas for the
+	// same primary DB instance. For more information, see Working with Oracle Read
+	// Replicas for Amazon RDS (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/oracle-read-replicas.html)
+	// in the Amazon RDS User Guide.
+	ReplicaMode *string `type:"string" enum:"ReplicaMode"`
 
 	// The identifier of the DB instance that will act as the source for the read
 	// replica. Each DB instance can have up to five read replicas.
@@ -18845,6 +19326,12 @@ func (s *CreateDBInstanceReadReplicaInput) SetKmsKeyId(v string) *CreateDBInstan
 	return s
 }
 
+// SetMaxAllocatedStorage sets the MaxAllocatedStorage field's value.
+func (s *CreateDBInstanceReadReplicaInput) SetMaxAllocatedStorage(v int64) *CreateDBInstanceReadReplicaInput {
+	s.MaxAllocatedStorage = &v
+	return s
+}
+
 // SetMonitoringInterval sets the MonitoringInterval field's value.
 func (s *CreateDBInstanceReadReplicaInput) SetMonitoringInterval(v int64) *CreateDBInstanceReadReplicaInput {
 	s.MonitoringInterval = &v
@@ -18902,6 +19389,12 @@ func (s *CreateDBInstanceReadReplicaInput) SetProcessorFeatures(v []*ProcessorFe
 // SetPubliclyAccessible sets the PubliclyAccessible field's value.
 func (s *CreateDBInstanceReadReplicaInput) SetPubliclyAccessible(v bool) *CreateDBInstanceReadReplicaInput {
 	s.PubliclyAccessible = &v
+	return s
+}
+
+// SetReplicaMode sets the ReplicaMode field's value.
+func (s *CreateDBInstanceReadReplicaInput) SetReplicaMode(v string) *CreateDBInstanceReadReplicaInput {
+	s.ReplicaMode = &v
 	return s
 }
 
@@ -19583,11 +20076,10 @@ type CreateEventSubscriptionInput struct {
 	// not active.
 	Enabled *bool `type:"boolean"`
 
-	// A list of event categories for a SourceType that you want to subscribe to.
-	// You can see a list of the categories for a given SourceType in the Events
-	// (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_Events.html)
-	// topic in the Amazon RDS User Guide or by using the DescribeEventCategories
-	// action.
+	// A list of event categories for a particular source type (SourceType) that
+	// you want to subscribe to. You can see a list of the categories for a given
+	// source type in Events (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_Events.html)
+	// in the Amazon RDS User Guide or by using the DescribeEventCategories operation.
 	EventCategories []*string `locationNameList:"EventCategory" type:"list"`
 
 	// The Amazon Resource Name (ARN) of the SNS topic created for event notification.
@@ -19604,24 +20096,30 @@ type CreateEventSubscriptionInput struct {
 	//
 	// Constraints:
 	//
-	//    * If SourceIds are supplied, SourceType must also be provided.
+	//    * If a SourceIds value is supplied, SourceType must also be provided.
 	//
-	//    * If the source type is a DB instance, then a DBInstanceIdentifier must
+	//    * If the source type is a DB instance, a DBInstanceIdentifier value must
 	//    be supplied.
 	//
-	//    * If the source type is a DB security group, a DBSecurityGroupName must
+	//    * If the source type is a DB cluster, a DBClusterIdentifier value must
 	//    be supplied.
 	//
-	//    * If the source type is a DB parameter group, a DBParameterGroupName must
+	//    * If the source type is a DB parameter group, a DBParameterGroupName value
+	//    must be supplied.
+	//
+	//    * If the source type is a DB security group, a DBSecurityGroupName value
+	//    must be supplied.
+	//
+	//    * If the source type is a DB snapshot, a DBSnapshotIdentifier value must
 	//    be supplied.
 	//
-	//    * If the source type is a DB snapshot, a DBSnapshotIdentifier must be
-	//    supplied.
+	//    * If the source type is a DB cluster snapshot, a DBClusterSnapshotIdentifier
+	//    value must be supplied.
 	SourceIds []*string `locationNameList:"SourceId" type:"list"`
 
 	// The type of source that is generating the events. For example, if you want
-	// to be notified of events generated by a DB instance, you would set this parameter
-	// to db-instance. if this value isn't specified, all events are returned.
+	// to be notified of events generated by a DB instance, you set this parameter
+	// to db-instance. If this value isn't specified, all events are returned.
 	//
 	// Valid values: db-instance | db-cluster | db-parameter-group | db-security-group
 	// | db-snapshot | db-cluster-snapshot
@@ -19743,7 +20241,7 @@ type CreateGlobalClusterInput struct {
 	// can't be deleted when deletion protection is enabled.
 	DeletionProtection *bool `type:"boolean"`
 
-	// Provides the name of the database engine to be used for this DB cluster.
+	// The name of the database engine to be used for this DB cluster.
 	Engine *string `type:"string"`
 
 	// The engine version of the Aurora global database.
@@ -20150,17 +20648,13 @@ type DBCluster struct {
 	// Specifies the connection endpoint for the primary instance of the DB cluster.
 	Endpoint *string `type:"string"`
 
-	// Provides the name of the database engine to be used for this DB cluster.
+	// The name of the database engine to be used for this DB cluster.
 	Engine *string `type:"string"`
 
 	// The DB engine mode of the DB cluster, either provisioned, serverless, parallelquery,
 	// global, or multimaster.
 	//
-	// global engine mode only applies for global database clusters created with
-	// Aurora MySQL version 5.6.10a. For higher Aurora MySQL versions, the clusters
-	// in a global database use provisioned engine mode. To check if a DB cluster
-	// is part of a global database, use DescribeGlobalClusters instead of checking
-	// the EngineMode return value from DescribeDBClusters.
+	// For more information, see CreateDBCluster (https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_CreateDBCluster.html).
 	EngineMode *string `type:"string"`
 
 	// Indicates the database engine version.
@@ -20256,6 +20750,10 @@ type DBCluster struct {
 
 	// Specifies whether the DB cluster is encrypted.
 	StorageEncrypted *bool `type:"boolean"`
+
+	// A list of tags. For more information, see Tagging Amazon RDS Resources (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_Tagging.html)
+	// in the Amazon RDS User Guide.
+	TagList []*Tag `locationNameList:"Tag" type:"list"`
 
 	// Provides a list of VPC security groups that the DB cluster belongs to.
 	VpcSecurityGroups []*VpcSecurityGroupMembership `locationNameList:"VpcSecurityGroupMembership" type:"list"`
@@ -20589,6 +21087,12 @@ func (s *DBCluster) SetStorageEncrypted(v bool) *DBCluster {
 	return s
 }
 
+// SetTagList sets the TagList field's value.
+func (s *DBCluster) SetTagList(v []*Tag) *DBCluster {
+	s.TagList = v
+	return s
+}
+
 // SetVpcSecurityGroups sets the VpcSecurityGroups field's value.
 func (s *DBCluster) SetVpcSecurityGroups(v []*VpcSecurityGroupMembership) *DBCluster {
 	s.VpcSecurityGroups = v
@@ -20645,7 +21149,9 @@ type DBClusterEndpoint struct {
 	StaticMembers []*string `type:"list"`
 
 	// The current status of the endpoint. One of: creating, available, deleting,
-	// modifying.
+	// inactive, modifying. The inactive state applies to an endpoint that can't
+	// be used for a certain kind of cluster, such as a writer endpoint for a read-only
+	// secondary cluster in a global database.
 	Status *string `type:"string"`
 }
 
@@ -20818,10 +21324,10 @@ type DBClusterParameterGroup struct {
 	// The Amazon Resource Name (ARN) for the DB cluster parameter group.
 	DBClusterParameterGroupArn *string `type:"string"`
 
-	// Provides the name of the DB cluster parameter group.
+	// The name of the DB cluster parameter group.
 	DBClusterParameterGroupName *string `type:"string"`
 
-	// Provides the name of the DB parameter group family that this DB cluster parameter
+	// The name of the DB parameter group family that this DB cluster parameter
 	// group is compatible with.
 	DBParameterGroupFamily *string `type:"string"`
 
@@ -21025,6 +21531,10 @@ type DBClusterSnapshot struct {
 	// Specifies whether the DB cluster snapshot is encrypted.
 	StorageEncrypted *bool `type:"boolean"`
 
+	// A list of tags. For more information, see Tagging Amazon RDS Resources (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_Tagging.html)
+	// in the Amazon RDS User Guide.
+	TagList []*Tag `locationNameList:"Tag" type:"list"`
+
 	// Provides the VPC ID associated with the DB cluster snapshot.
 	VpcId *string `type:"string"`
 }
@@ -21153,6 +21663,12 @@ func (s *DBClusterSnapshot) SetStorageEncrypted(v bool) *DBClusterSnapshot {
 	return s
 }
 
+// SetTagList sets the TagList field's value.
+func (s *DBClusterSnapshot) SetTagList(v []*Tag) *DBClusterSnapshot {
+	s.TagList = v
+	return s
+}
+
 // SetVpcId sets the VpcId field's value.
 func (s *DBClusterSnapshot) SetVpcId(v string) *DBClusterSnapshot {
 	s.VpcId = &v
@@ -21276,14 +21792,10 @@ type DBEngineVersion struct {
 	Status *string `type:"string"`
 
 	// A list of the character sets supported by this engine for the CharacterSetName
-	// parameter of the CreateDBInstance action.
+	// parameter of the CreateDBInstance operation.
 	SupportedCharacterSets []*CharacterSet `locationNameList:"CharacterSet" type:"list"`
 
 	// A list of the supported DB engine modes.
-	//
-	// global engine mode only applies for global database clusters created with
-	// Aurora MySQL version 5.6.10a. For higher Aurora MySQL versions, the clusters
-	// in a global database use provisioned engine mode.
 	SupportedEngineModes []*string `type:"list"`
 
 	// A list of features supported by the DB engine. Supported feature names include
@@ -21292,13 +21804,25 @@ type DBEngineVersion struct {
 	//    * s3Import
 	SupportedFeatureNames []*string `type:"list"`
 
+	// A list of the character sets supported by the Oracle DB engine for the NcharCharacterSetName
+	// parameter of the CreateDBInstance operation.
+	SupportedNcharCharacterSets []*CharacterSet `locationNameList:"CharacterSet" type:"list"`
+
 	// A list of the time zones supported by this engine for the Timezone parameter
 	// of the CreateDBInstance action.
 	SupportedTimezones []*Timezone `locationNameList:"Timezone" type:"list"`
 
+	// A value that indicates whether you can use Aurora global databases with a
+	// specific DB engine version.
+	SupportsGlobalDatabases *bool `type:"boolean"`
+
 	// A value that indicates whether the engine version supports exporting the
 	// log types specified by ExportableLogTypes to CloudWatch Logs.
 	SupportsLogExportsToCloudwatchLogs *bool `type:"boolean"`
+
+	// A value that indicates whether you can use Aurora parallel query with a specific
+	// DB engine version.
+	SupportsParallelQuery *bool `type:"boolean"`
 
 	// Indicates whether the database engine version supports read replicas.
 	SupportsReadReplica *bool `type:"boolean"`
@@ -21384,15 +21908,33 @@ func (s *DBEngineVersion) SetSupportedFeatureNames(v []*string) *DBEngineVersion
 	return s
 }
 
+// SetSupportedNcharCharacterSets sets the SupportedNcharCharacterSets field's value.
+func (s *DBEngineVersion) SetSupportedNcharCharacterSets(v []*CharacterSet) *DBEngineVersion {
+	s.SupportedNcharCharacterSets = v
+	return s
+}
+
 // SetSupportedTimezones sets the SupportedTimezones field's value.
 func (s *DBEngineVersion) SetSupportedTimezones(v []*Timezone) *DBEngineVersion {
 	s.SupportedTimezones = v
 	return s
 }
 
+// SetSupportsGlobalDatabases sets the SupportsGlobalDatabases field's value.
+func (s *DBEngineVersion) SetSupportsGlobalDatabases(v bool) *DBEngineVersion {
+	s.SupportsGlobalDatabases = &v
+	return s
+}
+
 // SetSupportsLogExportsToCloudwatchLogs sets the SupportsLogExportsToCloudwatchLogs field's value.
 func (s *DBEngineVersion) SetSupportsLogExportsToCloudwatchLogs(v bool) *DBEngineVersion {
 	s.SupportsLogExportsToCloudwatchLogs = &v
+	return s
+}
+
+// SetSupportsParallelQuery sets the SupportsParallelQuery field's value.
+func (s *DBEngineVersion) SetSupportsParallelQuery(v bool) *DBEngineVersion {
+	s.SupportsParallelQuery = &v
 	return s
 }
 
@@ -21523,7 +22065,7 @@ type DBInstance struct {
 	// Specifies the connection endpoint.
 	Endpoint *Endpoint `type:"structure"`
 
-	// Provides the name of the database engine to be used for this DB instance.
+	// The name of the database engine to be used for this DB instance.
 	Engine *string `type:"string"`
 
 	// Indicates the database engine version.
@@ -21583,6 +22125,11 @@ type DBInstance struct {
 
 	// Specifies if the DB instance is a Multi-AZ deployment.
 	MultiAZ *bool `type:"boolean"`
+
+	// The name of the NCHAR character set for the Oracle DB instance. This character
+	// set specifies the Unicode encoding for data stored in table columns of type
+	// NCHAR, NCLOB, or NVARCHAR2.
+	NcharCharacterSetName *string `type:"string"`
 
 	// Provides the list of option group memberships for this DB instance.
 	OptionGroupMemberships []*OptionGroupMembership `locationNameList:"OptionGroupMembership" type:"list"`
@@ -21654,6 +22201,13 @@ type DBInstance struct {
 	// a read replica.
 	ReadReplicaSourceDBInstanceIdentifier *string `type:"string"`
 
+	// The open mode of an Oracle read replica. The default is open-read-only. For
+	// more information, see Working with Oracle Read Replicas for Amazon RDS (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/oracle-read-replicas.html)
+	// in the Amazon RDS User Guide.
+	//
+	// This attribute is only supported in RDS for Oracle.
+	ReplicaMode *string `type:"string" enum:"ReplicaMode"`
+
 	// If present, specifies the name of the secondary Availability Zone for a DB
 	// instance with multi-AZ support.
 	SecondaryAvailabilityZone *string `type:"string"`
@@ -21667,6 +22221,10 @@ type DBInstance struct {
 
 	// Specifies the storage type associated with DB instance.
 	StorageType *string `type:"string"`
+
+	// A list of tags. For more information, see Tagging Amazon RDS Resources (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_Tagging.html)
+	// in the Amazon RDS User Guide.
+	TagList []*Tag `locationNameList:"Tag" type:"list"`
 
 	// The ARN from the key store with which the instance is associated for TDE
 	// encryption.
@@ -21920,6 +22478,12 @@ func (s *DBInstance) SetMultiAZ(v bool) *DBInstance {
 	return s
 }
 
+// SetNcharCharacterSetName sets the NcharCharacterSetName field's value.
+func (s *DBInstance) SetNcharCharacterSetName(v string) *DBInstance {
+	s.NcharCharacterSetName = &v
+	return s
+}
+
 // SetOptionGroupMemberships sets the OptionGroupMemberships field's value.
 func (s *DBInstance) SetOptionGroupMemberships(v []*OptionGroupMembership) *DBInstance {
 	s.OptionGroupMemberships = v
@@ -21998,6 +22562,12 @@ func (s *DBInstance) SetReadReplicaSourceDBInstanceIdentifier(v string) *DBInsta
 	return s
 }
 
+// SetReplicaMode sets the ReplicaMode field's value.
+func (s *DBInstance) SetReplicaMode(v string) *DBInstance {
+	s.ReplicaMode = &v
+	return s
+}
+
 // SetSecondaryAvailabilityZone sets the SecondaryAvailabilityZone field's value.
 func (s *DBInstance) SetSecondaryAvailabilityZone(v string) *DBInstance {
 	s.SecondaryAvailabilityZone = &v
@@ -22019,6 +22589,12 @@ func (s *DBInstance) SetStorageEncrypted(v bool) *DBInstance {
 // SetStorageType sets the StorageType field's value.
 func (s *DBInstance) SetStorageType(v string) *DBInstance {
 	s.StorageType = &v
+	return s
+}
+
+// SetTagList sets the TagList field's value.
+func (s *DBInstance) SetTagList(v []*Tag) *DBInstance {
+	s.TagList = v
 	return s
 }
 
@@ -22406,11 +22982,11 @@ type DBParameterGroup struct {
 	// The Amazon Resource Name (ARN) for the DB parameter group.
 	DBParameterGroupArn *string `type:"string"`
 
-	// Provides the name of the DB parameter group family that this DB parameter
-	// group is compatible with.
+	// The name of the DB parameter group family that this DB parameter group is
+	// compatible with.
 	DBParameterGroupFamily *string `type:"string"`
 
-	// Provides the name of the DB parameter group.
+	// The name of the DB parameter group.
 	DBParameterGroupName *string `type:"string"`
 
 	// Provides the customer-specified description for this DB parameter group.
@@ -22456,7 +23032,7 @@ func (s *DBParameterGroup) SetDescription(v string) *DBParameterGroup {
 type DBParameterGroupNameMessage struct {
 	_ struct{} `type:"structure"`
 
-	// Provides the name of the DB parameter group.
+	// The name of the DB parameter group.
 	DBParameterGroupName *string `type:"string"`
 }
 
@@ -22523,10 +23099,6 @@ func (s *DBParameterGroupStatus) SetParameterApplyStatus(v string) *DBParameterG
 	return s
 }
 
-//
-// This is prerelease documentation for the RDS Database Proxy feature in preview
-// release. It is subject to change.
-//
 // The data structure representing a proxy managed by the RDS Proxy.
 //
 // This data type is used as a response element in the DescribeDBProxies action.
@@ -22690,10 +23262,6 @@ func (s *DBProxy) SetVpcSubnetIds(v []*string) *DBProxy {
 	return s
 }
 
-//
-// This is prerelease documentation for the RDS Database Proxy feature in preview
-// release. It is subject to change.
-//
 // Contains the details for an RDS Proxy target. It represents an RDS DB instance
 // or Aurora DB cluster that the proxy can connect to. One or more targets are
 // associated with an RDS Proxy target group.
@@ -22781,10 +23349,6 @@ func (s *DBProxyTarget) SetType(v string) *DBProxyTarget {
 	return s
 }
 
-//
-// This is prerelease documentation for the RDS Database Proxy feature in preview
-// release. It is subject to change.
-//
 // Represents a set of RDS DB instances, Aurora DB clusters, or both that a
 // proxy can connect to. Currently, each target group is associated with exactly
 // one RDS DB instance or Aurora DB cluster.
@@ -23077,7 +23641,7 @@ type DBSnapshot struct {
 	// class of the DB instance when the DB snapshot was created.
 	ProcessorFeatures []*ProcessorFeature `locationNameList:"ProcessorFeature" type:"list"`
 
-	// Specifies when the snapshot was taken in Coodinated Universal Time (UTC).
+	// Specifies when the snapshot was taken in Coordinated Universal Time (UTC).
 	SnapshotCreateTime *time.Time `type:"timestamp"`
 
 	// Provides the type of the DB snapshot.
@@ -23095,6 +23659,10 @@ type DBSnapshot struct {
 
 	// Specifies the storage type associated with DB snapshot.
 	StorageType *string `type:"string"`
+
+	// A list of tags. For more information, see Tagging Amazon RDS Resources (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_Tagging.html)
+	// in the Amazon RDS User Guide.
+	TagList []*Tag `locationNameList:"Tag" type:"list"`
 
 	// The ARN from the key store with which to associate the instance for TDE encryption.
 	TdeCredentialArn *string `type:"string"`
@@ -23265,6 +23833,12 @@ func (s *DBSnapshot) SetStatus(v string) *DBSnapshot {
 // SetStorageType sets the StorageType field's value.
 func (s *DBSnapshot) SetStorageType(v string) *DBSnapshot {
 	s.StorageType = &v
+	return s
+}
+
+// SetTagList sets the TagList field's value.
+func (s *DBSnapshot) SetTagList(v []*Tag) *DBSnapshot {
+	s.TagList = v
 	return s
 }
 
@@ -23596,7 +24170,9 @@ type DeleteDBClusterEndpointOutput struct {
 	StaticMembers []*string `type:"list"`
 
 	// The current status of the endpoint. One of: creating, available, deleting,
-	// modifying.
+	// inactive, modifying. The inactive state applies to an endpoint that can't
+	// be used for a certain kind of cluster, such as a writer endpoint for a read-only
+	// secondary cluster in a global database.
 	Status *string `type:"string"`
 }
 
@@ -25229,7 +25805,7 @@ type DescribeDBClusterEndpointsInput struct {
 	// db-cluster-endpoint-id, db-cluster-endpoint-status. Values for the db-cluster-endpoint-type
 	// filter can be one or more of: reader, writer, custom. Values for the db-cluster-endpoint-custom-type
 	// filter can be one or more of: reader, any. Values for the db-cluster-endpoint-status
-	// filter can be one or more of: available, creating, deleting, modifying.
+	// filter can be one or more of: available, creating, deleting, inactive, modifying.
 	Filters []*Filter `locationNameList:"Filter" type:"list"`
 
 	// An optional pagination token provided by a previous DescribeDBClusterEndpoints
@@ -28026,7 +28602,8 @@ type DescribeEventCategoriesInput struct {
 
 	// The type of source that is generating the events.
 	//
-	// Valid values: db-instance | db-parameter-group | db-security-group | db-snapshot
+	// Valid values: db-instance | db-cluster | db-parameter-group | db-security-group
+	// | db-snapshot | db-cluster-snapshot
 	SourceType *string `type:"string"`
 }
 
@@ -28072,7 +28649,7 @@ func (s *DescribeEventCategoriesInput) SetSourceType(v string) *DescribeEventCat
 	return s
 }
 
-// Data returned from the DescribeEventCategories action.
+// Data returned from the DescribeEventCategories operation.
 type DescribeEventCategoriesOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -28252,16 +28829,23 @@ type DescribeEventsInput struct {
 	//
 	//    * If SourceIdentifier is supplied, SourceType must also be provided.
 	//
-	//    * If the source type is DBInstance, then a DBInstanceIdentifier must be
-	//    supplied.
-	//
-	//    * If the source type is DBSecurityGroup, a DBSecurityGroupName must be
-	//    supplied.
-	//
-	//    * If the source type is DBParameterGroup, a DBParameterGroupName must
+	//    * If the source type is a DB instance, a DBInstanceIdentifier value must
 	//    be supplied.
 	//
-	//    * If the source type is DBSnapshot, a DBSnapshotIdentifier must be supplied.
+	//    * If the source type is a DB cluster, a DBClusterIdentifier value must
+	//    be supplied.
+	//
+	//    * If the source type is a DB parameter group, a DBParameterGroupName value
+	//    must be supplied.
+	//
+	//    * If the source type is a DB security group, a DBSecurityGroupName value
+	//    must be supplied.
+	//
+	//    * If the source type is a DB snapshot, a DBSnapshotIdentifier value must
+	//    be supplied.
+	//
+	//    * If the source type is a DB cluster snapshot, a DBClusterSnapshotIdentifier
+	//    value must be supplied.
 	//
 	//    * Can't end with a hyphen or contain two consecutive hyphens.
 	SourceIdentifier *string `type:"string"`
@@ -28405,6 +28989,7 @@ type DescribeExportTasksInput struct {
 
 	// Filters specify one or more snapshot exports to describe. The filters are
 	// specified as name-value pairs that define what to include in the output.
+	// Filter names and values are case-sensitive.
 	//
 	// Supported filters include the following:
 	//
@@ -28415,7 +29000,8 @@ type DescribeExportTasksInput struct {
 	//    * source-arn - The Amazon Resource Name (ARN) of the snapshot exported
 	//    to Amazon S3
 	//
-	//    * status - The status of the export task.
+	//    * status - The status of the export task. Must be lowercase, for example,
+	//    complete.
 	Filters []*Filter `locationNameList:"Filter" type:"list"`
 
 	// An optional pagination token provided by a previous DescribeExportTasks request.
@@ -30335,7 +30921,7 @@ func (s *Event) SetSourceType(v string) *Event {
 }
 
 // Contains the results of a successful invocation of the DescribeEventCategories
-// action.
+// operation.
 type EventCategoriesMap struct {
 	_ struct{} `type:"structure"`
 
@@ -31047,7 +31633,7 @@ type ImportInstallationMediaInput struct {
 	//
 	// Microsoft SQL Server
 	//
-	// See Version and Feature Support on Amazon RDS (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_SQLServer.html#SQLServer.Concepts.General.FeatureSupport)
+	// See Microsoft SQL Server Versions on Amazon RDS (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_SQLServer.html#SQLServer.Concepts.General.VersionSupport)
 	// in the Amazon RDS User Guide.
 	//
 	// EngineVersion is a required field
@@ -31779,7 +32365,9 @@ type ModifyDBClusterEndpointOutput struct {
 	StaticMembers []*string `type:"list"`
 
 	// The current status of the endpoint. One of: creating, available, deleting,
-	// modifying.
+	// inactive, modifying. The inactive state applies to an endpoint that can't
+	// be used for a certain kind of cluster, such as a writer endpoint for a read-only
+	// secondary cluster in a global database.
 	Status *string `type:"string"`
 }
 
@@ -31947,6 +32535,9 @@ type ModifyDBClusterInput struct {
 	// The Active Directory directory ID to move the DB cluster to. Specify none
 	// to remove the cluster from its current domain. The domain must be created
 	// prior to this operation.
+	//
+	// For more information, see Kerberos Authentication (https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/kerberos-authentication.html)
+	// in the Amazon Aurora User Guide.
 	Domain *string `type:"string"`
 
 	// Specify the name of the IAM role to be used when making API calls to the
@@ -32674,18 +33265,10 @@ type ModifyDBInstanceInput struct {
 
 	// The Active Directory directory ID to move the DB instance to. Specify none
 	// to remove the instance from its current domain. The domain must be created
-	// prior to this operation. Currently, only Microsoft SQL Server and Oracle
-	// DB instances can be created in an Active Directory Domain.
+	// prior to this operation. Currently, only MySQL, Microsoft SQL Server, Oracle,
+	// and PostgreSQL DB instances can be created in an Active Directory Domain.
 	//
-	// For Microsoft SQL Server DB instances, Amazon RDS can use Windows Authentication
-	// to authenticate users that connect to the DB instance. For more information,
-	// see Using Windows Authentication with an Amazon RDS DB Instance Running Microsoft
-	// SQL Server (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_SQLServerWinAuth.html)
-	// in the Amazon RDS User Guide.
-	//
-	// For Oracle DB instances, Amazon RDS can use Kerberos Authentication to authenticate
-	// users that connect to the DB instance. For more information, see Using Kerberos
-	// Authentication with Amazon RDS for Oracle (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/oracle-kerberos.html)
+	// For more information, see Kerberos Authentication (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/kerberos-authentication.html)
 	// in the Amazon RDS User Guide.
 	Domain *string `type:"string"`
 
@@ -32694,7 +33277,9 @@ type ModifyDBInstanceInput struct {
 
 	// A value that indicates whether to enable mapping of AWS Identity and Access
 	// Management (IAM) accounts to database accounts. By default, mapping is disabled.
-	// For information about the supported DB engines, see CreateDBInstance.
+	//
+	// This setting doesn't apply to Amazon Aurora. Mapping AWS IAM accounts to
+	// database accounts is managed by the DB cluster.
 	//
 	// For more information about IAM database authentication, see IAM Database
 	// Authentication for MySQL and PostgreSQL (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.IAMDBAuth.html)
@@ -32710,7 +33295,7 @@ type ModifyDBInstanceInput struct {
 
 	// The version number of the database engine to upgrade to. Changing this parameter
 	// results in an outage and the change is applied during the next maintenance
-	// window unless the ApplyImmediately parameter is eanbled for this request.
+	// window unless the ApplyImmediately parameter is enabled for this request.
 	//
 	// For major version upgrades, if a nondefault DB parameter group is currently
 	// in use, a new DB parameter group in the DB parameter group family for the
@@ -32941,6 +33526,20 @@ type ModifyDBInstanceInput struct {
 	// Changes to the PubliclyAccessible parameter are applied immediately regardless
 	// of the value of the ApplyImmediately parameter.
 	PubliclyAccessible *bool `type:"boolean"`
+
+	// A value that sets the open mode of a replica database to either mounted or
+	// read-only.
+	//
+	// Currently, this parameter is only supported for Oracle DB instances.
+	//
+	// Mounted DB replicas are included in Oracle Enterprise Edition. The main use
+	// case for mounted replicas is cross-Region disaster recovery. The primary
+	// database doesn't use Active Data Guard to transmit information to the mounted
+	// replica. Because it doesn't accept user connections, a mounted replica can't
+	// serve a read-only workload. For more information, see Working with Oracle
+	// Read Replicas for Amazon RDS (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/oracle-read-replicas.html)
+	// in the Amazon RDS User Guide.
+	ReplicaMode *string `type:"string" enum:"ReplicaMode"`
 
 	// Specifies the storage type to be associated with the DB instance.
 	//
@@ -33232,6 +33831,12 @@ func (s *ModifyDBInstanceInput) SetPromotionTier(v int64) *ModifyDBInstanceInput
 // SetPubliclyAccessible sets the PubliclyAccessible field's value.
 func (s *ModifyDBInstanceInput) SetPubliclyAccessible(v bool) *ModifyDBInstanceInput {
 	s.PubliclyAccessible = &v
+	return s
+}
+
+// SetReplicaMode sets the ReplicaMode field's value.
+func (s *ModifyDBInstanceInput) SetReplicaMode(v string) *ModifyDBInstanceInput {
+	s.ReplicaMode = &v
 	return s
 }
 
@@ -33911,11 +34516,10 @@ type ModifyEventSubscriptionInput struct {
 	// A value that indicates whether to activate the subscription.
 	Enabled *bool `type:"boolean"`
 
-	// A list of event categories for a SourceType that you want to subscribe to.
-	// You can see a list of the categories for a given SourceType in the Events
-	// (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_Events.html)
-	// topic in the Amazon RDS User Guide or by using the DescribeEventCategories
-	// action.
+	// A list of event categories for a source type (SourceType) that you want to
+	// subscribe to. You can see a list of the categories for a given source type
+	// in Events (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_Events.html)
+	// in the Amazon RDS User Guide or by using the DescribeEventCategories operation.
 	EventCategories []*string `locationNameList:"EventCategory" type:"list"`
 
 	// The Amazon Resource Name (ARN) of the SNS topic created for event notification.
@@ -33927,7 +34531,8 @@ type ModifyEventSubscriptionInput struct {
 	// to be notified of events generated by a DB instance, you would set this parameter
 	// to db-instance. If this value isn't specified, all events are returned.
 	//
-	// Valid values: db-instance | db-parameter-group | db-security-group | db-snapshot
+	// Valid values: db-instance | db-cluster | db-parameter-group | db-security-group
+	// | db-snapshot | db-cluster-snapshot
 	SourceType *string `type:"string"`
 
 	// The name of the RDS event notification subscription.
@@ -34952,6 +35557,13 @@ type OrderableDBInstanceOption struct {
 	// Indicates whether a DB instance is Multi-AZ capable.
 	MultiAZCapable *bool `type:"boolean"`
 
+	// Whether a DB instance supports RDS on Outposts.
+	//
+	// For more information about RDS on Outposts, see Amazon RDS on AWS Outposts
+	// (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/rds-on-outposts.html)
+	// in the Amazon RDS User Guide.
+	OutpostCapable *bool `type:"boolean"`
+
 	// Indicates whether a DB instance can have a read replica.
 	ReadReplicaCapable *bool `type:"boolean"`
 
@@ -34959,15 +35571,15 @@ type OrderableDBInstanceOption struct {
 	StorageType *string `type:"string"`
 
 	// A list of the supported DB engine modes.
-	//
-	// global engine mode only applies for global database clusters created with
-	// Aurora MySQL version 5.6.10a. For higher Aurora MySQL versions, the clusters
-	// in a global database use provisioned engine mode.
 	SupportedEngineModes []*string `type:"list"`
 
 	// Indicates whether a DB instance supports Enhanced Monitoring at intervals
 	// from 1 to 60 seconds.
 	SupportsEnhancedMonitoring *bool `type:"boolean"`
+
+	// A value that indicates whether you can use Aurora global databases with a
+	// specific combination of other DB engine attributes.
+	SupportsGlobalDatabases *bool `type:"boolean"`
 
 	// Indicates whether a DB instance supports IAM database authentication.
 	SupportsIAMDatabaseAuthentication *bool `type:"boolean"`
@@ -35086,6 +35698,12 @@ func (s *OrderableDBInstanceOption) SetMultiAZCapable(v bool) *OrderableDBInstan
 	return s
 }
 
+// SetOutpostCapable sets the OutpostCapable field's value.
+func (s *OrderableDBInstanceOption) SetOutpostCapable(v bool) *OrderableDBInstanceOption {
+	s.OutpostCapable = &v
+	return s
+}
+
 // SetReadReplicaCapable sets the ReadReplicaCapable field's value.
 func (s *OrderableDBInstanceOption) SetReadReplicaCapable(v bool) *OrderableDBInstanceOption {
 	s.ReadReplicaCapable = &v
@@ -35107,6 +35725,12 @@ func (s *OrderableDBInstanceOption) SetSupportedEngineModes(v []*string) *Ordera
 // SetSupportsEnhancedMonitoring sets the SupportsEnhancedMonitoring field's value.
 func (s *OrderableDBInstanceOption) SetSupportsEnhancedMonitoring(v bool) *OrderableDBInstanceOption {
 	s.SupportsEnhancedMonitoring = &v
+	return s
+}
+
+// SetSupportsGlobalDatabases sets the SupportsGlobalDatabases field's value.
+func (s *OrderableDBInstanceOption) SetSupportsGlobalDatabases(v bool) *OrderableDBInstanceOption {
+	s.SupportsGlobalDatabases = &v
 	return s
 }
 
@@ -35149,6 +35773,34 @@ func (s *OrderableDBInstanceOption) SetSupportsStorageEncryption(v bool) *Ordera
 // SetVpc sets the Vpc field's value.
 func (s *OrderableDBInstanceOption) SetVpc(v bool) *OrderableDBInstanceOption {
 	s.Vpc = &v
+	return s
+}
+
+// A data type that represents an Outpost.
+//
+// For more information about RDS on Outposts, see Amazon RDS on AWS Outposts
+// (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/rds-on-outposts.html)
+// in the Amazon RDS User Guide.
+type Outpost struct {
+	_ struct{} `type:"structure"`
+
+	// The Amazon Resource Name (ARN) of the Outpost.
+	Arn *string `type:"string"`
+}
+
+// String returns the string representation
+func (s Outpost) String() string {
+	return awsutil.Prettify(s)
+}
+
+// GoString returns the string representation
+func (s Outpost) GoString() string {
+	return s.String()
+}
+
+// SetArn sets the Arn field's value.
+func (s *Outpost) SetArn(v string) *Outpost {
+	s.Arn = &v
 	return s
 }
 
@@ -35331,9 +35983,12 @@ type PendingMaintenanceAction struct {
 	// A description providing more detail about the maintenance action.
 	Description *string `type:"string"`
 
-	// The date when the maintenance action is automatically applied. The maintenance
-	// action is applied to the resource on this date regardless of the maintenance
-	// window for the resource.
+	// The date when the maintenance action is automatically applied.
+	//
+	// On this date, the maintenance action is applied to the resource as soon as
+	// possible, regardless of the maintenance window for the resource. There might
+	// be a delay of one or more days from this date before the maintenance action
+	// is applied.
 	ForcedApplyDate *time.Time `type:"timestamp"`
 
 	// Indicates the type of opt-in request that has been received for the resource.
@@ -35576,6 +36231,16 @@ func (s *PendingModifiedValues) SetStorageType(v string) *PendingModifiedValues 
 //    * DescribeDBSnapshots
 //
 //    * DescribeValidDBInstanceModifications
+//
+// If you call DescribeDBInstances, ProcessorFeature returns non-null values
+// only if the following conditions are met:
+//
+//    * You are accessing an Oracle DB instance.
+//
+//    * Your Oracle DB instance class supports configuring the number of CPU
+//    cores and threads per core.
+//
+//    * The current number CPU cores and threads is set to a non-default value.
 //
 // For more information, see Configuring the Processor of the DB Instance Class
 // (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.DBInstanceClass.html#USER_ConfigureProcessor)
@@ -36989,7 +37654,7 @@ type RestoreDBClusterFromS3Input struct {
 	CopyTagsToSnapshot *bool `type:"boolean"`
 
 	// The name of the DB cluster to create from the source data in the Amazon S3
-	// bucket. This parameter is isn't case-sensitive.
+	// bucket. This parameter isn't case-sensitive.
 	//
 	// Constraints:
 	//
@@ -37053,9 +37718,10 @@ type RestoreDBClusterFromS3Input struct {
 	// in the Amazon Aurora User Guide.
 	EnableIAMDatabaseAuthentication *bool `type:"boolean"`
 
-	// The name of the database engine to be used for the restored DB cluster.
+	// The name of the database engine to be used for this DB cluster.
 	//
-	// Valid Values: aurora, aurora-postgresql
+	// Valid Values: aurora (for MySQL 5.6-compatible Aurora), aurora-mysql (for
+	// MySQL 5.7-compatible Aurora), and aurora-postgresql
 	//
 	// Engine is a required field
 	Engine *string `type:"string" required:"true"`
@@ -37197,9 +37863,9 @@ type RestoreDBClusterFromS3Input struct {
 
 	// The version of the database that the backup files were created from.
 	//
-	// MySQL version 5.5 and 5.6 are supported.
+	// MySQL versions 5.5, 5.6, and 5.7 are supported.
 	//
-	// Example: 5.6.22
+	// Example: 5.6.40, 5.7.28
 	//
 	// SourceEngineVersion is a required field
 	SourceEngineVersion *string `type:"string" required:"true"`
@@ -37543,7 +38209,12 @@ type RestoreDBClusterFromSnapshotInput struct {
 	DeletionProtection *bool `type:"boolean"`
 
 	// Specify the Active Directory directory ID to restore the DB cluster in. The
-	// domain must be created prior to this operation.
+	// domain must be created prior to this operation. Currently, only MySQL, Microsoft
+	// SQL Server, Oracle, and PostgreSQL DB instances can be created in an Active
+	// Directory Domain.
+	//
+	// For more information, see Kerberos Authentication (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/kerberos-authentication.html)
+	// in the Amazon RDS User Guide.
 	Domain *string `type:"string"`
 
 	// Specify the name of the IAM role to be used when making API calls to the
@@ -37574,6 +38245,8 @@ type RestoreDBClusterFromSnapshotInput struct {
 
 	// The DB engine mode of the DB cluster, either provisioned, serverless, parallelquery,
 	// global, or multimaster.
+	//
+	// For more information, see CreateDBCluster (https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_CreateDBCluster.html).
 	EngineMode *string `type:"string"`
 
 	// The version of the database engine to use for the new DB cluster.
@@ -38284,19 +38957,11 @@ type RestoreDBInstanceFromDBSnapshotInput struct {
 	DeletionProtection *bool `type:"boolean"`
 
 	// Specify the Active Directory directory ID to restore the DB instance in.
-	// The domain must be created prior to this operation. Currently, only Microsoft
-	// SQL Server and Oracle DB instances can be created in an Active Directory
-	// Domain.
+	// The domain must be created prior to this operation. Currently, only MySQL,
+	// Microsoft SQL Server, Oracle, and PostgreSQL DB instances can be created
+	// in an Active Directory Domain.
 	//
-	// For Microsoft SQL Server DB instances, Amazon RDS can use Windows Authentication
-	// to authenticate users that connect to the DB instance. For more information,
-	// see Using Windows Authentication with an Amazon RDS DB Instance Running Microsoft
-	// SQL Server (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_SQLServerWinAuth.html)
-	// in the Amazon RDS User Guide.
-	//
-	// For Oracle DB instances, Amazon RDS can use Kerberos Authentication to authenticate
-	// users that connect to the DB instance. For more information, see Using Kerberos
-	// Authentication with Amazon RDS for Oracle (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/oracle-kerberos.html)
+	// For more information, see Kerberos Authentication (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/kerberos-authentication.html)
 	// in the Amazon RDS User Guide.
 	Domain *string `type:"string"`
 
@@ -38306,13 +38971,12 @@ type RestoreDBInstanceFromDBSnapshotInput struct {
 
 	// The list of logs that the restored DB instance is to export to CloudWatch
 	// Logs. The values in the list depend on the DB engine being used. For more
-	// information, see Publishing Database Logs to Amazon CloudWatch Logs (https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/USER_LogAccess.html#USER_LogAccess.Procedural.UploadtoCloudWatch)
-	// in the Amazon Aurora User Guide.
+	// information, see Publishing Database Logs to Amazon CloudWatch Logs (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_LogAccess.html#USER_LogAccess.Procedural.UploadtoCloudWatch)
+	// in the Amazon RDS User Guide.
 	EnableCloudwatchLogsExports []*string `type:"list"`
 
 	// A value that indicates whether to enable mapping of AWS Identity and Access
 	// Management (IAM) accounts to database accounts. By default, mapping is disabled.
-	// For information about the supported DB engines, see CreateDBInstance.
 	//
 	// For more information about IAM database authentication, see IAM Database
 	// Authentication for MySQL and PostgreSQL (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.IAMDBAuth.html)
@@ -38759,7 +39423,6 @@ type RestoreDBInstanceFromS3Input struct {
 
 	// A value that indicates whether to enable mapping of AWS Identity and Access
 	// Management (IAM) accounts to database accounts. By default, mapping is disabled.
-	// For information about the supported DB engines, see CreateDBInstance.
 	//
 	// For more information about IAM database authentication, see IAM Database
 	// Authentication for MySQL and PostgreSQL (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.IAMDBAuth.html)
@@ -38823,6 +39486,10 @@ type RestoreDBInstanceFromS3Input struct {
 	//
 	//    * Can't be a reserved word for the chosen database engine.
 	MasterUsername *string `type:"string"`
+
+	// The upper limit to which Amazon RDS can automatically scale the storage of
+	// the DB instance.
+	MaxAllocatedStorage *int64 `type:"integer"`
 
 	// The interval, in seconds, between points when Enhanced Monitoring metrics
 	// are collected for the DB instance. To disable collecting Enhanced Monitoring
@@ -38952,9 +39619,11 @@ type RestoreDBInstanceFromS3Input struct {
 	// SourceEngine is a required field
 	SourceEngine *string `type:"string" required:"true"`
 
-	// The engine version of your source database.
+	// The version of the database that the backup files were created from.
 	//
-	// Valid Values: 5.6
+	// MySQL versions 5.6 and 5.7 are supported.
+	//
+	// Example: 5.6.40
 	//
 	// SourceEngineVersion is a required field
 	SourceEngineVersion *string `type:"string" required:"true"`
@@ -39154,6 +39823,12 @@ func (s *RestoreDBInstanceFromS3Input) SetMasterUserPassword(v string) *RestoreD
 // SetMasterUsername sets the MasterUsername field's value.
 func (s *RestoreDBInstanceFromS3Input) SetMasterUsername(v string) *RestoreDBInstanceFromS3Input {
 	s.MasterUsername = &v
+	return s
+}
+
+// SetMaxAllocatedStorage sets the MaxAllocatedStorage field's value.
+func (s *RestoreDBInstanceFromS3Input) SetMaxAllocatedStorage(v int64) *RestoreDBInstanceFromS3Input {
+	s.MaxAllocatedStorage = &v
 	return s
 }
 
@@ -39373,19 +40048,11 @@ type RestoreDBInstanceToPointInTimeInput struct {
 	DeletionProtection *bool `type:"boolean"`
 
 	// Specify the Active Directory directory ID to restore the DB instance in.
-	// The domain must be created prior to this operation. Currently, only Microsoft
-	// SQL Server and Oracle DB instances can be created in an Active Directory
-	// Domain.
+	// The domain must be created prior to this operation. Currently, only MySQL,
+	// Microsoft SQL Server, Oracle, and PostgreSQL DB instances can be created
+	// in an Active Directory Domain.
 	//
-	// For Microsoft SQL Server DB instances, Amazon RDS can use Windows Authentication
-	// to authenticate users that connect to the DB instance. For more information,
-	// see Using Windows Authentication with an Amazon RDS DB Instance Running Microsoft
-	// SQL Server (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_SQLServerWinAuth.html)
-	// in the Amazon RDS User Guide.
-	//
-	// For Oracle DB instances, Amazon RDS can use Kerberos Authentication to authenticate
-	// users that connect to the DB instance. For more information, see Using Kerberos
-	// Authentication with Amazon RDS for Oracle (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/oracle-kerberos.html)
+	// For more information, see Kerberos Authentication (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/kerberos-authentication.html)
 	// in the Amazon RDS User Guide.
 	Domain *string `type:"string"`
 
@@ -39401,7 +40068,6 @@ type RestoreDBInstanceToPointInTimeInput struct {
 
 	// A value that indicates whether to enable mapping of AWS Identity and Access
 	// Management (IAM) accounts to database accounts. By default, mapping is disabled.
-	// For information about the supported DB engines, see CreateDBInstance.
 	//
 	// For more information about IAM database authentication, see IAM Database
 	// Authentication for MySQL and PostgreSQL (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.IAMDBAuth.html)
@@ -39455,6 +40121,10 @@ type RestoreDBInstanceToPointInTimeInput struct {
 	//
 	// Valid values: license-included | bring-your-own-license | general-public-license
 	LicenseModel *string `type:"string"`
+
+	// The upper limit to which Amazon RDS can automatically scale the storage of
+	// the DB instance.
+	MaxAllocatedStorage *int64 `type:"integer"`
 
 	// A value that indicates whether the DB instance is a Multi-AZ deployment.
 	//
@@ -39678,6 +40348,12 @@ func (s *RestoreDBInstanceToPointInTimeInput) SetIops(v int64) *RestoreDBInstanc
 // SetLicenseModel sets the LicenseModel field's value.
 func (s *RestoreDBInstanceToPointInTimeInput) SetLicenseModel(v string) *RestoreDBInstanceToPointInTimeInput {
 	s.LicenseModel = &v
+	return s
+}
+
+// SetMaxAllocatedStorage sets the MaxAllocatedStorage field's value.
+func (s *RestoreDBInstanceToPointInTimeInput) SetMaxAllocatedStorage(v int64) *RestoreDBInstanceToPointInTimeInput {
+	s.MaxAllocatedStorage = &v
 	return s
 }
 
@@ -40458,9 +41134,27 @@ type StartExportTaskInput struct {
 
 	// The ID of the AWS KMS key to use to encrypt the snapshot exported to Amazon
 	// S3. The KMS key ID is the Amazon Resource Name (ARN), the KMS key identifier,
-	// or the KMS key alias for the KMS encryption key. The IAM role used for the
-	// snapshot export must have encryption and decryption permissions to use this
-	// KMS key.
+	// or the KMS key alias for the KMS encryption key. The caller of this operation
+	// must be authorized to execute the following operations. These can be set
+	// in the KMS key policy:
+	//
+	//    * GrantOperation.Encrypt
+	//
+	//    * GrantOperation.Decrypt
+	//
+	//    * GrantOperation.GenerateDataKey
+	//
+	//    * GrantOperation.GenerateDataKeyWithoutPlaintext
+	//
+	//    * GrantOperation.ReEncryptFrom
+	//
+	//    * GrantOperation.ReEncryptTo
+	//
+	//    * GrantOperation.CreateGrant
+	//
+	//    * GrantOperation.DescribeKey
+	//
+	//    * GrantOperation.RetireGrant
 	//
 	// KmsKeyId is a required field
 	KmsKeyId *string `type:"string" required:"true"`
@@ -40957,8 +41651,8 @@ func (s *StopDBInstanceOutput) SetDBInstance(v *DBInstance) *StopDBInstanceOutpu
 	return s
 }
 
-// This data type is used as a response element in the DescribeDBSubnetGroups
-// action.
+// This data type is used as a response element for the DescribeDBSubnetGroups
+// operation.
 type Subnet struct {
 	_ struct{} `type:"structure"`
 
@@ -40968,10 +41662,17 @@ type Subnet struct {
 	// type.
 	SubnetAvailabilityZone *AvailabilityZone `type:"structure"`
 
-	// Specifies the identifier of the subnet.
+	// The identifier of the subnet.
 	SubnetIdentifier *string `type:"string"`
 
-	// Specifies the status of the subnet.
+	// If the subnet is associated with an Outpost, this value specifies the Outpost.
+	//
+	// For more information about RDS on Outposts, see Amazon RDS on AWS Outposts
+	// (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/rds-on-outposts.html)
+	// in the Amazon RDS User Guide.
+	SubnetOutpost *Outpost `type:"structure"`
+
+	// The status of the subnet.
 	SubnetStatus *string `type:"string"`
 }
 
@@ -40997,6 +41698,12 @@ func (s *Subnet) SetSubnetIdentifier(v string) *Subnet {
 	return s
 }
 
+// SetSubnetOutpost sets the SubnetOutpost field's value.
+func (s *Subnet) SetSubnetOutpost(v *Outpost) *Subnet {
+	s.SubnetOutpost = v
+	return s
+}
+
 // SetSubnetStatus sets the SubnetStatus field's value.
 func (s *Subnet) SetSubnetStatus(v string) *Subnet {
 	s.SubnetStatus = &v
@@ -41010,13 +41717,13 @@ type Tag struct {
 	// A key is the required name of the tag. The string value can be from 1 to
 	// 128 Unicode characters in length and can't be prefixed with "aws:" or "rds:".
 	// The string can only contain only the set of Unicode letters, digits, white-space,
-	// '_', '.', '/', '=', '+', '-' (Java regex: "^([\\p{L}\\p{Z}\\p{N}_.:/=+\\-]*)$").
+	// '_', '.', ':', '/', '=', '+', '-', '@' (Java regex: "^([\\p{L}\\p{Z}\\p{N}_.:/=+\\-@]*)$").
 	Key *string `type:"string"`
 
 	// A value is the optional value of the tag. The string value can be from 1
 	// to 256 Unicode characters in length and can't be prefixed with "aws:" or
 	// "rds:". The string can only contain only the set of Unicode letters, digits,
-	// white-space, '_', '.', '/', '=', '+', '-' (Java regex: "^([\\p{L}\\p{Z}\\p{N}_.:/=+\\-]*)$").
+	// white-space, '_', '.', ':', '/', '=', '+', '-', '@' (Java regex: "^([\\p{L}\\p{Z}\\p{N}_.:/=+\\-@]*)$").
 	Value *string `type:"string"`
 }
 
@@ -41042,10 +41749,6 @@ func (s *Tag) SetValue(v string) *Tag {
 	return s
 }
 
-//
-// This is prerelease documentation for the RDS Database Proxy feature in preview
-// release. It is subject to change.
-//
 // Information about the connection health of an RDS Proxy target.
 type TargetHealth struct {
 	_ struct{} `type:"structure"`
@@ -41180,10 +41883,6 @@ func (s *UpgradeTarget) SetIsMajorVersionUpgrade(v bool) *UpgradeTarget {
 	return s
 }
 
-//
-// This is prerelease documentation for the RDS Database Proxy feature in preview
-// release. It is subject to change.
-//
 // Specifies the details of authentication used by a proxy to log in as a specific
 // database user.
 type UserAuthConfig struct {
@@ -41250,10 +41949,6 @@ func (s *UserAuthConfig) SetUserName(v string) *UserAuthConfig {
 	return s
 }
 
-//
-// This is prerelease documentation for the RDS Database Proxy feature in preview
-// release. It is subject to change.
-//
 // Returns the details of authentication used by a proxy to log in as a specific
 // database user.
 type UserAuthConfigInfo struct {
@@ -41536,6 +42231,14 @@ const (
 	ActivityStreamModeAsync = "async"
 )
 
+// ActivityStreamMode_Values returns all elements of the ActivityStreamMode enum
+func ActivityStreamMode_Values() []string {
+	return []string{
+		ActivityStreamModeSync,
+		ActivityStreamModeAsync,
+	}
+}
+
 const (
 	// ActivityStreamStatusStopped is a ActivityStreamStatus enum value
 	ActivityStreamStatusStopped = "stopped"
@@ -41550,6 +42253,16 @@ const (
 	ActivityStreamStatusStopping = "stopping"
 )
 
+// ActivityStreamStatus_Values returns all elements of the ActivityStreamStatus enum
+func ActivityStreamStatus_Values() []string {
+	return []string{
+		ActivityStreamStatusStopped,
+		ActivityStreamStatusStarting,
+		ActivityStreamStatusStarted,
+		ActivityStreamStatusStopping,
+	}
+}
+
 const (
 	// ApplyMethodImmediate is a ApplyMethod enum value
 	ApplyMethodImmediate = "immediate"
@@ -41558,10 +42271,25 @@ const (
 	ApplyMethodPendingReboot = "pending-reboot"
 )
 
+// ApplyMethod_Values returns all elements of the ApplyMethod enum
+func ApplyMethod_Values() []string {
+	return []string{
+		ApplyMethodImmediate,
+		ApplyMethodPendingReboot,
+	}
+}
+
 const (
 	// AuthSchemeSecrets is a AuthScheme enum value
 	AuthSchemeSecrets = "SECRETS"
 )
+
+// AuthScheme_Values returns all elements of the AuthScheme enum
+func AuthScheme_Values() []string {
+	return []string{
+		AuthSchemeSecrets,
+	}
+}
 
 const (
 	// DBProxyStatusAvailable is a DBProxyStatus enum value
@@ -41592,6 +42320,21 @@ const (
 	DBProxyStatusReactivating = "reactivating"
 )
 
+// DBProxyStatus_Values returns all elements of the DBProxyStatus enum
+func DBProxyStatus_Values() []string {
+	return []string{
+		DBProxyStatusAvailable,
+		DBProxyStatusModifying,
+		DBProxyStatusIncompatibleNetwork,
+		DBProxyStatusInsufficientResourceLimits,
+		DBProxyStatusCreating,
+		DBProxyStatusDeleting,
+		DBProxyStatusSuspended,
+		DBProxyStatusSuspending,
+		DBProxyStatusReactivating,
+	}
+}
+
 const (
 	// EngineFamilyMysql is a EngineFamily enum value
 	EngineFamilyMysql = "MYSQL"
@@ -41600,6 +42343,14 @@ const (
 	EngineFamilyPostgresql = "POSTGRESQL"
 )
 
+// EngineFamily_Values returns all elements of the EngineFamily enum
+func EngineFamily_Values() []string {
+	return []string{
+		EngineFamilyMysql,
+		EngineFamilyPostgresql,
+	}
+}
+
 const (
 	// IAMAuthModeDisabled is a IAMAuthMode enum value
 	IAMAuthModeDisabled = "DISABLED"
@@ -41607,6 +42358,30 @@ const (
 	// IAMAuthModeRequired is a IAMAuthMode enum value
 	IAMAuthModeRequired = "REQUIRED"
 )
+
+// IAMAuthMode_Values returns all elements of the IAMAuthMode enum
+func IAMAuthMode_Values() []string {
+	return []string{
+		IAMAuthModeDisabled,
+		IAMAuthModeRequired,
+	}
+}
+
+const (
+	// ReplicaModeOpenReadOnly is a ReplicaMode enum value
+	ReplicaModeOpenReadOnly = "open-read-only"
+
+	// ReplicaModeMounted is a ReplicaMode enum value
+	ReplicaModeMounted = "mounted"
+)
+
+// ReplicaMode_Values returns all elements of the ReplicaMode enum
+func ReplicaMode_Values() []string {
+	return []string{
+		ReplicaModeOpenReadOnly,
+		ReplicaModeMounted,
+	}
+}
 
 const (
 	// SourceTypeDbInstance is a SourceType enum value
@@ -41628,6 +42403,18 @@ const (
 	SourceTypeDbClusterSnapshot = "db-cluster-snapshot"
 )
 
+// SourceType_Values returns all elements of the SourceType enum
+func SourceType_Values() []string {
+	return []string{
+		SourceTypeDbInstance,
+		SourceTypeDbParameterGroup,
+		SourceTypeDbSecurityGroup,
+		SourceTypeDbSnapshot,
+		SourceTypeDbCluster,
+		SourceTypeDbClusterSnapshot,
+	}
+}
+
 const (
 	// TargetHealthReasonUnreachable is a TargetHealthReason enum value
 	TargetHealthReasonUnreachable = "UNREACHABLE"
@@ -41642,6 +42429,16 @@ const (
 	TargetHealthReasonPendingProxyCapacity = "PENDING_PROXY_CAPACITY"
 )
 
+// TargetHealthReason_Values returns all elements of the TargetHealthReason enum
+func TargetHealthReason_Values() []string {
+	return []string{
+		TargetHealthReasonUnreachable,
+		TargetHealthReasonConnectionFailed,
+		TargetHealthReasonAuthFailure,
+		TargetHealthReasonPendingProxyCapacity,
+	}
+}
+
 const (
 	// TargetStateRegistering is a TargetState enum value
 	TargetStateRegistering = "REGISTERING"
@@ -41653,6 +42450,15 @@ const (
 	TargetStateUnavailable = "UNAVAILABLE"
 )
 
+// TargetState_Values returns all elements of the TargetState enum
+func TargetState_Values() []string {
+	return []string{
+		TargetStateRegistering,
+		TargetStateAvailable,
+		TargetStateUnavailable,
+	}
+}
+
 const (
 	// TargetTypeRdsInstance is a TargetType enum value
 	TargetTypeRdsInstance = "RDS_INSTANCE"
@@ -41663,6 +42469,15 @@ const (
 	// TargetTypeTrackedCluster is a TargetType enum value
 	TargetTypeTrackedCluster = "TRACKED_CLUSTER"
 )
+
+// TargetType_Values returns all elements of the TargetType enum
+func TargetType_Values() []string {
+	return []string{
+		TargetTypeRdsInstance,
+		TargetTypeRdsServerlessEndpoint,
+		TargetTypeTrackedCluster,
+	}
+}
 
 const (
 	// WriteForwardingStatusEnabled is a WriteForwardingStatus enum value
@@ -41680,3 +42495,14 @@ const (
 	// WriteForwardingStatusUnknown is a WriteForwardingStatus enum value
 	WriteForwardingStatusUnknown = "unknown"
 )
+
+// WriteForwardingStatus_Values returns all elements of the WriteForwardingStatus enum
+func WriteForwardingStatus_Values() []string {
+	return []string{
+		WriteForwardingStatusEnabled,
+		WriteForwardingStatusDisabled,
+		WriteForwardingStatusEnabling,
+		WriteForwardingStatusDisabling,
+		WriteForwardingStatusUnknown,
+	}
+}
