@@ -37,8 +37,10 @@ set -eux
 
 # Prevents aws cli from opening editor on responses - https://github.com/aws/aws-cli/issues/4992
 export AWS_PAGER=""
-ROLE_NAME="rhoam_role"
+ROLE_NAME="${ROLE_NAME:-rhoam_role}"
 MINIMAL_POLICY_NAME="${ROLE_NAME}_minimal_policy"
+FUNCTIONAL_TEST_ROLE_NAME="${FUNCTIONAL_TEST_ROLE_NAME:-functional_test_role}"
+FUNCTIONAL_TEST_MINIMAL_POLICY_NAME="${FUNCTIONAL_TEST_ROLE_NAME}_minimal_policy"
 OCM_ENV="${OCM_ENV:-staging}"
 CLUSTER_NAME="${CLUSTER_NAME:-defaultsts}"
 AWS_REGION="${AWS_REGION:-eu-west-1}"
@@ -217,7 +219,40 @@ EOM
 }
 EOM
     # attach policy with only the required permissions by CRO
-    aws iam put-role-policy --role-name $ROLE_NAME --policy-name rhoam_role_minimal_policy --policy-document "file://$MINIMAL_POLICY_NAME.json" || true
+    aws iam put-role-policy --role-name $ROLE_NAME --policy-name $MINIMAL_POLICY_NAME --policy-document "file://$MINIMAL_POLICY_NAME.json" || true
+
+    # Role and policy for functional tests
+    aws iam delete-role-policy --role-name $FUNCTIONAL_TEST_ROLE_NAME --policy-name $FUNCTIONAL_TEST_MINIMAL_POLICY_NAME || true
+    aws iam delete-role --role-name $FUNCTIONAL_TEST_ROLE_NAME || true
+
+    aws iam create-role --role-name $FUNCTIONAL_TEST_ROLE_NAME --assume-role-policy-document "file://$ROLE_NAME.json" || true
+    cat <<EOM >"$FUNCTIONAL_TEST_MINIMAL_POLICY_NAME.json"
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "ec2:DescribeRouteTables",
+                "ec2:DescribeSecurityGroups",
+                "ec2:DescribeSubnets",
+                "ec2:DescribeVpcPeeringConnections",
+                "ec2:DescribeVpcs",
+                "elasticache:DescribeCacheClusters",
+                "elasticache:DescribeReplicationGroups",
+                "elasticache:DescribeCacheSubnetGroups",
+                "rds:DescribeDBInstances",
+                "rds:DescribeDBSubnetGroups",
+                "s3:GetBucketTagging",
+                "s3:GetBucketPublicAccessBlock",
+                "s3:GetEncryptionConfiguration"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
+EOM
+    aws iam put-role-policy --role-name $FUNCTIONAL_TEST_ROLE_NAME --policy-name $FUNCTIONAL_TEST_MINIMAL_POLICY_NAME --policy-document "file://$FUNCTIONAL_TEST_MINIMAL_POLICY_NAME.json" || true
 }
 
 main() {
