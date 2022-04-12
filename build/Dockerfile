@@ -12,7 +12,7 @@ RUN set -o pipefail && \
     yum install -y --setopt=tsflags=nodocs $INSTALL_PKGS && \
     curl -Ls https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/stable/openshift-client-linux.tar.gz | tar -zx && \
     mv oc /usr/local/bin && \
-    curl -Lo /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.9.8/yq_linux_amd64 && \
+    curl -Lo /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.23.1/yq_linux_amd64 && \
     chmod +x /usr/local/bin/yq && \
     curl -Lo /usr/local/bin/jq https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64 && \
     chmod +x /usr/local/bin/jq && \
