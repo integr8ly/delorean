@@ -120,12 +120,12 @@ func DoTagRelease(ctx context.Context, ghClient services.GitService, gitRepoInfo
 			commitSHA = existingRCTagRef.GetObject().GetSHA()
 		}
 
-		ok := tryCreateQuayTag(ctx, quayRepos, quaySrcTag, quayDstTag, quayToken, commitSHA)
+		ok := tryCreateQuayTag(quayRepos, quaySrcTag, quayDstTag, quayToken, commitSHA)
 		if !ok {
 			if cmdOpts.wait {
 				fmt.Println("Wait for the latest image to be available on quay.io. Will check every", cmdOpts.waitInterval, "minutes for", cmdOpts.waitMax, "minutes")
 				err = wait.Poll(time.Duration(cmdOpts.waitInterval)*time.Minute, time.Duration(cmdOpts.waitMax)*time.Minute, func() (bool, error) {
-					ok = tryCreateQuayTag(ctx, quayRepos, quaySrcTag, quayDstTag, quayToken, commitSHA)
+					ok = tryCreateQuayTag(quayRepos, quaySrcTag, quayDstTag, quayToken, commitSHA)
 					if !ok {
 						fmt.Println("Failed. Will try again later.")
 					}
@@ -195,7 +195,7 @@ func createGitTag(ctx context.Context, client services.GitService, gitRepoInfo *
 	return created, nil
 }
 
-func tryCreateQuayTag(ctx context.Context, quayRepos string, quaySrcTag string, quayDstTag string, quayToken string, commitSHA string) bool {
+func tryCreateQuayTag(quayRepos string, quaySrcTag string, quayDstTag string, quayToken string, commitSHA string) bool {
 	repos := strings.Split(quayRepos, ",")
 	ok := true
 
@@ -203,16 +203,18 @@ func tryCreateQuayTag(ctx context.Context, quayRepos string, quaySrcTag string, 
 	f, err := os.CreateTemp("", "tmpfile-")
 	if err != nil {
 		fmt.Println("Failed to create quayToken temp file due to error:", err)
+		return false
 	}
 	quayTokenFilename := f.Name()
 
 	_, err = fmt.Fprint(f, "{\"auths\": {\"quay.io\": {\"auth\": \"", quayToken, "\"}}}")
 	if err != nil {
 		fmt.Println("Failed to write to ", quayTokenFilename, " file due to error:", err)
+		return false
 	}
 	for _, r := range repos {
 		repo, tag := getImageRepoAndTag(r, quayDstTag)
-		err := createTagForImage(ctx, *repo, quaySrcTag, *tag, quayTokenFilename, commitSHA)
+		err := createTagForImage(*repo, quaySrcTag, *tag, quayTokenFilename, commitSHA)
 		if err != nil {
 			ok = false
 			fmt.Println("Failed to create the image tag for", r, "due to error:", err)
@@ -220,12 +222,14 @@ func tryCreateQuayTag(ctx context.Context, quayRepos string, quaySrcTag string, 
 			fmt.Printf("Image tag '%s' created from tag '%s' with commit '%s' in repo '%s'\n", *tag, quaySrcTag, commitSHA, *repo)
 		}
 	}
-	os.Remove(f.Name())
+	err = os.Remove(f.Name())
+	if err != nil {
+		fmt.Println("Failed to remove the token temp file due to error:", err)
+	}
 	return ok
 }
 
-func createTagForImage(ctx context.Context, quayRepo string, quaySrcTag string, quayDstTag string, quayTokenFilename string, commitSHA string) error {
-
+func createTagForImage(quayRepo string, quaySrcTag string, quayDstTag string, quayTokenFilename string, commitSHA string) error {
 	split := strings.Split(quayRepo, "/")
 	quayOrg, quayImage := split[0], split[1]
 
@@ -239,31 +243,35 @@ func createTagForImage(ctx context.Context, quayRepo string, quaySrcTag string, 
 	if err != nil {
 		return err
 	}
+
 	var imageInfo ImageInfo
-	json.Unmarshal(buf.Bytes(), &imageInfo)
+	err = json.Unmarshal(buf.Bytes(), &imageInfo)
+	if err != nil {
+		return err
+	}
+
 	commitID := imageInfo.Config.InnerConfig.Labels.CommitId
 	if commitID != commitSHA {
 		return fmt.Errorf("can't find an image with given tag %s that matches the given commit SHA: %s", quaySrcTag, commitSHA)
-	} else {
-
-		mapping := mirror.Mapping{
-			Source: imagesource.TypedImageReference{Type: "docker", Ref: reference.DockerImageReference{
-				Registry: "quay.io", Namespace: quayOrg, Name: quayImage, Tag: quaySrcTag},
-			},
-			Destination: imagesource.TypedImageReference{Type: "docker", Ref: reference.DockerImageReference{
-				Registry: "quay.io", Namespace: quayOrg, Name: quayImage, Tag: quayDstTag},
-			},
-		}
-		m := mirror.NewMirrorImageOptions(genericclioptions.IOStreams{Out: os.Stdout, ErrOut: os.Stderr})
-		m.Mappings = []mirror.Mapping{mapping}
-		m.SecurityOptions.RegistryConfig = quayTokenFilename
-
-		err = m.Run()
-		if err != nil {
-			return err
-		}
-		return nil
 	}
+
+	mapping := mirror.Mapping{
+		Source: imagesource.TypedImageReference{Type: "docker", Ref: reference.DockerImageReference{
+			Registry: "quay.io", Namespace: quayOrg, Name: quayImage, Tag: quaySrcTag},
+		},
+		Destination: imagesource.TypedImageReference{Type: "docker", Ref: reference.DockerImageReference{
+			Registry: "quay.io", Namespace: quayOrg, Name: quayImage, Tag: quayDstTag},
+		},
+	}
+	m := mirror.NewMirrorImageOptions(genericclioptions.IOStreams{Out: os.Stdout, ErrOut: os.Stderr})
+	m.Mappings = []mirror.Mapping{mapping}
+	m.SecurityOptions.RegistryConfig = quayTokenFilename
+
+	err = m.Run()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func getImageRepoAndTag(s string, defaultTag string) (*string, *string) {
