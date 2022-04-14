@@ -412,7 +412,7 @@ func TestDownloadManagedTenants(t *testing.T) {
 		{
 			description: "Download managed tenants from service delivery",
 			url:         "https://gitlab.cee.redhat.com/service/managed-tenants.git",
-			expected:    "/tmp/managed-tenants",
+			expected:    os.TempDir(),
 		},
 	}
 
