@@ -29,6 +29,7 @@ scripts/jenkins-reports/report.txt
 # Generated files
 rhoam_role.json
 rhoam_role_minimal_policy.json
+functional_test_role_minimal_policy.json
 
 test-results/
 test-config.yaml
