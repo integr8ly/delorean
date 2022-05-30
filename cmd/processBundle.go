@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"errors"
+	"fmt"
 	"io/fs"
 	"io/ioutil"
 	"os"
@@ -9,19 +10,22 @@ import (
 
 	"github.com/operator-framework/api/pkg/manifests"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 var (
+	indexImage               string
 	bundleImage              string
 	productsInstallationPath string
 	productKey               string
 	channel                  string
 	bundleDir                string
+	indexPackage             string
 )
 
 var (
 	bundleInstallFrom = "implicit"
+	indexInstallFrom  = "index"
 )
 
 var processBundleCmd = &cobra.Command{
@@ -39,13 +43,25 @@ export PRODUCT_NAME=3scale
 export CHANNEL=threescale-2.11
 ./delorean ews process-bundle --bundle $BUNDLE_IMAGE --bundle-dir $BUNDLE_DIR --products-path $PRODUCTS_PATH --product $PRODUCT --channel $CHANNEL`,
 	Run: func(cmd *cobra.Command, args []string) {
-		updater := &ProductInstallationCompositeUpdater{
-			Updaters: []ProductInstallationUpdater{
+		if (bundleImage == "" && indexImage == "") || (bundleImage != "" && indexImage != "") {
+			handleError(errors.New("must provide either --index or --bundle"))
+		}
+		updater := &ProductInstallationCompositeUpdater{}
+		if bundleImage != "" {
+			updater.Updaters = []ProductInstallationUpdater{
 				&ProductInstallationUpdaterFromValues{
 					Bundle:      &bundleImage,
 					InstallFrom: &bundleInstallFrom,
 				},
-			},
+			}
+		} else {
+			updater.Updaters = []ProductInstallationUpdater{
+				&ProductInstallationUpdaterFromValues{
+					Index:       &indexImage,
+					InstallFrom: &indexInstallFrom,
+					Package:     &indexPackage,
+				},
+			}
 		}
 		if bundleDir != "" {
 			updater.Updaters = append(updater.Updaters, &ProductInstallationUpdaterFromBundle{
@@ -156,16 +172,31 @@ func (u *ProductInstallationCompositeUpdater) UpdateProductInstallation(p *Produ
 }
 
 func (cmd *ProcessBundleCommand) Run() error {
-	productsInstallation, err := cmd.getProductsInstallation()
+	in, err := cmd.getProductsInstallation()
 	if err != nil {
 		return err
+	}
+
+	productsInstallation := &ProductsInstallation{}
+	comment := ""
+
+	if in.Content[0].Content[0].Kind == 8 {
+		comment = in.Content[0].Content[0].HeadComment
+	}
+
+	err = in.Content[0].Decode(productsInstallation)
+	if err != nil {
+		fmt.Println("Failed to decode")
 	}
 
 	if err := cmd.Updater.UpdateProductInstallation(productsInstallation.Products[cmd.ProductKey]); err != nil {
 		return err
 	}
 
-	return cmd.saveProductsInstallation(productsInstallation)
+	in.Content[0].Encode(productsInstallation)
+	in.Content[0].HeadComment = comment
+
+	return cmd.saveProductsInstallation(in)
 }
 
 type ProductsInstallation struct {
@@ -181,18 +212,18 @@ type ProductInstallation struct {
 	Index        string  `yaml:"index,omitempty"`
 }
 
-func (cmd *ProcessBundleCommand) getProductsInstallation() (*ProductsInstallation, error) {
+func (cmd *ProcessBundleCommand) getProductsInstallation() (*yaml.Node, error) {
 	file, err := ioutil.ReadFile(cmd.ProductsInstallationPath)
 	if err != nil {
 		return nil, err
 	}
 
-	result := &ProductsInstallation{}
-	err = yaml.Unmarshal(file, result)
-	return result, err
+	var in yaml.Node
+	err = yaml.Unmarshal(file, &in)
+	return &in, err
 }
 
-func (cmd *ProcessBundleCommand) saveProductsInstallation(i *ProductsInstallation) error {
+func (cmd *ProcessBundleCommand) saveProductsInstallation(i *yaml.Node) error {
 	out, err := yaml.Marshal(i)
 	if err != nil {
 		return err
@@ -211,7 +242,22 @@ func init() {
 		"",
 		"Bundle image to be included",
 	)
-	processBundleCmd.MarkFlagRequired("bundle")
+
+	processBundleCmd.Flags().StringVarP(
+		&indexImage,
+		"index",
+		"i",
+		"",
+		"Index image to be included",
+	)
+
+	processBundleCmd.Flags().StringVarP(
+		&indexPackage,
+		"package",
+		"o",
+		"",
+		"Index image to be included",
+	)
 
 	processBundleCmd.Flags().StringVarP(
 		&bundleDir,
