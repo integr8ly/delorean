@@ -3,13 +3,14 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"github.com/integr8ly/delorean/pkg/utils"
 	"io/ioutil"
 	"os"
 	"path"
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/integr8ly/delorean/pkg/utils"
 )
 
 func TestManageRHMITypes(t *testing.T) {
@@ -120,19 +121,13 @@ func verifyTypesFile(t *testing.T, filepath, product string, version string, maj
 	product = PrepareProductName(product)
 
 	var ReOperatorVersion = regexp.MustCompile(`OperatorVersion` + product + `.*`)
-	var ReProductVersion = regexp.MustCompile(`Version` + product + `.*`)
 
 	operatorVersion := ReOperatorVersion.FindString(string(bytes))
-	productVersion := ReProductVersion.FindString(string(bytes))
 
 	// Remove the "'s so it can validate against the version
 	ovs := strings.Split(operatorVersion, "=")[1]
 	ovs = strings.ReplaceAll(ovs, "\"", "")
 	ovs = strings.TrimSpace(ovs)
-
-	pvs := strings.Split(productVersion, "=")[1]
-	pvs = strings.ReplaceAll(pvs, "\"", "")
-	pvs = strings.TrimSpace(pvs)
 
 	if majmin == "major" {
 		if ovs != version {

@@ -2,12 +2,13 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/spf13/cobra"
-	"golang.org/x/mod/semver"
 	"io/ioutil"
 	"os"
 	"regexp"
 	"strings"
+
+	"github.com/spf13/cobra"
+	"golang.org/x/mod/semver"
 )
 
 type manageTypesCmdOptions struct {
@@ -45,7 +46,7 @@ func init() {
 
 func SetVersion(filepath string, product string, version string) error {
 	product = PrepareProductName(product)
-	fmt.Println(fmt.Sprintf("setting version of product operator %s to %s", product, version))
+	fmt.Printf("setting version of product operator %s to %s\n", product, version)
 	read, err := os.Open(filepath)
 	if err != nil {
 		return err
@@ -56,13 +57,15 @@ func SetVersion(filepath string, product string, version string) error {
 	}
 	out, err := ParseVersion(bytes, product, version)
 	if err != nil {
-		fmt.Println(fmt.Sprintf("error: %s not writing to file", err))
+		fmt.Printf("error: %s not writing to file\n", err)
 		return nil
 	}
-	fmt.Println(fmt.Sprintf("writing changes to rhmi_types file at %s ", filepath))
-	err = ioutil.WriteFile(filepath, []byte(out), 600)
-	if err != nil {
-		return err
+	if out != "" {
+		fmt.Printf("writing changes to rhmi_types file at %s\n", filepath)
+		err = ioutil.WriteFile(filepath, []byte(out), 0644)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -102,22 +105,26 @@ func ParseVersion(in []byte, product string, version string) (string, error) {
 	ovs = strings.ReplaceAll(ovs, "\"", "")
 	ovs = strings.TrimSpace(ovs)
 
-	currentOperatorMajor := semver.MajorMinor("v" + ovs)
-	newOperatorMajor := semver.MajorMinor("v" + version)
+	currentOperatorVersion := "v" + ovs
+	newOperatorVersion := "v" + version
 
 	var out string
-	fmt.Println(fmt.Sprintf("current OperatorVersion: %s Supplied OperatorVersion: %s", currentOperatorMajor, newOperatorMajor))
-	c := semver.Compare(currentOperatorMajor, newOperatorMajor)
-	// major versions are a match
-	if c == 0 || c == -1 || currentOperatorMajor == "" && newOperatorMajor == "" {
+	fmt.Printf("current OperatorVersion: %s Supplied OperatorVersion: %s\n", currentOperatorVersion, newOperatorVersion)
+	if !semver.IsValid(currentOperatorVersion) || !semver.IsValid(newOperatorVersion) {
+		return "", fmt.Errorf("one of the versions provided are invalid semver")
+	}
+	c := semver.Compare(currentOperatorVersion, newOperatorVersion)
+	// the operator version is less than the new version
+	switch c {
+	case -1:
 		r := strings.Replace(operatorVersion, ovs, version, 1)
 		out = strings.Replace(string(in), operatorVersion, r, 1)
 		return out, nil
+	case 0:
+		fmt.Println("Operator versions match or invalid, not updating types file")
+		return "", nil
+	case 1:
+		return "", fmt.Errorf("current operator version %s is greater than supplied version %s", currentOperatorVersion, newOperatorVersion)
 	}
-
-	if c == 1 {
-		return "", fmt.Errorf(fmt.Sprintf("current operator version %s is greater than supplied version %s", currentOperatorMajor, newOperatorMajor))
-	}
-
 	return "", fmt.Errorf("unexpected operator version found")
 }
