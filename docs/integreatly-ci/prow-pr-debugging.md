@@ -19,7 +19,7 @@ If the problem is caused by the tests, the following steps will help debug faili
 * After a while a secret will be created called `rhoam-e2e-hive-admin-kubeconfig`.
 * In this secret at the bottom you will find the link to the secondary cluster. The link will look something like this : `https://api.ci-ocp-4-10-amd64-aws-us-west-1-7msbg.hive.aws.ci.openshift.org:6443`
 * Paste this URL into anew tab and replace the `api` part with `console-openshift-console.apps`. You will also need to remove the port number.
-* This will require you to log in. THe user will be `kubeadmin`. To find the log in password navigate back to `Secrets` and find `rhoam-e2e-hive-admin-password`.
+* This will require you to log in. The user will be `kubeadmin`. To find the log in password navigate back to `Secrets` and find `rhoam-e2e-hive-admin-password`.
 * From here you will have access to the cluster to debug whatever is needed.
 
 ### Getting the server API token
