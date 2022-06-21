@@ -133,11 +133,11 @@ create_cluster_configuration_file() {
 }
 
 create_custom_vpc() {
-    
+
     local stack_details
     local subnet
     local az_count
- 
+
     create_custom_vpc_user
 
     if aws cloudformation describe-stacks --region $OCM_CLUSTER_REGION --profile $CUSTOM_VPC_USERNAME | jq -er ".Stacks[] | select(.StackName==\"${CUSTOM_VPC_STACK_NAME}\")" > /dev/null
@@ -153,7 +153,7 @@ create_custom_vpc() {
             ParameterKey=AvailabilityZoneCount,ParameterValue="${az_count}" \
             > /dev/null
         wait_for "aws cloudformation describe-stacks --region $OCM_CLUSTER_REGION --profile $CUSTOM_VPC_USERNAME | jq -er '.Stacks[] | select(.StackName==\"$CUSTOM_VPC_STACK_NAME\") | select(.StackStatus==\"CREATE_COMPLETE\")' > /dev/null" "vpc stack creation" "10m" "30"
-    fi    
+    fi
 
     stack_details=$(aws cloudformation describe-stacks --region $OCM_CLUSTER_REGION --profile $CUSTOM_VPC_USERNAME | jq -er ".Stacks[] | select(.StackName==\"$CUSTOM_VPC_STACK_NAME\")")
 
@@ -181,7 +181,7 @@ create_custom_vpc_user() {
     aws iam create-user --user-name $CUSTOM_VPC_USERNAME &> /dev/null || true
     echo "Attaching admin policy to temporary user ${CUSTOM_VPC_USERNAME}"
     aws iam attach-user-policy --user-name $CUSTOM_VPC_USERNAME --policy-arn $AWS_ADMIN_POLICY_ARN
-    for akid in $(aws iam list-access-keys --user-name $CUSTOM_VPC_USERNAME | jq -r '.AccessKeyMetadata[].AccessKeyId'); 
+    for akid in $(aws iam list-access-keys --user-name $CUSTOM_VPC_USERNAME | jq -r '.AccessKeyMetadata[].AccessKeyId');
     do
         echo "Deleting $CUSTOM_VPC_USERNAME temporary user's access key"
         aws iam delete-access-key --access-key-id "$akid" --user-name $CUSTOM_VPC_USERNAME
@@ -201,7 +201,7 @@ create_custom_vpc_user() {
 delete_custom_vpc_user() {
     echo "Deleting temporary custom VPC user $CUSTOM_VPC_USERNAME"
     aws iam detach-user-policy --user-name $CUSTOM_VPC_USERNAME --policy-arn $AWS_ADMIN_POLICY_ARN
-    for akid in $(aws iam list-access-keys --user-name $CUSTOM_VPC_USERNAME | jq -r '.AccessKeyMetadata[].AccessKeyId'); 
+    for akid in $(aws iam list-access-keys --user-name $CUSTOM_VPC_USERNAME | jq -r '.AccessKeyMetadata[].AccessKeyId');
     do
         aws iam delete-access-key --access-key-id "$akid" --user-name $CUSTOM_VPC_USERNAME
     done
@@ -274,12 +274,31 @@ install_addon() {
     if [[ "${addon_id}" == "managed-api-service" ]]; then
     	addon_payload="{\"addon\":{\"id\":\"${addon_id}\"}, \"parameters\": { \"items\": [{\"id\": \"cidr-range\", \"value\": \"10.1.0.0/26\"}, {\"id\": \"addon-resource-required\", \"value\": \"true\" }"
         if [[ "${osd_trial}" == "false" ]]; then
-            addon_payload+=", {\"id\": \"addon-managed-api-service\", \"value\": \"${QUOTA}\"}] }}"
+            addon_payload+=", {\"id\": \"addon-managed-api-service\", \"value\": \"${QUOTA}\"}"
         else
-            addon_payload+=", {\"id\": \"trial-quota\", \"value\": \"0\"}] }}"
+            addon_payload+=", {\"id\": \"trial-quota\", \"value\": \"0\"}"
         fi
     fi
 
+    # Add the custom SMTP parameters to addon payload if present in the command
+    if [[ -n "${SMTP_FROM}" ]]; then
+        addon_payload+=", {\"id\": \"custom-smtp-from_address\", \"value\": \"${SMTP_FROM}\"}"
+    fi
+    if [[ -n "${SMTP_ADDRESS}" ]]; then
+        addon_payload+=", {\"id\": \"custom-smtp-address\", \"value\": \"${SMTP_ADDRESS}\"}"
+    fi
+    if [[ -n "${SMTP_USER}" ]]; then
+        addon_payload+=", {\"id\": \"custom-smtp-username\", \"value\": \"${SMTP_USER}\"}"
+    fi
+    if [[ -n "${SMTP_PASS}" ]]; then
+        addon_payload+=", {\"id\": \"custom-smtp-password\", \"value\": \"${SMTP_PASS}\"}"
+    fi
+    if [[ -n "${SMTP_PORT}" ]]; then
+        addon_payload+=", {\"id\": \"custom-smtp-port\", \"value\": \"${SMTP_PORT}\"}"
+    fi
+
+    #Closing the list of addon parameters
+    addon_payload+="] }}"
     echo "Applying ${addon_id} Add-on on a cluster with ID: ${cluster_id}"
     echo "${addon_payload}" | ocm post "/api/clusters_mgmt/v1/clusters/${cluster_id}/addons"
 
@@ -458,23 +477,23 @@ send_cluster_create_request() {
     LOOP=${LOOP:-true}
     tmp=$(mktemp)
     NODE_AMOUNT=$(get_cluster_node_count)
-    if [ "$LOCAL_RUN" = true ]; then 
-       while [ "$LOOP" = true ]; 
-       do 
-       read -p "Are you sure you need a ${NODE_AMOUNT} node cluster (Y/N)? Please consider a smaller cluster if it will satisfy your development needs." -n 1 -r 
-       if [[ $REPLY =~ ^[Yy]$ ]]; then 
+    if [ "$LOCAL_RUN" = true ]; then
+       while [ "$LOOP" = true ];
+       do
+       read -p "Are you sure you need a ${NODE_AMOUNT} node cluster (Y/N)? Please consider a smaller cluster if it will satisfy your development needs." -n 1 -r
+       if [[ $REPLY =~ ^[Yy]$ ]]; then
           jq '.nodes.compute = '"${NODE_AMOUNT}"'' "${CLUSTER_CONFIGURATION_FILE}" > "$tmp" && mv "$tmp" "${CLUSTER_CONFIGURATION_FILE}"
-          echo $'\nCluster with '"${NODE_AMOUNT}"' nodes will be created.' 
-          LOOP=false 
-       elif [[ "$REPLY" =~ ^[Nn]$ ]]; then 
-          echo "" 
-          read -p "How many nodes would you like? " -n 1 -r 
-          echo $'\nCluster with '"$REPLY"' nodes will be created.' 
-          jq '.nodes.compute = '"${REPLY}"'' "${CLUSTER_CONFIGURATION_FILE}" > "$tmp" && mv "$tmp" "${CLUSTER_CONFIGURATION_FILE}" 
-          LOOP=false 
-        else echo $'\nPlease input either "Y" or "N"' 
-       fi 
-       done 
+          echo $'\nCluster with '"${NODE_AMOUNT}"' nodes will be created.'
+          LOOP=false
+       elif [[ "$REPLY" =~ ^[Nn]$ ]]; then
+          echo ""
+          read -p "How many nodes would you like? " -n 1 -r
+          echo $'\nCluster with '"$REPLY"' nodes will be created.'
+          jq '.nodes.compute = '"${REPLY}"'' "${CLUSTER_CONFIGURATION_FILE}" > "$tmp" && mv "$tmp" "${CLUSTER_CONFIGURATION_FILE}"
+          LOOP=false
+        else echo $'\nPlease input either "Y" or "N"'
+       fi
+       done
     fi
     ocm_command="ocm post /api/clusters_mgmt/v1/clusters --body='${CLUSTER_CONFIGURATION_FILE}'"
     # Get existing cluster details if exists to avoid DuplicateClusterName error
@@ -639,6 +658,13 @@ Optional exported variables:
 - SELF_SIGNED_CERTS                 true/false - cluster certificate can be invalid
 - WAIT                              true/false - wait for install to complete (default: true)
 - QUOTA                             Ratelimit quota. Allowed values: 1,5,10,20,50 (default: 20)
+------------------------------------------------------------------------------------------
+Custom SMTP mail server exported variables:
+- SMTP_FROM                         Email address outgoing mail from managed api service will be sent from.
+- SMTP_ADDRESS                      Mail server address
+- SMTP_USER                         Mail server username
+- SMTP_PASS                         Mail server passowrd
+- SMTP_PORT                         Port on which the mail server is listening for new connections
 ==========================================================================================================
 upgrade_cluster                   - upgrade OSD cluster to latest version (if available)
 ------------------------------------------------------------------------------------------
