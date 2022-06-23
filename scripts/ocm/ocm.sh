@@ -281,19 +281,19 @@ install_addon() {
     fi
 
     # Add the custom SMTP parameters to addon payload if present in the command
-    if [[ -n "${SMTP_FROM}" ]]; then
+    if [[ -n "${SMTP_FROM}" && "${SMTP_FROM}" != "null" ]]; then
         addon_payload+=", {\"id\": \"custom-smtp-from_address\", \"value\": \"${SMTP_FROM}\"}"
     fi
-    if [[ -n "${SMTP_ADDRESS}" ]]; then
+    if [[ -n "${SMTP_ADDRESS}" && "${SMTP_FROM}" != "null" ]]; then
         addon_payload+=", {\"id\": \"custom-smtp-address\", \"value\": \"${SMTP_ADDRESS}\"}"
     fi
-    if [[ -n "${SMTP_USER}" ]]; then
+    if [[ -n "${SMTP_USER}" && "${SMTP_FROM}" != "null" ]]; then
         addon_payload+=", {\"id\": \"custom-smtp-username\", \"value\": \"${SMTP_USER}\"}"
     fi
-    if [[ -n "${SMTP_PASS}" ]]; then
+    if [[ -n "${SMTP_PASS}" && "${SMTP_FROM}" != "null" ]]; then
         addon_payload+=", {\"id\": \"custom-smtp-password\", \"value\": \"${SMTP_PASS}\"}"
     fi
-    if [[ -n "${SMTP_PORT}" ]]; then
+    if [[ -n "${SMTP_PORT}" && "${SMTP_FROM}" != "null" ]]; then
         addon_payload+=", {\"id\": \"custom-smtp-port\", \"value\": \"${SMTP_PORT}\"}"
     fi
 
