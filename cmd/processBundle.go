@@ -60,6 +60,7 @@ export CHANNEL=threescale-2.11
 					Index:       &indexImage,
 					InstallFrom: &indexInstallFrom,
 					Package:     &indexPackage,
+					Channel:     &channel,
 				},
 			}
 		}
@@ -133,7 +134,9 @@ func (u *ProductInstallationUpdaterFromValues) UpdateProductInstallation(p *Prod
 	}
 
 	if u.Channel != nil {
-		p.Channel = *u.Channel
+		if *u.Channel != "" {
+			p.Channel = *u.Channel
+		}
 	}
 	if u.Bundle != nil {
 		if *u.Bundle == "" {
@@ -288,7 +291,7 @@ func init() {
 		&channel,
 		"channel",
 		"c",
-		"alpha",
+		"",
 		"Channel where the operator is delivered in the bundle",
 	)
 }
