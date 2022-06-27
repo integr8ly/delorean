@@ -3,7 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"path"
 	"regexp"
@@ -79,7 +79,7 @@ func TestManageRHMITypes(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		testDir, err := ioutil.TempDir(os.TempDir(), "test-")
+		testDir, err := os.MkdirTemp(os.TempDir(), "test-")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -117,7 +117,7 @@ func verifyTypesFile(t *testing.T, filepath, product string, version string, maj
 	}
 	defer f.Close()
 
-	bytes, _ := ioutil.ReadAll(f)
+	bytes, _ := io.ReadAll(f)
 	product = PrepareProductName(product)
 
 	var ReOperatorVersion = regexp.MustCompile(`OperatorVersion` + product + `.*`)

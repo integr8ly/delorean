@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"regexp"
 	"strings"
@@ -51,7 +51,7 @@ func SetVersion(filepath string, product string, version string) error {
 	if err != nil {
 		return err
 	}
-	bytes, err := ioutil.ReadAll(read)
+	bytes, err := io.ReadAll(read)
 	if err != nil {
 		return err
 	}
@@ -62,7 +62,7 @@ func SetVersion(filepath string, product string, version string) error {
 	}
 	if out != "" {
 		fmt.Printf("writing changes to rhmi_types file at %s\n", filepath)
-		err = ioutil.WriteFile(filepath, []byte(out), 0644)
+		err = os.WriteFile(filepath, []byte(out), 0644)
 		if err != nil {
 			return err
 		}

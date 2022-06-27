@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path"
 
@@ -216,7 +215,7 @@ type ProductInstallation struct {
 }
 
 func (cmd *ProcessBundleCommand) getProductsInstallation() (*yaml.Node, error) {
-	file, err := ioutil.ReadFile(cmd.ProductsInstallationPath)
+	file, err := os.ReadFile(cmd.ProductsInstallationPath)
 	if err != nil {
 		return nil, err
 	}
@@ -232,7 +231,7 @@ func (cmd *ProcessBundleCommand) saveProductsInstallation(i *yaml.Node) error {
 		return err
 	}
 
-	return ioutil.WriteFile(cmd.ProductsInstallationPath, out, fs.ModeAppend)
+	return os.WriteFile(cmd.ProductsInstallationPath, out, fs.ModeAppend)
 }
 
 func init() {

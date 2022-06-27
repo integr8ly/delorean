@@ -3,7 +3,7 @@ package cmd
 import (
 	"errors"
 	"io/fs"
-	"io/ioutil"
+	"os"
 	"sort"
 
 	"github.com/spf13/cobra"
@@ -69,7 +69,7 @@ func (cmd *Update3scaleBundleCommand) Run() error {
 }
 
 func (cmd *Update3scaleBundleCommand) getBundles() (*BundleList, error) {
-	file, err := ioutil.ReadFile(cmd.BundleFilePath)
+	file, err := os.ReadFile(cmd.BundleFilePath)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +85,7 @@ func (cmd *Update3scaleBundleCommand) saveBundles(bl *BundleList) error {
 		return err
 	}
 
-	return ioutil.WriteFile(cmd.BundleFilePath, out, fs.ModeAppend)
+	return os.WriteFile(cmd.BundleFilePath, out, fs.ModeAppend)
 }
 
 func (cmd *Update3scaleBundleCommand) addBundle(bl *BundleList) error {
