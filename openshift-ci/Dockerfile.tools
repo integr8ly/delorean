@@ -1,4 +1,4 @@
-FROM registry.ci.openshift.org/openshift/release:golang-1.17
+FROM registry.ci.openshift.org/openshift/release:golang-1.18
 
 ENV SHELLCHECK_VERSION=v0.7.0
 
