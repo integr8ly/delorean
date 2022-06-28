@@ -44,6 +44,10 @@ const (
 
 )
 
+type metadataAnnotations struct {
+	Annotations map[string]string `json:"annotations,omitempty"`
+}
+
 type releaseChannel struct {
 	Name            string `json:"name"`
 	Directory       string `json:"directory"`
@@ -579,6 +583,14 @@ func (c *osdAddonReleaseCmd) updateTheCSVManifest() (string, error) {
 		return "", err
 	}
 
+	relativeMetadata := fmt.Sprintf("%s/%s/metadata/annotations.yaml", c.currentChannel.bundlesDirectory(), c.version.Base())
+	metadataFile := path.Join(c.managedTenantsDir, relativeMetadata)
+	metadataAnnotations := metadataAnnotations{}
+	err = utils.PopulateObjectFromYAML(metadataFile, &metadataAnnotations)
+	if err != nil {
+		return "", err
+	}
+
 	// We need to make sure that all envs present in the container are removed as they are going to be set directly from addon.yaml file instead, however,
 	// for development ease of use, envs should remain in the base CSV.
 	if c.addonConfig.Override != nil {
@@ -605,6 +617,17 @@ func (c *osdAddonReleaseCmd) updateTheCSVManifest() (string, error) {
 
 		replacesVersion := strings.Split(csv.Spec.Replaces, ".v")[1]
 		csv.Spec.Replaces = fmt.Sprintf("%v-internal.v%v", c.addonConfig.Name, replacesVersion)
+
+		annotationsToBeUpdated := []string{"operators.operatorframework.io.bundle.package.v1", "operators.operatorframework.io.bundle.channels.v1", "operators.operatorframework.io.bundle.channel.default.v1"}
+
+		for _, annotation := range annotationsToBeUpdated {
+			if value, found := metadataAnnotations.Annotations[annotation]; found && value == "managed-api-service" {
+				metadataAnnotations.Annotations[annotation] = "managed-api-service-internal"
+			}
+			if value, found := metadataAnnotations.Annotations[annotation]; found && value == "stable" {
+				metadataAnnotations.Annotations[annotation] = "edge"
+			}
+		}
 	}
 
 	//Set SingleNamespace install mode to true
@@ -615,6 +638,10 @@ func (c *osdAddonReleaseCmd) updateTheCSVManifest() (string, error) {
 	csv.Spec.InstallModes[mi] = *m
 
 	err = utils.WriteK8sObjectToYAML(csv, csvFile)
+	if err != nil {
+		return "", err
+	}
+	err = utils.WriteK8sObjectToYAML(&metadataAnnotations, metadataFile)
 	if err != nil {
 		return "", err
 	}

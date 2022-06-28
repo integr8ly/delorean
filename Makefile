@@ -22,7 +22,7 @@ format:
 .PHONY: format
 
 build/cli:
-	GOFLAGS=-mod=vendor go build -o=$(BUILD_TARGET) .
+	CGO_ENABLED=0 GOFLAGS=-mod=vendor go build -o=$(BUILD_TARGET) .
 .PHONY: build
 
 .PHONY: code/check

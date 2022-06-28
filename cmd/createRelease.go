@@ -20,22 +20,26 @@ import (
 )
 
 type createReleaseCmdFlags struct {
-	baseBranch       string
-	releaseScript    string
-	serviceAffecting bool
+	baseBranch            string
+	releaseScript         string
+	serviceAffecting      bool
+	cpaasFunctional       bool
+	prepareForNextRelease bool
 }
 
 type createReleaseCmd struct {
-	version          *utils.RHMIVersion
-	repoInfo         *githubRepoInfo
-	baseBranch       plumbing.ReferenceName
-	githubPRService  services.PullRequestsService
-	releaseScript    string
-	gitUser          string
-	gitPass          string
-	gitCloneService  services.GitCloneService
-	gitPushService   services.GitPushService
-	serviceAffecting bool
+	version               *utils.RHMIVersion
+	repoInfo              *githubRepoInfo
+	baseBranch            plumbing.ReferenceName
+	githubPRService       services.PullRequestsService
+	releaseScript         string
+	gitUser               string
+	gitPass               string
+	gitCloneService       services.GitCloneService
+	gitPushService        services.GitPushService
+	serviceAffecting      bool
+	cpaasFunctional       bool
+	prepareForNextRelease bool
 }
 
 func init() {
@@ -66,7 +70,8 @@ func init() {
 	cmd.Flags().StringVarP(&f.baseBranch, "branch", "b", "master", "Base branch of the release PR")
 	cmd.Flags().StringVar(&f.releaseScript, "releaseScript", "scripts/prepare-release.sh", "Relative path to the script to run before creating the PR")
 	cmd.Flags().BoolVar(&f.serviceAffecting, "serviceAffecting", true, "If the release is service affecting")
-
+	cmd.Flags().BoolVar(&f.cpaasFunctional, "cpaasFunctional", true, "Is CPaaS functional")
+	cmd.Flags().BoolVar(&f.prepareForNextRelease, "prepareForNextRelease", false, "Create a bundle in preparation for next release")
 }
 
 func newCreateReleaseCmd(f *createReleaseCmdFlags) (*createReleaseCmd, error) {
@@ -87,16 +92,18 @@ func newCreateReleaseCmd(f *createReleaseCmdFlags) (*createReleaseCmd, error) {
 		return nil, err
 	}
 	return &createReleaseCmd{
-		version:          version,
-		repoInfo:         repoInfo,
-		baseBranch:       baseBranch,
-		releaseScript:    f.releaseScript,
-		githubPRService:  client.PullRequests,
-		gitUser:          user,
-		gitPass:          token,
-		gitCloneService:  &services.DefaultGitCloneService{},
-		gitPushService:   &services.DefaultGitPushService{},
-		serviceAffecting: f.serviceAffecting,
+		version:               version,
+		repoInfo:              repoInfo,
+		baseBranch:            baseBranch,
+		releaseScript:         f.releaseScript,
+		githubPRService:       client.PullRequests,
+		gitUser:               user,
+		gitPass:               token,
+		gitCloneService:       &services.DefaultGitCloneService{},
+		gitPushService:        &services.DefaultGitPushService{},
+		serviceAffecting:      f.serviceAffecting,
+		cpaasFunctional:       f.cpaasFunctional,
+		prepareForNextRelease: f.prepareForNextRelease,
 	}, nil
 }
 
@@ -146,11 +153,25 @@ func (c *createReleaseCmd) runReleaseScript(repoDir string) error {
 	if err := os.Chmod(path.Join(repoDir, c.releaseScript), 0755); err != nil {
 		return err
 	}
-	envs := []string{fmt.Sprintf("SEMVER=%s", c.version.String()), fmt.Sprintf("OLM_TYPE=%s", c.version.OlmType())}
+	var updatedVersion string
+
+	updatedVersion = c.version.String()
+
+	if c.cpaasFunctional && strings.Contains(updatedVersion, "rc") {
+		splitVersion := strings.Split(updatedVersion, "-")
+		updatedVersion = splitVersion[0]
+	}
+
+	envs := []string{fmt.Sprintf("SEMVER=%s", updatedVersion), fmt.Sprintf("OLM_TYPE=%s", c.version.OlmType())}
 	if c.serviceAffecting {
 		envs = append(envs, "SERVICE_AFFECTING=true")
 	} else {
 		envs = append(envs, "SERVICE_AFFECTING=false")
+	}
+	if c.prepareForNextRelease {
+		envs = append(envs, "PREPARE_FOR_NEXT_RELEASE=true")
+	} else {
+		envs = append(envs, "PREPARE_FOR_NEXT_RELEASE=false")
 	}
 	releaseScript := &exec.Cmd{Dir: repoDir, Env: envs, Path: c.releaseScript, Stdout: os.Stdout, Stderr: os.Stderr}
 	return releaseScript.Run()

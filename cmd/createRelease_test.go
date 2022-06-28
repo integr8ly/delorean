@@ -37,7 +37,7 @@ func (m mockGitPushService) Push(gitRepo *git.Repository, opts *git.PushOptions)
 	panic("implement me")
 }
 
-func newTestCreateReleaseCmd(serviceAffecting bool, olmType string) *createReleaseCmd {
+func newTestCreateReleaseCmd(serviceAffecting bool, olmType string, cpaasFunctional bool, prepareForNextRelease bool) *createReleaseCmd {
 	version, _ := utils.NewVersion("2.0.0-rc1", olmType)
 	cloneService := &mockGitCloneService{cloneToTmpDirFunc: func(prefix string, url string, reference plumbing.ReferenceName) (s string, repository *git.Repository, err error) {
 		currentDir, err := os.Getwd()
@@ -61,16 +61,18 @@ func newTestCreateReleaseCmd(serviceAffecting bool, olmType string) *createRelea
 		},
 	}
 	return &createReleaseCmd{
-		version:          version,
-		repoInfo:         &githubRepoInfo{owner: "test", repo: "test"},
-		baseBranch:       "master",
-		releaseScript:    "release.sh",
-		gitUser:          "testuser",
-		gitPass:          "testpass",
-		gitCloneService:  cloneService,
-		gitPushService:   pushService,
-		githubPRService:  prService,
-		serviceAffecting: serviceAffecting,
+		version:               version,
+		repoInfo:              &githubRepoInfo{owner: "test", repo: "test"},
+		baseBranch:            "master",
+		releaseScript:         "release.sh",
+		gitUser:               "testuser",
+		gitPass:               "testpass",
+		gitCloneService:       cloneService,
+		gitPushService:        pushService,
+		githubPRService:       prService,
+		serviceAffecting:      serviceAffecting,
+		cpaasFunctional:       cpaasFunctional,
+		prepareForNextRelease: prepareForNextRelease,
 	}
 }
 
@@ -84,7 +86,7 @@ func TestCreateRelease(t *testing.T) {
 		{
 			description: "should finish successfully when serviceAffecting is true",
 			cmd: func() *createReleaseCmd {
-				return newTestCreateReleaseCmd(true, types.OlmTypeRhmi)
+				return newTestCreateReleaseCmd(true, types.OlmTypeRhmi, false, false)
 			},
 			expectError: false,
 			verify: func(repoDir string) error {
@@ -119,7 +121,7 @@ func TestCreateRelease(t *testing.T) {
 		{
 			description: "should finish successfully when serviceAffecting is false",
 			cmd: func() *createReleaseCmd {
-				return newTestCreateReleaseCmd(false, types.OlmTypeRhmi)
+				return newTestCreateReleaseCmd(false, types.OlmTypeRhmi, false, false)
 			},
 			expectError: false,
 			verify: func(repoDir string) error {
@@ -147,6 +149,76 @@ func TestCreateRelease(t *testing.T) {
 				}
 				if strings.Index(string(content), "ServiceAffecting=false") < 0 {
 					return fmt.Errorf("expecting ServiceAffecting=false in output: %s", string(content))
+				}
+				return nil
+			},
+		},
+		{
+			description: "should update the version to remove -rc when cpaas functional and prepForNextRelease false",
+			cmd: func() *createReleaseCmd {
+				return newTestCreateReleaseCmd(false, types.OlmTypeRhmi, true, false)
+			},
+			expectError: false,
+			verify: func(repoDir string) error {
+				repo, err := git.PlainOpen(repoDir)
+				if err != nil {
+					return err
+				}
+				repoTree, err := repo.Worktree()
+				if err != nil {
+					return err
+				}
+				status, err := repoTree.Status()
+				if err != nil {
+					return err
+				}
+				if len(status) > 0 {
+					return fmt.Errorf("there are uncommited changes in the repo: %v", status)
+				}
+				content, err := ioutil.ReadFile(path.Join(repoDir, "VERSION.txt"))
+				if err != nil {
+					return err
+				}
+				if strings.Index(string(content), "2.0.0") < 0 {
+					return fmt.Errorf("expected: %s, but got %s", "2.0.0", string(content))
+				}
+				if strings.Index(string(content), "prepareForNextRelease=false") < 0 {
+					return fmt.Errorf("expecting prepareForNextRelease=false in output: %s", string(content))
+				}
+				return nil
+			},
+		},
+		{
+			description: "should not update the version to remove -rc when cpaas is not functional and prepForNextRelease true",
+			cmd: func() *createReleaseCmd {
+				return newTestCreateReleaseCmd(false, types.OlmTypeRhmi, false, true)
+			},
+			expectError: false,
+			verify: func(repoDir string) error {
+				repo, err := git.PlainOpen(repoDir)
+				if err != nil {
+					return err
+				}
+				repoTree, err := repo.Worktree()
+				if err != nil {
+					return err
+				}
+				status, err := repoTree.Status()
+				if err != nil {
+					return err
+				}
+				if len(status) > 0 {
+					return fmt.Errorf("there are uncommited changes in the repo: %v", status)
+				}
+				content, err := ioutil.ReadFile(path.Join(repoDir, "VERSION.txt"))
+				if err != nil {
+					return err
+				}
+				if strings.Index(string(content), "2.0.0-rc1") < 0 {
+					return fmt.Errorf("expected: %s, but got %s", "2.0.0-rc1", string(content))
+				}
+				if strings.Index(string(content), "prepareForNextRelease=true") < 0 {
+					return fmt.Errorf("expecting prepareForNextRelease=true in output: %s", string(content))
 				}
 				return nil
 			},
