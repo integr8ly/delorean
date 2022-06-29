@@ -61,7 +61,7 @@ func (cmd *Update3scaleBundleCommand) Run() error {
 		return err
 	}
 
-	if err = cmd.addBundle(bundles); err != nil {
+	if err = cmd.modifyBundles(bundles); err != nil {
 		return err
 	}
 
@@ -88,22 +88,24 @@ func (cmd *Update3scaleBundleCommand) saveBundles(bl *BundleList) error {
 	return os.WriteFile(cmd.BundleFilePath, out, fs.ModeAppend)
 }
 
-func (cmd *Update3scaleBundleCommand) addBundle(bl *BundleList) error {
+func (cmd *Update3scaleBundleCommand) modifyBundles(bl *BundleList) error {
+	if cmd.BundleName == "" {
+		return errors.New("Bundle name cannot be an empty string")
+	}
+	if cmd.BundleImage == "" {
+		return errors.New("Bundle image cannot be an empty string")
+	}
+
+	// If the named bundle already exists in the file, update image with the one provided
 	for _, bundle := range bl.Bundles {
-		if bundle.Name == cmd.BundleName || bundle.Image == cmd.BundleImage {
-			return errors.New("Bundle or image already exists in file")
+		if bundle.Name == cmd.BundleName {
+			bundle.Image = cmd.BundleImage
+			return nil
 		}
 	}
 
 	newBundle := &Bundle{}
-	if cmd.BundleName == "" {
-		return errors.New("Bundle name cannot be an empty string")
-	}
 	newBundle.Name = cmd.BundleName
-
-	if cmd.BundleImage == "" {
-		return errors.New("Bundle image cannot be an empty string")
-	}
 	newBundle.Image = cmd.BundleImage
 
 	bl.Bundles = append(bl.Bundles, newBundle)
