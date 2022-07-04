@@ -16,8 +16,8 @@ RUN set -o pipefail && \
     chmod +x /usr/local/bin/yq && \
     curl -Lo /usr/local/bin/jq https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64 && \
     chmod +x /usr/local/bin/jq && \
-    wget https://golang.org/dl/go1.17.6.linux-amd64.tar.gz && \
-    tar -zxvf go1.17.6.linux-amd64.tar.gz -C /usr/local/ && \
+    wget https://golang.org/dl/go1.18.linux-amd64.tar.gz && \
+    tar -zxvf go1.18.linux-amd64.tar.gz -C /usr/local/ && \
     curl -Ls https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/v4.0.2/kustomize_v4.0.2_linux_amd64.tar.gz | tar -zx && \
     mv kustomize /usr/local/bin && \
     chmod +x /usr/local/bin/kustomize

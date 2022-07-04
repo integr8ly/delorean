@@ -29,14 +29,6 @@ func TestGetSupportedVersionsCmd(t *testing.T) {
 			expectError:   false,
 		},
 		{
-			description:   "Run command for RHMI",
-			olmType:       "integreatly-operator",
-			majorVersions: 1,
-			minorVersions: 3,
-			repo:          "https://gitlab.cee.redhat.com/service/managed-tenants.git",
-			expectError:   false,
-		},
-		{
 			description:   "Run command with expected error",
 			olmType:       "managed-api-service",
 			majorVersions: 1,
