@@ -5,3 +5,8 @@ if [[ "$SERVICE_AFFECTING" == true ]]; then
 else
  echo "ServiceAffecting=false" >> VERSION.txt
 fi
+if [[ "$PREPARE_FOR_NEXT_RELEASE" == true ]]; then
+ echo "prepareForNextRelease=true" >> VERSION.txt
+else
+ echo "prepareForNextRelease=false" >> VERSION.txt
+fi

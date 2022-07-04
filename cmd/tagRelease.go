@@ -93,15 +93,11 @@ func DoTagRelease(ctx context.Context, ghClient services.GitService, gitRepoInfo
 	if err != nil {
 		return err
 	}
-	fmt.Println("Create git tag:", rv.TagName())
+
 	if headRef == nil {
 		return fmt.Errorf("can not find git ref: refs/heads/%s", cmdOpts.branch)
 	}
-	tagRef, err := createGitTag(ctx, ghClient, gitRepoInfo, rv.TagName(), headRef.GetObject().GetSHA())
-	if err != nil {
-		return err
-	}
-	fmt.Println("Git tag", rv.TagName(), "created:", tagRef.GetURL())
+
 	if len(cmdOpts.quayRepos) > 0 {
 		var quaySrcTag string
 		fmt.Println("Try to create image tags on quay.io:")
@@ -168,31 +164,6 @@ func getGitRef(ctx context.Context, client services.GitService, gitRepoInfo *git
 		}
 	}
 	return nil, nil
-}
-
-func createGitTag(ctx context.Context, client services.GitService, gitRepoInfo *githubRepoInfo, tag string, sha string) (*github.Reference, error) {
-	tagRefVal := fmt.Sprintf("refs/tags/%s", tag)
-	tagRef, err := getGitRef(ctx, client, gitRepoInfo, tagRefVal, false)
-	if err != nil {
-		return nil, err
-	}
-	if tagRef != nil {
-		if tagRef.GetObject().GetSHA() != sha {
-			return nil, fmt.Errorf("tag %s is already created but pointing to a different commit. Please delete it first", tag)
-		}
-		return tagRef, nil
-	}
-	tagRef = &github.Reference{
-		Ref: &tagRefVal,
-		Object: &github.GitObject{
-			SHA: &sha,
-		},
-	}
-	created, _, err := client.CreateRef(ctx, gitRepoInfo.owner, gitRepoInfo.repo, tagRef)
-	if err != nil {
-		return nil, err
-	}
-	return created, nil
 }
 
 func tryCreateQuayTag(quayRepos string, quaySrcTag string, quayDstTag string, quayToken string, commitSHA string) bool {
