@@ -47,3 +47,5 @@ To run unit tests, run:
 ```
 make test/unit
 ```
+
+`test`
