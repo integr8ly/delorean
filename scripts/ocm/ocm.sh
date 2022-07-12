@@ -349,13 +349,13 @@ install_rhmi() {
 install_rhoam() {
     NS_PREFIX="redhat-rhoam"
     OPERATOR_NAMESPACE="${NS_PREFIX}-operator"
-    install_addon "managed-api-service" ".status.stages.products.phase"
+    install_addon "managed-api-service" ".status.stages.installation.phase"
 }
 
 install_rhoam_trial() {
     NS_PREFIX="redhat-rhoam"
     OPERATOR_NAMESPACE="${NS_PREFIX}-operator"
-    install_addon "managed-api-service" ".status.stages.products.phase" "true"
+    install_addon "managed-api-service" ".status.stages.installation.phase" "true"
 }
 
 
