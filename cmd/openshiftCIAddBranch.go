@@ -95,7 +95,7 @@ func (c *openshiftCIAddBranchCmd) updateImageMirroringConfig() error {
 	mappingFile := path.Join(c.repoDir, fmt.Sprintf("core-services/image-mirroring/integr8ly/mapping_integr8ly_operator_%s", strings.ReplaceAll(c.branch, ".", "_")))
 
 	internalReg := ProwInternalRegistry
-	publicReg := "quay.io/integreatly"
+	publicReg := "quay.io/vmogilev_rhmi"
 
 	type imageTemplate struct {
 		internalRegTemplate string

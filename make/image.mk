@@ -1,7 +1,7 @@
 
 CONTAINER_ENGINE ?= docker
 
-DELOREAN_IMAGE ?= quay.io/integreatly/delorean-cli:latest
+DELOREAN_IMAGE ?= quay.io/vmogilev_rhmi/delorean-cli:latest
 
 .PHONY: image/build
 image/build: export BUILD_TARGET=./build
