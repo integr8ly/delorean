@@ -7,6 +7,7 @@ import (
 	"sort"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/mod/semver"
 	"gopkg.in/yaml.v3"
 )
 
@@ -111,7 +112,7 @@ func (cmd *Update3scaleBundleCommand) modifyBundles(bl *BundleList) error {
 	bl.Bundles = append(bl.Bundles, newBundle)
 
 	sort.Slice(bl.Bundles, func(i, j int) bool {
-		return bl.Bundles[i].Name < bl.Bundles[j].Name
+		return semver.Compare(bl.Bundles[i].Name, bl.Bundles[j].Name) == -1
 	})
 	return nil
 }
