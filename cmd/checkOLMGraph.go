@@ -10,6 +10,11 @@ import (
 	"path"
 )
 
+const (
+	baseKeycloakV18 = "keycloak-operator.v18.0.0"
+	baseKeycloakV9  = "keycloak-operator.v9.0.3"
+)
+
 type checkOLMGraphFlags struct {
 	directory string
 }
@@ -84,7 +89,7 @@ func checkGraphInDir(dirname string, csvs utils.CSVNames) error {
 	}
 	for i := csvs.Len() - 1; i > 0; i-- {
 		csv := csvs[i]
-		if !csvs.Contains(csv.Replaces) {
+		if !csvs.Contains(csv.Replaces) && (csv.Name != baseKeycloakV18) && (csv.Name != baseKeycloakV9) {
 			fmt.Println(fmt.Sprintf("[%s] OLM graph is broken. CSV %s replaces %s, which doesn't exist", dirname, csv.Name, csv.Replaces))
 			return errors.New(fmt.Sprintf("[%s] invalid replaces field %s in CSV %s", dirname, csv.Replaces, csv.Name))
 		}
