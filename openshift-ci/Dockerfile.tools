@@ -9,7 +9,7 @@ RUN curl -L "https://github.com/koalaman/shellcheck/releases/download/${SHELLCHE
     && rm -rf ./shellcheck*
 
 # Install oc
-RUN curl -L "https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/4.11.0-rc.5/openshift-client-linux.tar.gz" -o oc.tar.gz \
+RUN curl -L "https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/4.11.0/openshift-client-linux.tar.gz" -o oc.tar.gz \
     && mkdir -p oc-files \
     && tar -xvzf ./oc.tar.gz -C oc-files \
     && mv ./oc-files/oc /usr/local/bin \
