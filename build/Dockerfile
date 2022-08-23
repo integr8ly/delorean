@@ -1,4 +1,4 @@
-FROM centos:7
+FROM registry.access.redhat.com/ubi8/ubi:latest
 LABEL maintainer="mnairn@redhat.com"
 
 ENV OPERATOR_SDK_VERSION=v1.21.0 \
@@ -10,8 +10,10 @@ COPY resources/rhit-root-ca.crt /etc/pki/ca-trust/source/anchors/
 RUN set -o pipefail && \
     INSTALL_PKGS="make rsync wget gcc which" && \
     yum install -y --setopt=tsflags=nodocs $INSTALL_PKGS && \
-    curl -Ls https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/stable/openshift-client-linux.tar.gz | tar -zx && \
+    curl -Ls https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/4.11.0/openshift-client-linux.tar.gz | tar -zx && \
     mv oc /usr/local/bin && \
+    curl -Ls https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/4.11.0/opm-linux.tar.gz | tar -zx && \
+    mv opm /usr/local/bin && \
     curl -Lo /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.23.1/yq_linux_amd64 && \
     chmod +x /usr/local/bin/yq && \
     curl -Lo /usr/local/bin/jq https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64 && \
