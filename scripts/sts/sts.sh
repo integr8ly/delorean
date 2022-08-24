@@ -51,6 +51,7 @@ MACHINE_TYPE="${MACHINE_TYPE:-m5.xlarge}"
 provision_sts_cluster() {
     rosa login --env=$OCM_ENV
     rosa create account-roles --mode auto -y
+    sleep 30s
     rosa create cluster --cluster-name $CLUSTER_NAME --compute-nodes=$NODES_COUNT --compute-machine-type=$MACHINE_TYPE --sts --mode auto -y
     rosa describe cluster --cluster $CLUSTER_NAME
     rosa logs install --cluster $CLUSTER_NAME --watch
@@ -58,12 +59,12 @@ provision_sts_cluster() {
 
 delete_sts_cluster() {
     CLUSTER_ID=$(get_cluster_id)
-
     rosa delete cluster --cluster=$CLUSTER_NAME --watch -y
     rosa delete oidc-provider -c $CLUSTER_ID --mode auto -y
     rosa delete operator-roles -c $CLUSTER_ID --mode auto -y
-    #Do not run if other ROSA sts clusters are still in use
-    rosa delete account-roles --prefix $PREFIX --mode auto -y
+    if rosa list clusters | grep -q 'No clusters available'; then
+      rosa delete account-roles --prefix $PREFIX --mode auto -y
+    fi
 }
 
 get_cluster_id() {
