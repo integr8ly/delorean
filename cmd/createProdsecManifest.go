@@ -219,7 +219,7 @@ func (c *createProdsecManifestCmd) commitAndPushChanges(gitRepo *git.Repository,
 	if err := gitRepoTree.AddGlob("."); err != nil {
 		return err
 	}
-	if _, err := gitRepoTree.Commit(fmt.Sprintf("Prepare %s manifest for %s", c.version.OlmType(), c.typeOfManifest), &git.CommitOptions{
+	if _, err := gitRepoTree.Commit(fmt.Sprintf("MGDAPI-4480 Prepare %s manifest for %s", c.version.OlmType(), c.typeOfManifest), &git.CommitOptions{
 		Author: &object.Signature{
 			Name:  commitAuthorName,
 			Email: commitAuthorEmail,
