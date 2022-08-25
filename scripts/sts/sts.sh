@@ -241,6 +241,7 @@ EOM
                 "elasticache:DescribeCacheClusters",
                 "elasticache:DescribeReplicationGroups",
                 "elasticache:DescribeCacheSubnetGroups",
+                "elasticache:ListTagsForResource",
                 "rds:DescribeDBInstances",
                 "rds:DescribeDBSubnetGroups",
                 "s3:GetBucketTagging",
