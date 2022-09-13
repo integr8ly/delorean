@@ -34,3 +34,6 @@ functional_test_role_minimal_policy.json
 test-results/
 test-config.yaml
 testOutput.txt
+
+# Google Cloud Platform credentials
+gcp_service_account.json
