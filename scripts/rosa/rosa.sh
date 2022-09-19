@@ -1,15 +1,28 @@
 #!/bin/bash
 # USAGE
 #
-# ~ Creation ~
+# ~ Cluster Creation Prerequisites ~
 #
-# make ocm/provision_sts (optional <CLUSTER_NAME= > <AWS_REGION= > <NODE_COUNT= > <MACHINE_TYPE= >)
+#  make ocm/sts/rhoam-prerequisites (optional <ROLE_NAME= > <FUNCTIONAL_TEST_ROLE_NAME= >)
 #
 # <Default values>
-#  CLUSTER_NAME=defaultsts
+#  ROLE_NAME=rhoam_role
+#  FUNCTIONAL_TEST_ROLE_NAME=functional_test_role
+#
+#
+# ~ Creation ~
+#
+# make ocm/rosa/cluster/create (optional <CLUSTER_NAME= > <AWS_REGION= > <COMPUTE_NODES= > <MACHINE_TYPE= > <ENABLE_AUTOSCALING=true/false > <STS_ENABLED=true/false > <ROLE_NAME= > <FUNCTIONAL_TEST_ROLE_NAME= >)
+#
+# <Default values>
+#  CLUSTER_NAME=default-rosa
 #  AWS_REGION=eu-west-1
-#  NODE_COUN=4
+#  COMPUTE_NODES=4
 #  MACHINE_TYPE=m5.xlarge
+#  ENABLE_AUTOSCALING=false
+#  STS_ENABLED=true
+#
+#
 #
 # ^C to break
 # Create a STS cluster
@@ -42,22 +55,37 @@ MINIMAL_POLICY_NAME="${ROLE_NAME}_minimal_policy"
 FUNCTIONAL_TEST_ROLE_NAME="${FUNCTIONAL_TEST_ROLE_NAME:-functional_test_role}"
 FUNCTIONAL_TEST_MINIMAL_POLICY_NAME="${FUNCTIONAL_TEST_ROLE_NAME}_minimal_policy"
 OCM_ENV="${OCM_ENV:-staging}"
-CLUSTER_NAME="${CLUSTER_NAME:-defaultsts}"
+CLUSTER_NAME="${CLUSTER_NAME:-default-rosa}"
 AWS_REGION="${AWS_REGION:-eu-west-1}"
 PREFIX="${PREFIX:-ManagedOpenShift}"
-NODES_COUNT="${NODES_COUNT:-4}"
+COMPUTE_NODES="${COMPUTE_NODES:-4}"
 MACHINE_TYPE="${MACHINE_TYPE:-m5.xlarge}"
+ENABLE_AUTOSCALING="${ENABLE_AUTOSCALING:-false}"
+MIN_REPLICAS="${MIN_REPLICAS:-4}"
+MAX_REPLICAS="${MAX_REPLICAS:-6}"
+STS_ENABLED="${STS_ENABLED:-true}"
 
-provision_sts_cluster() {
+
+provision_rosa_cluster() {
     rosa login --env=$OCM_ENV
     rosa create account-roles --mode auto -y
-    sleep 30s
-    rosa create cluster --cluster-name $CLUSTER_NAME --compute-nodes=$NODES_COUNT --compute-machine-type=$MACHINE_TYPE --sts --mode auto -y
+    sleep 30
+    args=(--cluster-name $CLUSTER_NAME --region $AWS_REGION --compute-machine-type $MACHINE_TYPE)
+    if [[ $ENABLE_AUTOSCALING == 'true' ]]; then
+       args+=(--enable-autoscaling --min-replicas $MIN_REPLICAS --max-replicas $MAX_REPLICAS)
+    else
+       args+=(--compute-nodes $COMPUTE_NODES)
+    fi
+    if [[ $STS_ENABLED == 'true' ]]; then
+      args+=(--sts --mode auto)
+    fi
+    args+=( -y)
+    rosa create cluster "${args[@]}"
     rosa describe cluster --cluster $CLUSTER_NAME
     rosa logs install --cluster $CLUSTER_NAME --watch
 }
 
-delete_sts_cluster() {
+delete_rosa_cluster() {
     CLUSTER_ID=$(get_cluster_id)
     rosa delete cluster --cluster=$CLUSTER_NAME --watch -y
     rosa delete oidc-provider -c $CLUSTER_ID --mode auto -y
@@ -90,7 +118,7 @@ get_oidc_provider_env() {
   fi
 }
 
-rhoam-prerequisites() {
+rhoam_prerequisites() {
     # Delete policy and role
     aws iam delete-role-policy --role-name $ROLE_NAME --policy-name $MINIMAL_POLICY_NAME || true
     aws iam delete-role --role-name $ROLE_NAME || true
@@ -260,15 +288,15 @@ main() {
     while :; do
         case "${1:-}" in
         provision_sts_cluster)
-            provision_sts_cluster
+            provision_rosa_cluster
             exit 0
             ;;
         delete_sts_cluster)
-            delete_sts_cluster
+            delete_rosa_cluster
             exit 0
             ;;
-        rhoam-prerequisites)
-            rhoam-prerequisites
+        rhoam_prerequisites)
+            rhoam_prerequisites
             exit 0
             ;;
         esac
