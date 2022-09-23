@@ -432,7 +432,7 @@ delete_cluster() {
     ocm delete "/api/clusters_mgmt/v1/clusters/${cluster_id}"
 
     # Use cluster-service to cleanup AWS resources
-    if [[ $(is_ccs_cluster) == true ]] && [[ -n "${infra_id:-}" ]]; then
+    if [[ $(is_ccs_cluster) == true ]] && [[ $(get_cluster_cloud_provider) == aws ]] && [[ -n "${infra_id:-}" ]]; then
         check_aws_credentials_exported
 
         cluster_region=$(get_cluster_region)
@@ -519,6 +519,10 @@ get_existing_cluster_id() {
 
 is_ccs_cluster() {
     jq -r .ccs.enabled < "${CLUSTER_DETAILS_FILE}"
+}
+
+get_cluster_cloud_provider() {
+    jq -r .cloud_provider.id < "${CLUSTER_DETAILS_FILE}"
 }
 
 get_rhmi_name() {
