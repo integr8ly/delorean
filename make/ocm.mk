@@ -75,15 +75,15 @@ ocm/cluster/upgrade:
 ocm/help:
 	@${OCM_SH} -h
 
-.PHONY: ocm/provision_sts_cluster
+.PHONY: ocm/sts/cluster/create
 ocm/sts/cluster/create:
 	@${STS_SH} provision_sts_cluster
 
-.PHONY: ocm/delete_sts_cluster
+.PHONY: ocm/sts/cluster/delete
 ocm/sts/cluster/delete:
 	@${STS_SH} delete_sts_cluster
 
-.PHONY: ocm/rhoam-prerequisites
+.PHONY: ocm/sts/rhoam-prerequisites
 ocm/sts/rhoam-prerequisites:
 	@${STS_SH} rhoam-prerequisites
 
