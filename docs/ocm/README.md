@@ -46,7 +46,7 @@ export MULTI_AZ=true
 
 **BYOVPC/CCS**
 
-If you want to set up a BYOVCP (Bring Your Own VPC) cluster, you will need an AWS account where a VPC can be pre-created. The AWS account needs an IAM user named `osdCcsAdmin` and this user needs the AdministratorAccess permission.
+If you want to set up a BYOVPC (Bring Your Own VPC) cluster, you will need an AWS/GCP account where a VPC can be pre-created. The AWS account needs an IAM user named `osdCcsAdmin` and this user needs the AdministratorAccess permission.
 
 If you do not already have a VPC created go to aws and create a VPC using the VPC Wizard available from the VPC Dashboard.
 

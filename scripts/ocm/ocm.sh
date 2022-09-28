@@ -4,8 +4,10 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly REPO_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
+REPO_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+readonly REPO_DIR
 readonly OCM_DIR="${REPO_DIR}/ocm"
 
 readonly TEMPLATES_DIR="${REPO_DIR}/templates/ocm"
@@ -18,6 +20,7 @@ readonly CLUSTER_KUBECONFIG_FILE="${OCM_DIR}/cluster.kubeconfig"
 readonly CLUSTER_CONFIGURATION_FILE="${OCM_DIR}/cluster.json"
 readonly CLUSTER_DETAILS_FILE="${OCM_DIR}/cluster-details.json"
 readonly CLUSTER_CREDENTIALS_FILE="${OCM_DIR}/cluster-credentials.json"
+readonly GCP_SERVICE_ACCOUNT_FILE="${REPO_DIR}/gcp_service_account.json"
 readonly CLUSTER_INSTALLATION_LOGS_FILE="${OCM_DIR}/cluster-installation.log"
 readonly CLUSTER_SUBSCRIPTION_DETAILS_FILE="${OCM_DIR}/cluster-subscription.json"
 
@@ -29,6 +32,7 @@ readonly ERROR_MISSING_AWS_ENV_VARS="ERROR: Not all required AWS environment are
 readonly ERROR_MISSING_CLUSTER_JSON="ERROR: ${CLUSTER_CONFIGURATION_FILE} file does not exist. Please run 'make ocm/cluster.json' first"
 readonly ERROR_CREATING_SECRET=" secret was not created. This could be caused by unstable connection between the client and OpenShift cluster"
 readonly ERROR_MISSING_CLUSTER_ID="ERROR: OCM_CLUSTER_ID was not specified"
+readonly ERROR_MISSING_GCP_BYOVPC_ENV_VARS="ERROR: Not all required GCP BYOVPC env vars are set. Please make sure you've exported the following env vars:"
 
 readonly WARNING_CLUSTER_HEALTH_CHECK_FAILED="WARNING: Cluster was not reported as healthy. You might expect some issues while working with the cluster."
 
@@ -40,6 +44,34 @@ check_aws_credentials_exported() {
         printf "AWS_ACCOUNT_ID='%s'\n" "${AWS_ACCOUNT_ID:-}"
         printf "AWS_ACCESS_KEY_ID='%s'\n" "${AWS_ACCESS_KEY_ID:-}"
         printf "AWS_SECRET_ACCESS_KEY='%s'\n" "${AWS_SECRET_ACCESS_KEY:-}"
+        exit 1
+    fi
+}
+
+check_gcp_service_account_okay() {
+    if [ ! -e "${GCP_SERVICE_ACCOUNT_FILE}" ]; then
+        echo "Error: GCP service account file not found" >&2
+        exit 1
+    fi
+    hasAllKeys=$(jq . "${GCP_SERVICE_ACCOUNT_FILE}" | jq 'has("type") and has("project_id") and
+    has("private_key_id") and has("private_key") and has("client_email") and has("client_id") and
+    has("auth_uri") and has("token_uri") and has("auth_provider_x509_cert_url") and has("client_x509_cert_url")')
+    if [ "${hasAllKeys}" == false ]; then
+        echo "Error: GCP service account file does not contain all required keys" >&2
+        exit 1
+    fi
+}
+
+check_gcp_byovpc_variables_exported() {
+    if [[ -z "${VPC_NAME:-}" || -z "${COMPUTE_SUBNET:-}" || -z "${CONTROL_PLANE_SUBNET:-}" || -z "${MACHINE_CIDR:-}" || -z "${SERVICE_CIDR:-}" || -z "${POD_CIDR:-}" || -z "${HOST_PREFIX:-}" ]]; then
+        printf "%s\n" "${ERROR_MISSING_GCP_BYOVPC_ENV_VARS}"
+        printf "VPC_NAME='%s'\n" "${VPC_NAME:-}"
+        printf "COMPUTE_SUBNET='%s'\n" "${COMPUTE_SUBNET:-}"
+        printf "CONTROL_PLANE_SUBNET='%s'\n" "${CONTROL_PLANE_SUBNET:-}"
+        printf "MACHINE_CIDR='%s'\n" "${MACHINE_CIDR:-}"
+        printf "SERVICE_CIDR='%s'\n" "${SERVICE_CIDR:-}"
+        printf "POD_CIDR='%s'\n" "${POD_CIDR:-}"
+        printf "HOST_PREFIX=%d\n" "${HOST_PREFIX:-}"
         exit 1
     fi
 }
@@ -63,8 +95,8 @@ create_cluster_configuration_file() {
     local cluster_name_length
 
     : "${OCM_CLUSTER_LIFESPAN:=4}"
-    : "${OCM_CLUSTER_NAME:=rhmi-$(date +"%y%m%d-%H%M")}"
-    : "${OCM_CLUSTER_REGION:=eu-west-1}"
+    : "${OCM_CLUSTER_NAME:=rhoam-$(date +"%y%m%d%H%M")}"
+    : "${CLOUD_PROVIDER:=}"
     : "${BYOC:=false}"
     : "${BYOVPC:=false}"
     : "${CREATE_CUSTOM_VPC:=false}"
@@ -90,22 +122,51 @@ create_cluster_configuration_file() {
         OCM_CLUSTER_NAME="${OCM_CLUSTER_NAME:0:11}${RANDOM:0:4}"
     fi
 
+    if [ "${CLOUD_PROVIDER}" = gcp ]; then
+        OCM_CLUSTER_REGION=${OCM_CLUSTER_REGION:-europe-west2}
+        COMPUTE_MACHINE_TYPE=${COMPUTE_MACHINE_TYPE:-custom-4-16384}
+    else
+        OCM_CLUSTER_REGION=${OCM_CLUSTER_REGION:-eu-west-1}
+        COMPUTE_MACHINE_TYPE=${COMPUTE_MACHINE_TYPE:-m5.xlarge}
+    fi
+
     jq ".expiration_timestamp = \"${timestamp}\" | .name = \"${OCM_CLUSTER_NAME}\" | .display_name = \"${cluster_display_name}\" | .region.id = \"${OCM_CLUSTER_REGION}\" | .api.listening = \"${listening}\"" \
         < "${CLUSTER_TEMPLATE_FILE}" \
         > "${CLUSTER_CONFIGURATION_FILE}"
 
     if [ "${BYOC}" = true ]; then
-        check_aws_credentials_exported
-        update_configuration "aws"
+        case "$CLOUD_PROVIDER" in
+            "aws")
+                check_aws_credentials_exported
+                update_configuration "aws"
+                ;;
+            "gcp")
+                check_gcp_service_account_okay
+                update_configuration "gcp"
+                ;;
+            *)
+                echo "Error: Unknown cloud provider: ${CLOUD_PROVIDER}" >&2
+                exit 1
+        esac
     fi
 
     if [ "$BYOVPC" = true ]; then
-        check_aws_credentials_exported
-        update_configuration "aws"
-        if [ "$CREATE_CUSTOM_VPC" = true ]; then
-            create_custom_vpc
-        fi
-        update_configuration "byovpc"
+        case "$CLOUD_PROVIDER" in
+            "aws")
+                check_aws_credentials_exported
+                update_configuration "aws"
+                if [ "$CREATE_CUSTOM_VPC" = true ]; then
+                    create_custom_vpc
+                fi
+                update_configuration "byovpc_aws"
+                ;;
+            "gcp")
+                check_gcp_service_account_okay
+                update_configuration "gcp"
+                check_gcp_byovpc_variables_exported
+                update_configuration "byovpc_gcp"
+                ;;
+        esac
     fi
 
     if [[ -n "${OPENSHIFT_VERSION}" ]]; then
@@ -140,14 +201,14 @@ create_custom_vpc() {
 
     create_custom_vpc_user
 
-    if aws cloudformation describe-stacks --region $OCM_CLUSTER_REGION --profile $CUSTOM_VPC_USERNAME | jq -er ".Stacks[] | select(.StackName==\"${CUSTOM_VPC_STACK_NAME}\")" > /dev/null
+    if aws cloudformation describe-stacks --region "$OCM_CLUSTER_REGION" --profile "$CUSTOM_VPC_USERNAME" | jq -er ".Stacks[] | select(.StackName==\"${CUSTOM_VPC_STACK_NAME}\")" > /dev/null
     then
         echo "Stack with name $CUSTOM_VPC_STACK_NAME already exists. It will be reused. If you want to delete it, run \`make ocm/cluster/delete_custom_vpc\`"
         sleep 10
     else
         if [ $MULTI_AZ = true ]; then az_count=3; else az_count=1; fi
         echo "Creating a new VPC stack $CUSTOM_VPC_STACK_NAME"
-        aws cloudformation create-stack --region $OCM_CLUSTER_REGION --stack-name $CUSTOM_VPC_STACK_NAME \
+        aws cloudformation create-stack --region "$OCM_CLUSTER_REGION" --stack-name $CUSTOM_VPC_STACK_NAME \
             --template-body "file://${CUSTOM_VPC_TEMPLATE_FILE}" --profile $CUSTOM_VPC_USERNAME \
             --parameters ParameterKey=VpcCidr,ParameterValue="$(jq -r '.network.machine_cidr' <"${CLUSTER_TEMPLATE_FILE}")" ParameterKey=SubnetBits,ParameterValue=5 \
             ParameterKey=AvailabilityZoneCount,ParameterValue="${az_count}" \
@@ -155,7 +216,7 @@ create_custom_vpc() {
         wait_for "aws cloudformation describe-stacks --region $OCM_CLUSTER_REGION --profile $CUSTOM_VPC_USERNAME | jq -er '.Stacks[] | select(.StackName==\"$CUSTOM_VPC_STACK_NAME\") | select(.StackStatus==\"CREATE_COMPLETE\")' > /dev/null" "vpc stack creation" "10m" "30"
     fi
 
-    stack_details=$(aws cloudformation describe-stacks --region $OCM_CLUSTER_REGION --profile $CUSTOM_VPC_USERNAME | jq -er ".Stacks[] | select(.StackName==\"$CUSTOM_VPC_STACK_NAME\")")
+    stack_details=$(aws cloudformation describe-stacks --region "$OCM_CLUSTER_REGION" --profile $CUSTOM_VPC_USERNAME | jq -er ".Stacks[] | select(.StackName==\"$CUSTOM_VPC_STACK_NAME\")")
 
     PUBLIC_SUBNET_IDS=$(jq -r '.Outputs[] | select(.OutputKey=="PublicSubnetIds") | .OutputValue' <<< "$stack_details")
     PRIVATE_SUBNET_IDS=$(jq -r '.Outputs[] | select(.OutputKey=="PrivateSubnetIds") | .OutputValue' <<< "$stack_details")
@@ -170,7 +231,7 @@ get_az_from_subnets() {
     for subnet in  ${subnets//,/ }
     do
         if [[ -n $az ]]; then az+=","; fi
-        az+=$(aws ec2 describe-subnets --region $OCM_CLUSTER_REGION | jq -r ".Subnets[] | select(.SubnetId==\"${subnet}\") | .AvailabilityZone")
+        az+=$(aws ec2 describe-subnets --region "$OCM_CLUSTER_REGION" | jq -r ".Subnets[] | select(.SubnetId==\"${subnet}\") | .AvailabilityZone")
     done
     echo "$az"
 }
@@ -212,7 +273,7 @@ delete_custom_vpc() {
     echo "Deleting custom VPC stack $CUSTOM_VPC_STACK_NAME from region $OCM_CLUSTER_REGION"
     create_custom_vpc_user
 
-    aws cloudformation delete-stack --stack-name $CUSTOM_VPC_STACK_NAME --region $OCM_CLUSTER_REGION --profile $CUSTOM_VPC_USERNAME
+    aws cloudformation delete-stack --stack-name $CUSTOM_VPC_STACK_NAME --region "$OCM_CLUSTER_REGION" --profile $CUSTOM_VPC_USERNAME
     wait_for "! aws cloudformation describe-stacks --region $OCM_CLUSTER_REGION --profile $CUSTOM_VPC_USERNAME | jq -er '.Stacks[] | select(.StackName==\"$CUSTOM_VPC_STACK_NAME\") | .StackStatus' > /dev/null" "vpc stack deletion" "30m" "30"
 
     delete_custom_vpc_user
@@ -371,7 +432,7 @@ delete_cluster() {
     ocm delete "/api/clusters_mgmt/v1/clusters/${cluster_id}"
 
     # Use cluster-service to cleanup AWS resources
-    if [[ $(is_ccs_cluster) == true ]] && [[ -n "${infra_id:-}" ]]; then
+    if [[ $(is_ccs_cluster) == true ]] && [[ $(get_cluster_cloud_provider) == aws ]] && [[ -n "${infra_id:-}" ]]; then
         check_aws_credentials_exported
 
         cluster_region=$(get_cluster_region)
@@ -458,6 +519,10 @@ get_existing_cluster_id() {
 
 is_ccs_cluster() {
     jq -r .ccs.enabled < "${CLUSTER_DETAILS_FILE}"
+}
+
+get_cluster_cloud_provider() {
+    jq -r .cloud_provider.id < "${CLUSTER_DETAILS_FILE}"
 }
 
 get_rhmi_name() {
@@ -561,12 +626,43 @@ update_configuration() {
 
     case $param in
 
-    byovpc)
-        updated_configuration=$(jq ".aws.subnet_ids = $(string_to_json_array "${PRIVATE_SUBNET_IDS},${PUBLIC_SUBNET_IDS}") | .aws.private_link = false | .nodes.availability_zones = $(string_to_json_array "${AVAILABILITY_ZONES}")" < "${CLUSTER_CONFIGURATION_FILE}")
+    byovpc_aws)
+        updated_configuration=$(jq ".aws.subnet_ids = $(string_to_json_array "${PRIVATE_SUBNET_IDS},${PUBLIC_SUBNET_IDS}") |
+        .aws.private_link = false |
+        .nodes.availability_zones = $(string_to_json_array "${AVAILABILITY_ZONES}")" < "${CLUSTER_CONFIGURATION_FILE}")
+        ;;
+
+    byovpc_gcp)
+        updated_configuration=$(jq ".gcp_network.vpc_name = \"${VPC_NAME}\" |
+        .gcp_network.compute_subnet = \"${COMPUTE_SUBNET}\" |
+        .gcp_network.control_plane_subnet = \"${CONTROL_PLANE_SUBNET}\" |
+        .network.machine_cidr = \"${MACHINE_CIDR}\" |
+        .network.service_cidr = \"${SERVICE_CIDR}\" |
+        .network.pod_cidr = \"${POD_CIDR}\" |
+        .network.host_prefix = ${HOST_PREFIX}" < "${CLUSTER_CONFIGURATION_FILE}")
         ;;
 
     aws)
-        updated_configuration=$(jq ".ccs.enabled = true | .aws.access_key_id = \"${AWS_ACCESS_KEY_ID}\" | .aws.secret_access_key = \"${AWS_SECRET_ACCESS_KEY}\" | .aws.account_id = \"${AWS_ACCOUNT_ID}\"" < "${CLUSTER_CONFIGURATION_FILE}")
+        updated_configuration=$(jq ".ccs.enabled = true |
+        .aws.access_key_id = \"${AWS_ACCESS_KEY_ID}\" |
+        .aws.secret_access_key = \"${AWS_SECRET_ACCESS_KEY}\" |
+        .aws.account_id = \"${AWS_ACCOUNT_ID}\" |
+        .cloud_provider.id = \"${CLOUD_PROVIDER}\"" < "${CLUSTER_CONFIGURATION_FILE}")
+        ;;
+
+    gcp)
+        updated_configuration=$(jq ".ccs.enabled = true |
+        .gcp.type = \"$(jq -r .type < "${GCP_SERVICE_ACCOUNT_FILE}")\" |
+        .gcp.project_id = \"$(jq -r .project_id < "${GCP_SERVICE_ACCOUNT_FILE}")\" |
+        .gcp.private_key_id = \"$(jq -r .private_key_id < "${GCP_SERVICE_ACCOUNT_FILE}")\" |
+        .gcp.private_key = \"$(jq -r .private_key < "${GCP_SERVICE_ACCOUNT_FILE}")\" |
+        .gcp.client_email = \"$(jq -r .client_email < "${GCP_SERVICE_ACCOUNT_FILE}")\" |
+        .gcp.client_id = \"$(jq -r .client_id < "${GCP_SERVICE_ACCOUNT_FILE}")\" |
+        .gcp.auth_uri = \"$(jq -r .auth_uri < "${GCP_SERVICE_ACCOUNT_FILE}")\" |
+        .gcp.token_uri = \"$(jq -r .token_uri < "${GCP_SERVICE_ACCOUNT_FILE}")\" |
+        .gcp.auth_provider_x509_cert_url = \"$(jq -r .auth_provider_x509_cert_url < "${GCP_SERVICE_ACCOUNT_FILE}")\" |
+        .gcp.client_x509_cert_url = \"$(jq -r .client_x509_cert_url < "${GCP_SERVICE_ACCOUNT_FILE}")\" |
+        .cloud_provider.id = \"${CLOUD_PROVIDER}\"" < "${CLUSTER_CONFIGURATION_FILE}")
         ;;
 
     openshift_version)
@@ -630,9 +726,17 @@ Optional exported variables:
 - OCM_CLUSTER_REGION                e.g. eu-west-1
 - BYOC                              Cloud Customer Subscription: true/false (default: false)
 - BYOVPC                            Customer Provided VPC: true/false (default: false)
-- PRIVATE_SUBNET_IDS                Required for BYOVPC - private subnet ids from pre-created vpc (string with subnet ids separated by comma)
-- PUBLIC_SUBNET_IDS                 Required for BYOVPC - public subnet ids from pre-created vpc (string with subnet ids separated by comma)
-- AVAILABILITY_ZONES                Required for BYOVPC - availability zones of subnets (string with AZ names separated by comma), should be in the same region as as OCM_CLUSTER_REGION
+- CLOUD_PROVIDER                    Cloud provider to use with BYOC: aws/gcp
+- PRIVATE_SUBNET_IDS                Required for AWS BYOVPC - private subnet ids from pre-created vpc (string with subnet ids separated by comma)
+- PUBLIC_SUBNET_IDS                 Required for AWS BYOVPC - public subnet ids from pre-created vpc (string with subnet ids separated by comma)
+- AVAILABILITY_ZONES                Required for AWS BYOVPC - availability zones of subnets (string with AZ names separated by comma), should be in the same region as as OCM_CLUSTER_REGION
+- VPC_NAME                          Required for GCP BYOVPC - name of the existing VPC that you want to deploy your cluster to
+- COMPUTE_SUBNET                    Required for GCP BYOVPC - name of the existing subnet in your VPC that you want to deploy your compute machines to
+- CONTROL_PLANE_SUBNET              Required for GCP BYOVPC - name of the existing subnet in your VPC that you want to deploy your control plane machines to
+- MACHINE_CIDR                      Required for GCP BYOVPC - CIDR range used by OCP while installing the cluster. The address block must not overlap with any other network block
+- SERVICE_CIDR                      Required for GCP BYOVPC - CIDR range for services. The address block must not overlap with any other network block
+- POD_CIDR                          Required for GCP BYOVPC - CIDR range from which pod ip addresses are allocated. The address block must not overlap with any other network block
+- HOST_PREFIX                       Required for GCP BYOVPC - subnet prefix length to assign to each individual node. Example: if host prefix is 23 then each node is assigned a /23 subnet out of the given CIDR
 - OPENSHIFT_VERSION                 to get OpenShift versions, run: ocm cluster versions
 - PRIVATE                           Cluster's API and router will be private
 - MULTI_AZ                          true/false (default: false)
