@@ -12,10 +12,16 @@ import (
 )
 
 type manageTypesCmdOptions struct {
-	filepath string
-	product  string
-	version  string
+	filepath        string
+	product         string
+	operatorVersion string
+	productVersion  string
 }
+
+const (
+	OperatorVersionType = "OperatorVersion"
+	ProductVersionType  = "Version"
+)
 
 func init() {
 
@@ -23,9 +29,9 @@ func init() {
 
 	cmd := &cobra.Command{
 		Use:   "set-product-operator-version",
-		Short: "Sets the operator version for a product in the rhmi_types file and sets product to CHANGEME if a minor version update",
+		Short: "Sets the operator version for a product in the rhmi_types file and sets product version to product-version if supplied",
 		Run: func(cmd *cobra.Command, args []string) {
-			err := SetVersion(flags.filepath, flags.product, flags.version)
+			err := SetVersion(flags.filepath, flags.product, flags.operatorVersion, flags.productVersion)
 			if err != nil {
 				handleError(err)
 			}
@@ -40,13 +46,15 @@ func init() {
 	cmd.Flags().StringVarP(&flags.product, "product", "p", "", "The product name")
 	cmd.MarkFlagRequired("product")
 
-	cmd.Flags().StringVarP(&flags.version, "version", "v", "", "The desired version")
+	cmd.Flags().StringVarP(&flags.operatorVersion, "version", "v", "", "The desired operator version")
 	cmd.MarkFlagRequired("version")
+
+	cmd.Flags().StringVarP(&flags.productVersion, "product-version", "e", "", "The desired product version")
 }
 
-func SetVersion(filepath string, product string, version string) error {
+func SetVersion(filepath string, product string, operatorVersion string, productVersion string) error {
 	product = PrepareProductName(product)
-	fmt.Printf("setting version of product operator %s to %s\n", product, version)
+	fmt.Printf("setting version of operator %s to %s\n", product, operatorVersion)
 	read, err := os.Open(filepath)
 	if err != nil {
 		return err
@@ -55,10 +63,22 @@ func SetVersion(filepath string, product string, version string) error {
 	if err != nil {
 		return err
 	}
-	out, err := ParseVersion(bytes, product, version)
+	out, err := ParseVersion(string(bytes), product, operatorVersion, OperatorVersionType)
 	if err != nil {
 		fmt.Printf("error: %s not writing to file\n", err)
 		return nil
+	}
+	if productVersion != "" {
+		fmt.Printf("setting version of product %s to %s\n", product, productVersion)
+		if out != "" {
+			out, err = ParseVersion(out, product, productVersion, ProductVersionType)
+		} else {
+			out, err = ParseVersion(string(bytes), product, productVersion, ProductVersionType)
+		}
+		if err != nil {
+			fmt.Printf("error: %s not writing to file\n", err)
+			return nil
+		}
 	}
 	if out != "" {
 		fmt.Printf("writing changes to rhmi_types file at %s\n", filepath)
@@ -91,40 +111,40 @@ func PrepareProductName(product string) string {
 	return product
 }
 
-func ParseVersion(in []byte, product string, version string) (string, error) {
+func ParseVersion(input string, product string, version string, versionType string) (string, error) {
 	// remove whitespace and "'s
 	version = strings.ReplaceAll(version, "\"", "")
 	version = strings.TrimSpace(version)
 
-	var ReOperatorVersion = regexp.MustCompile(`OperatorVersion` + product + `.*`)
+	var ReVersion = regexp.MustCompile(versionType + product + `.*`)
 
-	operatorVersion := ReOperatorVersion.FindString(string(in))
+	foundVersion := ReVersion.FindString(input)
 
 	// remove whitespace and "'s
-	ovs := strings.Split(operatorVersion, "=")[1]
-	ovs = strings.ReplaceAll(ovs, "\"", "")
-	ovs = strings.TrimSpace(ovs)
+	vs := strings.Split(foundVersion, "=")[1]
+	vs = strings.ReplaceAll(vs, "\"", "")
+	vs = strings.TrimSpace(vs)
 
-	currentOperatorVersion := "v" + ovs
-	newOperatorVersion := "v" + version
+	currentVersion := "v" + vs
+	newVersion := "v" + version
 
 	var out string
-	fmt.Printf("current OperatorVersion: %s Supplied OperatorVersion: %s\n", currentOperatorVersion, newOperatorVersion)
-	if !semver.IsValid(currentOperatorVersion) || !semver.IsValid(newOperatorVersion) {
+	fmt.Printf("current %s: %s Supplied version: %s\n", versionType, currentVersion, newVersion)
+	if !semver.IsValid(currentVersion) || !semver.IsValid(newVersion) {
 		return "", fmt.Errorf("one of the versions provided are invalid semver")
 	}
-	c := semver.Compare(currentOperatorVersion, newOperatorVersion)
+	c := semver.Compare(currentVersion, newVersion)
 	// the operator version is less than the new version
 	switch c {
 	case -1:
-		r := strings.Replace(operatorVersion, ovs, version, 1)
-		out = strings.Replace(string(in), operatorVersion, r, 1)
+		r := strings.Replace(foundVersion, vs, version, 1)
+		out = strings.Replace(input, foundVersion, r, 1)
 		return out, nil
 	case 0:
-		fmt.Println("Operator versions match or invalid, not updating types file")
+		fmt.Printf("%ss match or invalid, not updating types file\n", versionType)
 		return "", nil
 	case 1:
-		return "", fmt.Errorf("current operator version %s is greater than supplied version %s", currentOperatorVersion, newOperatorVersion)
+		return "", fmt.Errorf("current %s %s is greater than supplied version %s", versionType, currentVersion, newVersion)
 	}
 	return "", fmt.Errorf("unexpected operator version found")
 }
