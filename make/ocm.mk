@@ -83,7 +83,7 @@ ocm/rosa/cluster/create:
 ocm/rosa/cluster/delete:
 	@${ROSA_SH} delete_sts_cluster
 
-.PHONY: ocm/sts/rhoam-prerequisites
-ocm/sts/rhoam-prerequisites:
-	@${ROSA_SH} rhoam_prerequisites
+.PHONY: ocm/sts/sts-cluster-prerequisites
+ocm/sts/sts-cluster-prerequisites:
+	@${ROSA_SH} sts_cluster_prerequisites
 

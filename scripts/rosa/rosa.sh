@@ -68,8 +68,6 @@ STS_ENABLED="${STS_ENABLED:-true}"
 
 provision_rosa_cluster() {
     rosa login --env=$OCM_ENV
-    rosa create account-roles --mode auto -y
-    sleep 30
     args=(--cluster-name $CLUSTER_NAME --region $AWS_REGION --compute-machine-type $MACHINE_TYPE)
     if [[ $ENABLE_AUTOSCALING == 'true' ]]; then
        args+=(--enable-autoscaling --min-replicas $MIN_REPLICAS --max-replicas $MAX_REPLICAS)
@@ -78,6 +76,8 @@ provision_rosa_cluster() {
     fi
     if [[ $STS_ENABLED == 'true' ]]; then
       args+=(--sts --mode auto)
+      rosa create account-roles --mode auto -y
+      sleep 30
     fi
     args+=( -y)
     rosa create cluster "${args[@]}"
@@ -118,7 +118,7 @@ get_oidc_provider_env() {
   fi
 }
 
-rhoam_prerequisites() {
+sts_cluster_prerequisites() {
     # Delete policy and role
     aws iam delete-role-policy --role-name $ROLE_NAME --policy-name $MINIMAL_POLICY_NAME || true
     aws iam delete-role --role-name $ROLE_NAME || true
@@ -295,8 +295,8 @@ main() {
             delete_rosa_cluster
             exit 0
             ;;
-        rhoam_prerequisites)
-            rhoam_prerequisites
+        sts_cluster_prerequisites)
+            sts_cluster_prerequisites
             exit 0
             ;;
         esac
