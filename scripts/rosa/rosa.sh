@@ -29,7 +29,7 @@
 #
 # ~ Deletion ~
 #
-# make ocm/delete_sts (optional <CLUSTER_NAME= > <AWS_REGION= > <PREFIX= >)
+# make ocm/rosa/cluster/delete (optional <CLUSTER_NAME= > <AWS_REGION= > <PREFIX= >)
 #
 # <Default values>
 #  PREFIX=ManagedOpenShift
@@ -287,11 +287,11 @@ EOM
 main() {
     while :; do
         case "${1:-}" in
-        provision_sts_cluster)
+        provision_rosa_cluster)
             provision_rosa_cluster
             exit 0
             ;;
-        delete_sts_cluster)
+        delete_rosa_cluster)
             delete_rosa_cluster
             exit 0
             ;;

@@ -77,11 +77,11 @@ ocm/help:
 
 .PHONY: ocm/rosa/cluster/create
 ocm/rosa/cluster/create:
-	@${ROSA_SH} provision_sts_cluster
+	@${ROSA_SH} provision_rosa_cluster
 
 .PHONY: ocm/rosa/cluster/delete
 ocm/rosa/cluster/delete:
-	@${ROSA_SH} delete_sts_cluster
+	@${ROSA_SH} delete_rosa_cluster
 
 .PHONY: ocm/sts/sts-cluster-prerequisites
 ocm/sts/sts-cluster-prerequisites:
