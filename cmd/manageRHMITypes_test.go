@@ -21,61 +21,73 @@ func TestManageRHMITypes(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		verify  func(t *testing.T, directory string, product string, version string, majmin string) error
+		verify  func(t *testing.T, directory string, product string, operatorVersion string, productVersion string) error
 		wantErr bool
-		majmin  string
 	}{
 		{
 			name: "test setting 3scale major version",
 			args: args{context.TODO(), &manageTypesCmdOptions{
-				filepath: "",
-				product:  "3scale",
-				version:  "9.9.9",
+				filepath:        "",
+				product:         "3scale",
+				operatorVersion: "9.9.9",
 			}},
 			wantErr: false,
-			verify: func(t *testing.T, directory string, product string, version string, majmin string) error {
-				return verifyTypesFile(t, directory, product, version, "")
+			verify: func(t *testing.T, directory string, product string, operatorVersion string, productVersion string) error {
+				return verifyTypesFile(t, directory, product, operatorVersion, OperatorVersionType)
 			},
-			majmin: "major",
 		},
 		{
 			name: "test setting amq-online major version",
 			args: args{context.TODO(), &manageTypesCmdOptions{
-				filepath: "",
-				product:  "amq-online",
-				version:  "9.9.9",
+				filepath:        "",
+				product:         "amq-online",
+				operatorVersion: "9.9.9",
 			}},
 			wantErr: false,
-			verify: func(t *testing.T, directory string, product string, version string, majmin string) error {
-				return verifyTypesFile(t, directory, product, version, "")
+			verify: func(t *testing.T, directory string, product string, operatorVersion string, productVersion string) error {
+				return verifyTypesFile(t, directory, product, operatorVersion, OperatorVersionType)
 			},
-			majmin: "major",
 		},
 		{
 			name: "test setting 3scale minor version",
 			args: args{context.TODO(), &manageTypesCmdOptions{
-				filepath: "",
-				product:  "3scale",
-				version:  "9.10.0",
+				filepath:        "",
+				product:         "3scale",
+				operatorVersion: "9.10.0",
 			}},
 			wantErr: false,
-			verify: func(t *testing.T, directory string, product string, version string, majmin string) error {
-				return verifyTypesFile(t, directory, product, version, "")
+			verify: func(t *testing.T, directory string, product string, operatorVersion string, productVersion string) error {
+				return verifyTypesFile(t, directory, product, operatorVersion, OperatorVersionType)
 			},
-			majmin: "minor",
 		},
 		{
 			name: "test setting amq-online minor version",
 			args: args{context.TODO(), &manageTypesCmdOptions{
-				filepath: "",
-				product:  "amq-online",
-				version:  "9.10.0",
+				filepath:        "",
+				product:         "amq-online",
+				operatorVersion: "9.10.0",
 			}},
 			wantErr: false,
-			verify: func(t *testing.T, directory string, product string, version string, majmin string) error {
-				return verifyTypesFile(t, directory, product, version, "")
+			verify: func(t *testing.T, directory string, product string, operatorVersion string, productVersion string) error {
+				return verifyTypesFile(t, directory, product, operatorVersion, OperatorVersionType)
 			},
-			majmin: "minor",
+		},
+		{
+			name: "test setting 3scale operator and product version",
+			args: args{context.TODO(), &manageTypesCmdOptions{
+				filepath:        "",
+				product:         "3scale",
+				operatorVersion: "9.9.9",
+				productVersion:  "2.12.1",
+			}},
+			wantErr: false,
+			verify: func(t *testing.T, directory string, product string, operatorVersion string, productVersion string) error {
+				err := verifyTypesFile(t, directory, product, operatorVersion, OperatorVersionType)
+				if err != nil {
+					return nil
+				}
+				return verifyTypesFile(t, directory, product, productVersion, ProductVersionType)
+			},
 		},
 	}
 	for _, tt := range tests {
@@ -89,13 +101,13 @@ func TestManageRHMITypes(t *testing.T) {
 		}
 		tt.args.cmdOpts.filepath = path.Join(testDir, "rhmi_types")
 		t.Run(tt.name, func(t *testing.T) {
-			if err := SetVersion(tt.args.cmdOpts.filepath, tt.args.cmdOpts.product, tt.args.cmdOpts.version); (err != nil) != tt.wantErr {
+			if err := SetVersion(tt.args.cmdOpts.filepath, tt.args.cmdOpts.product, tt.args.cmdOpts.operatorVersion, tt.args.cmdOpts.productVersion); (err != nil) != tt.wantErr {
 				t.Errorf("SetVersion() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
 			if !tt.wantErr {
 				if tt.verify != nil {
-					if err := tt.verify(t, tt.args.cmdOpts.filepath, tt.args.cmdOpts.product, tt.args.cmdOpts.version, tt.majmin); err != nil {
+					if err := tt.verify(t, tt.args.cmdOpts.filepath, tt.args.cmdOpts.product, tt.args.cmdOpts.operatorVersion, tt.args.cmdOpts.productVersion); err != nil {
 						fmt.Println("d: ", tt.args.cmdOpts.filepath)
 						t.Fatalf("verification failed due to error: %v", err)
 					}
@@ -110,7 +122,7 @@ func TestManageRHMITypes(t *testing.T) {
 	}
 }
 
-func verifyTypesFile(t *testing.T, filepath, product string, version string, majmin string) error {
+func verifyTypesFile(t *testing.T, filepath, product string, version string, versionType string) error {
 	f, err := os.Open(filepath)
 	if err != nil {
 		return err
@@ -120,25 +132,17 @@ func verifyTypesFile(t *testing.T, filepath, product string, version string, maj
 	bytes, _ := io.ReadAll(f)
 	product = PrepareProductName(product)
 
-	var ReOperatorVersion = regexp.MustCompile(`OperatorVersion` + product + `.*`)
+	var ReVersion = regexp.MustCompile(versionType + product + `.*`)
 
-	operatorVersion := ReOperatorVersion.FindString(string(bytes))
+	foundVersion := ReVersion.FindString(string(bytes))
 
 	// Remove the "'s so it can validate against the version
-	ovs := strings.Split(operatorVersion, "=")[1]
-	ovs = strings.ReplaceAll(ovs, "\"", "")
-	ovs = strings.TrimSpace(ovs)
+	vs := strings.Split(foundVersion, "=")[1]
+	vs = strings.ReplaceAll(vs, "\"", "")
+	vs = strings.TrimSpace(vs)
 
-	if majmin == "major" {
-		if ovs != version {
-			t.Errorf("error found incorrect version string, wanted = %s, got %s", ovs, version)
-		}
-	}
-
-	if majmin == "minor" {
-		if ovs != version {
-			t.Errorf("error found incorrect version string, wanted = %s, got %s", ovs, version)
-		}
+	if vs != version {
+		t.Errorf("error found incorrect version string, wanted = %s, got %s", vs, version)
 	}
 
 	return nil
