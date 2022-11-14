@@ -182,7 +182,7 @@ func (c *createReleaseCmd) commitAndPushChanges(gitRepo *git.Repository, gitRepo
 	if err := gitRepoTree.AddGlob("."); err != nil {
 		return err
 	}
-	if _, err := gitRepoTree.Commit(fmt.Sprintf("MGDAPI-3209 prepare for release %s", c.version.TagName()), &git.CommitOptions{
+	if _, err := gitRepoTree.Commit(c.version.PrepareReleaseCommitMessage(), &git.CommitOptions{
 		All: true,
 		Author: &object.Signature{
 			Name:  commitAuthorName,
@@ -214,7 +214,7 @@ func (c *createReleaseCmd) createPRIfNotExists(ctx context.Context, releaseBranc
 	}
 	if pr == nil {
 		fmt.Println("Create PR for release")
-		t := fmt.Sprintf("release PR for version %s", c.version.TagName())
+		t := c.version.PrepareReleasePRTitle()
 		b := c.baseBranch.String()
 		req := &github.NewPullRequest{
 			Title: &t,

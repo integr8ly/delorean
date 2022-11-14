@@ -186,6 +186,12 @@ func TestNameByOlmType(t *testing.T) {
 			want:    "rhoam",
 		},
 		{
+			name:    "test that multitenant-managed-api-service returns rhoam",
+			olmType: "multitenant-managed-api-service",
+			version: "1.1.0",
+			want:    "rhoam",
+		},
+		{
 			name:    "test that integreatly-operaotr returns rhmi",
 			version: "2.7.0",
 			olmType: "integreatly-operator",
