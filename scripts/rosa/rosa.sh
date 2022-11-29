@@ -69,14 +69,16 @@ provision_rosa_cluster() {
     rosa login --env=$OCM_ENV
     args=(--cluster-name $CLUSTER_NAME --region $AWS_REGION --compute-machine-type $MACHINE_TYPE)
     if [[ $ENABLE_AUTOSCALING == 'true' ]]; then
-       args+=(--enable-autoscaling --min-replicas $MIN_REPLICAS --max-replicas $MAX_REPLICAS)
+        args+=(--enable-autoscaling --min-replicas $MIN_REPLICAS --max-replicas $MAX_REPLICAS)
     else
-       args+=(--compute-nodes $COMPUTE_NODES)
+        args+=(--replicas $COMPUTE_NODES)
     fi
     if [[ $STS_ENABLED == 'true' ]]; then
-      args+=(--sts --mode auto)
-      rosa create account-roles --mode auto -y
-      sleep 30
+        args+=(--sts --mode auto)
+        rosa create account-roles --mode auto -y
+        sleep 30
+    else
+        args+=(--non-sts)
     fi
     args+=( -y)
     rosa create cluster "${args[@]}"
@@ -90,13 +92,13 @@ delete_rosa_cluster() {
     rosa delete oidc-provider -c $CLUSTER_ID --mode auto -y
     rosa delete operator-roles -c $CLUSTER_ID --mode auto -y
     if rosa list clusters | grep -q 'No clusters available'; then
-      rosa delete account-roles --prefix $PREFIX --mode auto -y
+        rosa delete account-roles --prefix $PREFIX --mode auto -y
     fi
 }
 
 get_cluster_id() {
-  local CLUSTER_ID=$(ocm get clusters --parameter search="name like '%$CLUSTER_NAME%'" | jq '.items[].id' -r)
-  echo "$CLUSTER_ID"
+    local CLUSTER_ID=$(ocm get clusters --parameter search="name like '%$CLUSTER_NAME%'" | jq '.items[].id' -r)
+    echo "$CLUSTER_ID"
 }
 
 # Gets the local aws account id
@@ -110,8 +112,8 @@ get_role_arn() {
 }
 
 get_oidc_provider() {
-  local OIDC_PROVIDER=$(aws iam list-open-id-connect-providers | jq -r --arg CLUSTER_ID "$(get_cluster_id)" '.OpenIDConnectProviderList[] | select(.Arn | endswith($CLUSTER_ID)).Arn')
-  echo "$OIDC_PROVIDER"
+    local OIDC_PROVIDER=$(aws iam list-open-id-connect-providers | jq -r --arg CLUSTER_ID "$(get_cluster_id)" '.OpenIDConnectProviderList[] | select(.Arn | endswith($CLUSTER_ID)).Arn')
+    echo "$OIDC_PROVIDER"
 }
 
 sts_cluster_prerequisites() {
