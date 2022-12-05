@@ -85,6 +85,7 @@ func (c *openshiftCIReleaseCmd) DoIntlyOperatorUpdate() (string, error) {
 			RemoteName: "origin",
 			Auth:       &http.BasicAuth{Password: c.gitPass, Username: c.gitUser},
 			Progress:   os.Stdout,
+			InsecureSkipTLS: true,
 			RefSpecs: []config.RefSpec{
 				config.RefSpec(branch + ":" + branch),
 			},
@@ -312,7 +313,7 @@ func updateImageMirroringConfig(repoDir string, version *utils.RHMIVersion) erro
 	mappingFile := path.Join(repoDir, fmt.Sprintf("core-services/image-mirroring/integr8ly/mapping_integr8ly_operator_%s", strings.ReplaceAll(version.MajorMinor(), ".", "_")))
 
 	internalReg := ProwInternalRegistry
-	publicReg := "quay.io/integreatly"
+	publicReg := "quay.io/vmogilev_rhmi"
 
 	type imageTemplate struct {
 		internalRegTemplate string

@@ -419,6 +419,19 @@ install_rhoam_trial() {
     install_addon "managed-api-service" ".status.stages.installation.phase" "true"
 }
 
+install_rhods_addon() {
+    NS_PREFIX="redhat-ods"
+    OPERATOR_NAMESPACE="${NS_PREFIX}-operator"
+
+    local cluster_id
+    local addon_payload
+
+    addon_payload="{\"addon\":{\"id\":\"managed-odh\"}, \"parameters\": { \"items\": [{\"id\": \"notification-email\", \"value\": \"email@example.com\"}]}}"
+    cluster_id=$(get_cluster_id)
+    echo "Applying Red Hat OpenShift Data Science (RHODS) Add-on on a cluster with ID: ${cluster_id}"
+    echo "${addon_payload}" | ocm post "/api/clusters_mgmt/v1/clusters/${cluster_id}/addons"
+    wait_for "ocm list addons --cluster=${cluster_id} |grep managed-odh |grep ready" "RHODS addon to be installed" "45m" "60"
+}
 
 delete_cluster() {
     local cluster_id
@@ -755,6 +768,7 @@ Optional exported variables:
 install_rhmi                      - install RHMI using addon-type installation
 install_rhoam                     - install RHOAM using addon-type installation
 install_rhoam_trial               - install RHOAM using addon-type installation on OSD Trial
+install_rhods_addon               - install Red Hat OpenShift Data Science (RHODS) addon
 ------------------------------------------------------------------------------------------
 Optional exported variables:
 - USE_CLUSTER_STORAGE               true/false - use OpenShift/AWS storage (default: true)
@@ -821,6 +835,10 @@ main() {
             ;;
         install_rhoam_trial)
             install_rhoam_trial
+            exit 0
+            ;;
+        install_rhods_addon)
+            install_rhods_addon
             exit 0
             ;;
         delete_cluster)

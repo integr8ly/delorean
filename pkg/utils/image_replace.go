@@ -38,14 +38,14 @@ var ImageSubs = map[string]*ImageDetails{
 		LineRegEx:         regexp.MustCompile(`marin3r.3scale.net/envoy-image` + `.*`),
 		ReplaceImage:      replaceEnvoyProxyImage,
 		GetCurrentVersion: getCurrentEnvoyProxyVersion,
-		MirrorRepo:        "quay.io/integreatly/ews-envoyproxy",
+		MirrorRepo:        "quay.io/vmogilev_rhmi/ews-envoyproxy",
 	},
 	rateLimiting: {
 		FileLocation:      getRateLimitingFileLocation,
-		LineRegEx:         regexp.MustCompile(`quay.io/integreatly/` + `.*` + `ratelimit` + `.*`),
+		LineRegEx:         regexp.MustCompile(`quay.io/vmogilev_rhmi/` + `.*` + `ratelimit` + `.*`),
 		GetCurrentVersion: getCurrentRateLimitingVersion,
 		ReplaceImage:      replaceRateLimitingImage,
-		MirrorRepo:        "quay.io/integreatly/ews-ratelimiting",
+		MirrorRepo:        "quay.io/vmogilev_rhmi/ews-ratelimiting",
 		OriginRepo:        "docker.io/envoyproxy/ratelimit",
 		GetOriginImage:    GetRateLimitingOriginImage,
 	},
@@ -54,7 +54,7 @@ var ImageSubs = map[string]*ImageDetails{
 		LineRegEx:         regexp.MustCompile(""),
 		GetCurrentVersion: getCurrentRHSSOVersion,
 		ReplaceImage:      replaceRHSSOImage,
-		MirrorRepo:        "quay.io/integreatly/ews-rhsso",
+		MirrorRepo:        "quay.io/vmogilev_rhmi/ews-rhsso",
 	},
 }
 

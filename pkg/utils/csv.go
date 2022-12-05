@@ -23,7 +23,7 @@ import (
 var ReProd = regexp.MustCompile(`registry.redhat.io/.*`)
 var ReStage = regexp.MustCompile(`registry.stage.redhat.io/*`)
 var ReProxy = regexp.MustCompile(`registry-proxy.engineering.redhat.com/rh-osbs/.*`)
-var ReDelorean = regexp.MustCompile(`quay.io/integreatly/delorean.*`)
+var ReDelorean = regexp.MustCompile(`quay.io/vmogilev_rhmi/delorean.*`)
 var imageWhitelist = [1]string{"registry.redhat.io/openshift4/ose-oauth-proxy:4.2"}
 
 const (

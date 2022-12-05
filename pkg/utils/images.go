@@ -7,7 +7,7 @@ import (
 
 const (
 	osbsRegistry     = "registry-proxy.engineering.redhat.com/rh-osbs"
-	DeloreanRegistry = "quay.io/integreatly/delorean"
+	DeloreanRegistry = "quay.io/vmogilev_rhmi/delorean"
 )
 
 func stripSHAOrTag(in string) string {
@@ -30,7 +30,7 @@ func stripSHAOrTag(in string) string {
 
 func BuildDeloreanImage(image string) string {
 	s := strings.Split(image, "/")
-	if s[0] == "quay.io" && s[1] == "integreatly" {
+	if s[0] == "quay.io" && s[1] == "vmogilev_rhmi" {
 		i := strings.Split(image, ":")
 		image = DeloreanRegistry + i[1]
 		return image
