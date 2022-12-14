@@ -7,9 +7,11 @@ import (
 )
 
 const (
-	releaseBranchNameTemplate = "prepare-for-release-%s"
-	rhoamManifestNameTemplate = "rhoam-manifest-for-release-%s"
-	rhmiManifestNameTemplate  = "rhmi-manifest-for-release-%s"
+	releaseBranchNameTemplate   = "prepare-for-release-%s"
+	rhoamManifestNameTemplate   = "rhoam-manifest-for-release-%s"
+	rhmiManifestNameTemplate    = "rhmi-manifest-for-release-%s"
+	rhoamReleaseJira            = "MGDAPI-3209"
+	multitenantRhoamReleaseJira = "MGDAPI-4533"
 )
 
 // RHMIVersion represents an integreatly version composed by a base part (2.0.0, 2.0.1, ...)
@@ -58,8 +60,7 @@ func stringInSlice(a string, list []string) bool {
 
 // NewVersion parse the version as a string based on olmType and returns a Version object
 func NewVersion(version string, olmType string) (*RHMIVersion, error) {
-
-	acceptedOlmTypes := []string{types.OlmTypeRhmi, types.OlmTypeRhoam}
+	acceptedOlmTypes := []string{types.OlmTypeRhmi, types.OlmTypeRhoam, types.OlmTypeMultitenantRhoam}
 	if !stringInSlice(olmType, acceptedOlmTypes) {
 		return nil, fmt.Errorf("the olmType %s is invalid", olmType)
 	}
@@ -93,6 +94,8 @@ func (v *RHMIVersion) ReleaseBranchName() string {
 		return fmt.Sprintf("release-v%s", v.MajorMinor())
 	case types.OlmTypeRhoam:
 		return fmt.Sprintf("rhoam-release-v%s", v.MajorMinor())
+	case types.OlmTypeMultitenantRhoam:
+		return fmt.Sprintf("rhoam-release-v%s", v.MajorMinor())
 	default:
 		return fmt.Sprintf("release-v%s", v.MajorMinor())
 	}
@@ -103,6 +106,8 @@ func (v *RHMIVersion) TagName() string {
 	case types.OlmTypeRhmi:
 		return fmt.Sprintf("v%s", v.String())
 	case types.OlmTypeRhoam:
+		return fmt.Sprintf("rhoam-v%s", v.String())
+	case types.OlmTypeMultitenantRhoam:
 		return fmt.Sprintf("rhoam-v%s", v.String())
 	default:
 		return fmt.Sprintf("v%s", v.String())
@@ -115,6 +120,8 @@ func (v *RHMIVersion) RCTagRef() string {
 	case types.OlmTypeRhmi:
 		return fmt.Sprintf("v%s-", v.MajorMinorPatch())
 	case types.OlmTypeRhoam:
+		return fmt.Sprintf("rhoam-v%s-", v.MajorMinorPatch())
+	case types.OlmTypeMultitenantRhoam:
 		return fmt.Sprintf("rhoam-v%s-", v.MajorMinorPatch())
 	default:
 		return fmt.Sprintf("v%s-", v.MajorMinorPatch())
@@ -150,7 +157,33 @@ func (v *RHMIVersion) PolarionMilestoneId() string {
 }
 
 func (v *RHMIVersion) PrepareReleaseBranchName() string {
-	return fmt.Sprintf(releaseBranchNameTemplate, v.TagName())
+	branchName := fmt.Sprintf(releaseBranchNameTemplate, v.TagName())
+	if v.olmType == types.OlmTypeMultitenantRhoam {
+		branchName = fmt.Sprintf("%s-MT", branchName)
+	}
+	return branchName
+}
+
+func (v *RHMIVersion) PrepareReleaseCommitMessage() string {
+	switch v.olmType {
+	case types.OlmTypeRhoam:
+		return fmt.Sprintf("%s prepare for release %s", rhoamReleaseJira, v.TagName())
+	case types.OlmTypeMultitenantRhoam:
+		return fmt.Sprintf("%s prepare for multitenant release %s", multitenantRhoamReleaseJira, v.TagName())
+	default:
+		return fmt.Sprintf("%s prepare for release %s", rhoamReleaseJira, v.TagName())
+	}
+}
+
+func (v *RHMIVersion) PrepareReleasePRTitle() string {
+	switch v.olmType {
+	case types.OlmTypeRhoam:
+		return fmt.Sprintf("release PR for version %s", v.TagName())
+	case types.OlmTypeMultitenantRhoam:
+		return fmt.Sprintf("release PR for MT version %s", v.TagName())
+	default:
+		return fmt.Sprintf("release PR for version %s", v.TagName())
+	}
 }
 
 func (v *RHMIVersion) PrepareProdsecManifestBranchName() string {
@@ -158,6 +191,8 @@ func (v *RHMIVersion) PrepareProdsecManifestBranchName() string {
 	case types.OlmTypeRhmi:
 		return fmt.Sprintf(rhmiManifestNameTemplate, v.TagName())
 	case types.OlmTypeRhoam:
+		return fmt.Sprintf(rhoamManifestNameTemplate, v.TagName())
+	case types.OlmTypeMultitenantRhoam:
 		return fmt.Sprintf(rhoamManifestNameTemplate, v.TagName())
 	default:
 		return fmt.Sprintf(rhmiManifestNameTemplate, v.TagName())
@@ -187,6 +222,8 @@ func (v *RHMIVersion) NameByOlmType() string {
 	case types.OlmTypeRhmi:
 		return "rhmi"
 	case types.OlmTypeRhoam:
+		return "rhoam"
+	case types.OlmTypeMultitenantRhoam:
 		return "rhoam"
 	default:
 		return "rhmi"

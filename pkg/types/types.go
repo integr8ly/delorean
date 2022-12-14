@@ -1,8 +1,9 @@
 package types
 
 const (
-	OlmTypeRhmi  = "integreatly-operator"
-	OlmTypeRhoam = "managed-api-service"
+	OlmTypeRhmi             = "integreatly-operator"
+	OlmTypeRhoam            = "managed-api-service"
+	OlmTypeMultitenantRhoam = "multitenant-managed-api-service"
 )
 
 type RhssoManifest struct {
