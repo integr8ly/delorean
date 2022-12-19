@@ -49,6 +49,10 @@ ocm/install/rhoam-addon:
 ocm/install/rhoam-addon-trial:
 	@${OCM_SH} install_rhoam_trial
 
+.PHONY: ocm/install/install_rhods_addon
+ocm/install/install_rhods_addon:
+	@${OCM_SH} install_rhods_addon
+
 .PHONY: ocm/cluster/delete
 ocm/cluster/delete:
 	@${OCM_SH} delete_cluster
