@@ -14,7 +14,7 @@ RUN set -o pipefail && \
     mv oc /usr/local/bin && \
     curl -Ls https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/4.11.0/opm-linux.tar.gz | tar -zx && \
     mv opm /usr/local/bin && \
-    curl -Lo /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.23.1/yq_linux_amd64 && \
+    curl -Lo /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.30.6/yq_linux_amd64 && \
     chmod +x /usr/local/bin/yq && \
     curl -Lo /usr/local/bin/jq https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64 && \
     chmod +x /usr/local/bin/jq && \
