@@ -21,6 +21,7 @@
 #  MACHINE_TYPE=m5.xlarge
 #  ENABLE_AUTOSCALING=false
 #  STS_ENABLED=true
+#  MULTI_AZ=false
 #
 #
 #
@@ -63,6 +64,7 @@ ENABLE_AUTOSCALING="${ENABLE_AUTOSCALING:-false}"
 MIN_REPLICAS="${MIN_REPLICAS:-4}"
 MAX_REPLICAS="${MAX_REPLICAS:-6}"
 STS_ENABLED="${STS_ENABLED:-true}"
+MULTI_AZ="${MULTI_AZ:-false}"
 
 
 provision_rosa_cluster() {
@@ -79,6 +81,13 @@ provision_rosa_cluster() {
         sleep 30
     else
         args+=(--non-sts)
+    fi
+    if [[ $MULTI_AZ == 'true' ]]; then
+        if [ $((COMPUTE_NODES % 3)) -ne 0 ]; then
+          echo "for multi az cluster the number of $COMPUTE_NODES should be a multiple of 3"
+          exit 1
+        fi
+        args+=(--multi-az true)
     fi
     args+=( -y)
     rosa create cluster "${args[@]}"
