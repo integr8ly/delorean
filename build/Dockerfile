@@ -8,7 +8,7 @@ ENV OPERATOR_SDK_VERSION=v1.21.0 \
 COPY resources/rhit-root-ca.crt /etc/pki/ca-trust/source/anchors/
 
 RUN set -o pipefail && \
-    INSTALL_PKGS="make rsync wget gcc which" && \
+    INSTALL_PKGS="make rsync wget gcc which git diffutils openssh" && \
     yum install -y --setopt=tsflags=nodocs $INSTALL_PKGS && \
     curl -Ls https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/4.11.0/openshift-client-linux.tar.gz | tar -zx && \
     mv oc /usr/local/bin && \
@@ -36,4 +36,5 @@ COPY scripts/jenkins-reports /usr/local/bin
 COPY build/delorean /usr/local/bin/delorean
 COPY configurations /etc/delorean/configurations
 RUN chmod -R +r /etc/delorean/configurations
+RUN mkdir -p /.ssh
 RUN update-ca-trust
