@@ -65,6 +65,10 @@ MIN_REPLICAS="${MIN_REPLICAS:-4}"
 MAX_REPLICAS="${MAX_REPLICAS:-6}"
 STS_ENABLED="${STS_ENABLED:-true}"
 MULTI_AZ="${MULTI_AZ:-false}"
+PRIVATE_LINK="${PRIVATE_LINK:-false}"
+BYOVPC="${BYOVPC:-true}"
+SUBNET_IDS="${SUBNET_IDS-""}"
+MACHINE_CIDR="${MACHINE_CIDR-""}"
 
 
 provision_rosa_cluster() {
@@ -75,24 +79,60 @@ provision_rosa_cluster() {
     else
         args+=(--replicas $COMPUTE_NODES)
     fi
-    if [[ $STS_ENABLED == 'true' ]]; then
-        args+=(--sts --mode auto)
-        rosa create account-roles --mode auto -y
-        sleep 30
-    else
-        args+=(--non-sts)
-    fi
     if [[ $MULTI_AZ == 'true' ]]; then
         if [ $((COMPUTE_NODES % 3)) -ne 0 ]; then
           echo "for multi az cluster the number of $COMPUTE_NODES should be a multiple of 3"
           exit 1
         fi
-        args+=(--multi-az true)
+        args+=(--multi-az)
     fi
-    args+=( -y)
+    if [[ $BYOVPC = 'true' ]]; then
+        if [[ -z $SUBNET_IDS || $SUBNET_IDS == '' ]]; then
+          echo "a comma seperated list of subnet ids for your BYOVPC must provided"
+          exit 1
+        fi
+        args+=(--subnet-ids=$SUBNET_IDS)
+        if [[ $PRIVATE_LINK = 'true' ]]; then
+          is_private_link_region
+          args+=(--private-link)
+        fi
+        if [[ -n $MACHINE_CIDR && $MACHINE_CIDR != "" ]]; then
+          args+=(--machine-cidr=$MACHINE_CIDR)
+        fi
+    fi
+    if [[ $STS_ENABLED == 'true' ]]; then
+        args+=(--sts)
+        rosa create account-roles --mode auto -y
+        sleep 30
+    else
+        args+=(--non-sts)
+    fi
+    args+=(-y --mode auto)
     rosa create cluster "${args[@]}"
     rosa describe cluster --cluster $CLUSTER_NAME
     rosa logs install --cluster $CLUSTER_NAME --watch
+}
+
+is_private_link_region(){
+    # For private link enabled clusters at time of writing there is a limited set of regions where they can be installed.
+    # This rosa cli or ocm ui installation will fail silently if you are trying to install into one of those regions.
+    # See https://gitlab.cee.redhat.com/service/osd-aws-privatelink-terraform/-/blob/master/osd/variables.tf#L26-31 for regions enabled
+    # There is an epic to update the list https://issues.redhat.com/browse/SDE-2560 but it's not clear when this will be delivered
+    private_link_enabled_regions=("us-east-1" "us-east-2" "us-west-1" "us-west-2" "ap-northeast-3")
+    match=false
+    for i in "${private_link_enabled_regions[@]}"
+    do
+      if [[ "$i" == "$AWS_REGION" ]]; then
+        match=true
+        break
+      fi
+    done
+
+    if [[ "$match" == false ]]; then
+        echo "Private Link Clusters are not enabled in OCM staging environment for region $AWS_REGION"
+        echo "At time or writing the currently enabled regions are " "${private_link_enabled_regions[@]}"
+        exit 1
+    fi
 }
 
 delete_rosa_cluster() {
