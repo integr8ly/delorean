@@ -33,6 +33,7 @@ require (
 	k8s.io/cli-runtime v0.23.2
 	k8s.io/client-go v8.0.0+incompatible
 	k8s.io/utils v0.0.0-20211208161948-7d6a63dca704
+	sigs.k8s.io/kustomize/kyaml v0.13.0
 	sigs.k8s.io/yaml v1.2.0
 )
 
@@ -154,7 +155,6 @@ require (
 	k8s.io/kubectl v0.23.2 // indirect
 	rsc.io/letsencrypt v0.0.3 // indirect
 	sigs.k8s.io/kustomize/api v0.10.1 // indirect
-	sigs.k8s.io/kustomize/kyaml v0.13.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.1 // indirect
 )
 

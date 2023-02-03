@@ -5,9 +5,9 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-	"strings"
 	"testing"
 
+	"github.com/integr8ly/delorean/pkg/services"
 	"github.com/integr8ly/delorean/pkg/types"
 
 	"github.com/ghodss/yaml"
@@ -316,30 +316,14 @@ func TestOSDAddonRelease(t *testing.T) {
 			fmt.Println(version.Base())
 			fmt.Println(c.olmType)
 			fmt.Println(version.Base())
-			addonFile := currentChannel.addonFile()
 			clusterServiceVersion := fmt.Sprintf("%s/%s/manifests/%s.clusterserviceversion.yaml", currentChannel.bundlesDirectory(), version.Base(), c.olmType)
 			customResourceDefinition := fmt.Sprintf("%s/%s/manifests/integreatly.org_rhmis_crd.yaml", currentChannel.bundlesDirectory(), version.Base())
 			annotationsFile := fmt.Sprintf("%s/%s/metadata/annotations.yaml", currentChannel.bundlesDirectory(), version.Base())
+			addonImageSetFile := cmd.getDestAddonImageSetPath()
 
 			for _, p := range patches {
 				_, file := p.Files()
 				switch file.Path() {
-				case addonFile:
-					if found := len(p.Chunks()); found != 4 {
-						t.Fatalf("expected 4 but found %d chunk changes for %s", found, addonFile)
-					}
-					expected := fmt.Sprintf("indexImage: rhoamsCoolNewIndexImage")
-					chunks := p.Chunks()
-					found := false
-					for _, c := range chunks {
-						if strings.Index(c.Content(), expected) > -1 {
-							found = true
-						}
-					}
-					if !found {
-						t.Fatalf("can not find expected change: %s", expected)
-					}
-
 				case annotationsFile:
 					if found := len(p.Chunks()); found != 1 {
 						t.Fatalf("expected 1 but found %d chunk changes for %s", found, annotationsFile)
@@ -443,6 +427,16 @@ func TestOSDAddonRelease(t *testing.T) {
 					if found := len(p.Chunks()[0].Content()); found <= 0 {
 						t.Fatalf("expected %s to be larger than 0 but found %d", customResourceDefinition, found)
 					}
+				case addonImageSetFile:
+					if found := len(p.Chunks()); found != 1 {
+						t.Fatalf("expected 1 but found %d chunk changes for %s", found, addonImageSetFile)
+					}
+					if found := p.Chunks()[0].Type(); found != diff.Add {
+						t.Fatalf("the first and only chunk type should be Add but found %d for %s", found, addonImageSetFile)
+					}
+					if found := len(p.Chunks()[0].Content()); found <= 0 {
+						t.Fatalf("expected %s to be larger than 0 but found %d", addonImageSetFile, found)
+					}
 				default:
 					t.Fatalf("unexpected file %s", file.Path())
 				}
@@ -456,6 +450,190 @@ func TestOSDAddonRelease(t *testing.T) {
 
 			if founded := head.Name(); founded != managedTenantsRef {
 				t.Fatalf("the managed-tenants repo HEAD doesn't point to the main branch\nexpected: refs/heads/main\nfounded: %s", founded)
+			}
+		})
+	}
+}
+
+func Test_osdAddonReleaseCmd_getLatestStageAddonImageSet(t *testing.T) {
+	type fields struct {
+		flags               *osdAddonReleaseFlags
+		gitlabToken         string
+		version             *utils.RHMIVersion
+		gitlabMergeRequests services.GitLabMergeRequestsService
+		gitlabProjects      services.GitLabProjectsService
+		managedTenantsDir   string
+		managedTenantsRepo  *git.Repository
+		gitPushService      services.GitPushService
+		addonConfig         *addonConfig
+		currentChannel      *releaseChannel
+		addonDir            string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "test latest addon image set in stage is returned",
+			fields: fields{
+				managedTenantsDir: "testdata/osdAddonReleaseManagedTenants",
+				currentChannel: &releaseChannel{
+					Directory: "rhoams",
+				},
+			},
+			want: "testdata/osdAddonReleaseManagedTenants/addons/rhoams/addonimagesets/stage/rhoams.v1.27.5-1.27.0.yaml",
+		},
+		{
+			name: "test error reading directory",
+			fields: fields{
+				managedTenantsDir: "testdata/osdAddonReleaseManagedTenants",
+				currentChannel: &releaseChannel{
+					Directory: "nonExistent",
+				},
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &osdAddonReleaseCmd{
+				flags:               tt.fields.flags,
+				gitlabToken:         tt.fields.gitlabToken,
+				version:             tt.fields.version,
+				gitlabMergeRequests: tt.fields.gitlabMergeRequests,
+				gitlabProjects:      tt.fields.gitlabProjects,
+				managedTenantsDir:   tt.fields.managedTenantsDir,
+				managedTenantsRepo:  tt.fields.managedTenantsRepo,
+				gitPushService:      tt.fields.gitPushService,
+				addonConfig:         tt.fields.addonConfig,
+				currentChannel:      tt.fields.currentChannel,
+				addonDir:            tt.fields.addonDir,
+			}
+			got, err := c.getLatestStageAddonImageSetPath()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("getLatestStageAddonImageSet() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("getLatestStageAddonImageSet() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_osdAddonReleaseCmd_getDestAddonImageSetPath(t *testing.T) {
+	version, err := utils.NewVersion("1.27.0", types.OlmTypeRhoam)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	type fields struct {
+		flags               *osdAddonReleaseFlags
+		gitlabToken         string
+		version             *utils.RHMIVersion
+		gitlabMergeRequests services.GitLabMergeRequestsService
+		gitlabProjects      services.GitLabProjectsService
+		managedTenantsDir   string
+		managedTenantsRepo  *git.Repository
+		gitPushService      services.GitPushService
+		addonConfig         *addonConfig
+		currentChannel      *releaseChannel
+		addonDir            string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{
+			name: "test destination path correctly returned",
+			fields: fields{
+				managedTenantsDir: "testdata/osdAddonReleaseManagedTenants",
+				currentChannel: &releaseChannel{
+					Directory:   "rhoams",
+					Environment: "production",
+				},
+				version: version,
+			},
+			want: "addons/rhoams/addonimagesets/production/rhoams.v1.27.0.yaml",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &osdAddonReleaseCmd{
+				flags:               tt.fields.flags,
+				gitlabToken:         tt.fields.gitlabToken,
+				version:             tt.fields.version,
+				gitlabMergeRequests: tt.fields.gitlabMergeRequests,
+				gitlabProjects:      tt.fields.gitlabProjects,
+				managedTenantsDir:   tt.fields.managedTenantsDir,
+				managedTenantsRepo:  tt.fields.managedTenantsRepo,
+				gitPushService:      tt.fields.gitPushService,
+				addonConfig:         tt.fields.addonConfig,
+				currentChannel:      tt.fields.currentChannel,
+				addonDir:            tt.fields.addonDir,
+			}
+			if got := c.getDestAddonImageSetPath(); got != tt.want {
+				t.Errorf("getDestAddonImageSetPath() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_osdAddonReleaseCmd_getAddonImageSetName(t *testing.T) {
+	version, err := utils.NewVersion("1.27.0", types.OlmTypeRhoam)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	type fields struct {
+		flags               *osdAddonReleaseFlags
+		gitlabToken         string
+		version             *utils.RHMIVersion
+		gitlabMergeRequests services.GitLabMergeRequestsService
+		gitlabProjects      services.GitLabProjectsService
+		managedTenantsDir   string
+		managedTenantsRepo  *git.Repository
+		gitPushService      services.GitPushService
+		addonConfig         *addonConfig
+		currentChannel      *releaseChannel
+		addonDir            string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{
+			name: "test correct name is returned",
+			fields: fields{
+				currentChannel: &releaseChannel{
+					Directory: "rhoams",
+				},
+				version: version,
+			},
+			want: "rhoams.v1.27.0",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &osdAddonReleaseCmd{
+				flags:               tt.fields.flags,
+				gitlabToken:         tt.fields.gitlabToken,
+				version:             tt.fields.version,
+				gitlabMergeRequests: tt.fields.gitlabMergeRequests,
+				gitlabProjects:      tt.fields.gitlabProjects,
+				managedTenantsDir:   tt.fields.managedTenantsDir,
+				managedTenantsRepo:  tt.fields.managedTenantsRepo,
+				gitPushService:      tt.fields.gitPushService,
+				addonConfig:         tt.fields.addonConfig,
+				currentChannel:      tt.fields.currentChannel,
+				addonDir:            tt.fields.addonDir,
+			}
+			if got := c.getAddonImageSetName(); got != tt.want {
+				t.Errorf("getAddonImageSetName() = %v, want %v", got, tt.want)
 			}
 		})
 	}

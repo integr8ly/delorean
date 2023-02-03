@@ -2,6 +2,12 @@ package cmd
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path"
+	"strings"
+	"time"
+
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -13,12 +19,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/xanzy/go-gitlab"
-	"io/ioutil"
-	"os"
-	"path"
-	"regexp"
-	"strings"
-	"time"
+	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
 const (
@@ -43,6 +44,12 @@ const (
 	mergeRequestTitleTemplate = "Update %s %s to %s" // channel, version
 
 )
+
+type addonImageSet struct {
+	IndexImage    string   `yaml:"indexImage"`
+	Name          string   `yaml:"name"`
+	RelatedImages []string `yaml:"relatedImages"`
+}
 
 type metadataAnnotations struct {
 	Annotations map[string]string `json:"annotations,omitempty"`
@@ -129,44 +136,12 @@ type osdAddonReleaseCmd struct {
 	addonDir            string
 }
 
-type addon struct {
-	content string
-}
-
-func newAddon(addonPath string) (*addon, error) {
-	c, err := ioutil.ReadFile(addonPath)
-	if err != nil {
-		return nil, err
-	}
-	return &addon{content: string(c)}, nil
-}
-
-func (c *releaseChannel) addonFile() string {
-	return fmt.Sprintf("addons/%s/metadata/%s/addon.yaml", c.Directory, c.Environment)
-}
-
 func (c *releaseChannel) stageAddonFile() string {
 	return fmt.Sprintf("addons/%s/metadata/stage/addon.yaml", c.Directory)
 }
 
-func (a *addon) setCurrentIndexImage(indexImage string) {
-	r := regexp.MustCompile(`indexImage: .*`)
-	s := r.ReplaceAllString(a.content, fmt.Sprintf("indexImage: %s", indexImage))
-	a.content = s
-}
-
-func getStageIndexImage(addonPath string) (string, error) {
-	type indexImage struct {
-		IndexImage string `json:"indexImage"`
-	}
-
-	data := indexImage{}
-	err := utils.PopulateObjectFromYAML(addonPath, &data)
-	if err != nil {
-		return "", err
-	}
-
-	return data.IndexImage, nil
+func (c *releaseChannel) stageAddonImageSetDirectory() string {
+	return fmt.Sprintf("addons/%s/addonimagesets/stage", c.Directory)
 }
 
 func init() {
@@ -418,12 +393,12 @@ func (c *osdAddonReleaseCmd) run() error {
 			return err
 		}
 	} else if c.flags.channel == "stable" {
-		// Copy stage indexImage to production indexImage
-		addonFile, err := c.copyTheIndexImage()
+		// Copy the latest stage addon image set to production
+		addonFile, err := c.copyAddonImageSet()
 		if err != nil {
 			return err
 		}
-		// Add the addon.yaml file
+		// Add the image set file
 		_, err = managedTenantsTree.Add(addonFile)
 		if err != nil {
 			return err
@@ -545,28 +520,62 @@ func (c *osdAddonReleaseCmd) copyTheOLMBundles() (string, error) {
 	return relativeDestination, nil
 }
 
-func (c *osdAddonReleaseCmd) copyTheIndexImage() (string, error) {
-	// Get stage IndexImage
-	stageAddonFilePath := path.Join(c.managedTenantsDir, c.currentChannel.stageAddonFile())
-	stageIndexImage, err := getStageIndexImage(stageAddonFilePath)
+func (c *osdAddonReleaseCmd) getLatestStageAddonImageSetPath() (string, error) {
+	filePath := path.Join(c.managedTenantsDir, c.currentChannel.stageAddonImageSetDirectory())
+	files, err := ioutil.ReadDir(filePath)
 	if err != nil {
 		return "", err
 	}
 
-	relative := c.currentChannel.addonFile()
-	addonFilePath := path.Join(c.managedTenantsDir, relative)
+	if len(files) == 0 {
+		return "", fmt.Errorf("no files found in stage addon image set directory")
+	}
 
-	fmt.Printf("update the currentCSV value in addon file %s to %s\n", relative, c.version)
-	addon, err := newAddon(addonFilePath)
+	// Latest addonImageSet should be the last one
+	return path.Join(filePath, files[len(files)-1].Name()), nil
+}
+func (c *osdAddonReleaseCmd) getAddonImageSetName() string {
+	return fmt.Sprintf("%s.v%s", c.currentChannel.Directory, c.version.String())
+}
+
+func (c *osdAddonReleaseCmd) getDestAddonImageSetPath() string {
+	return fmt.Sprintf("addons/%s/addonimagesets/%s/%s.yaml", c.currentChannel.Directory, c.currentChannel.Environment, c.getAddonImageSetName())
+}
+
+func (c *osdAddonReleaseCmd) getAddonImageSet() ([]byte, error) {
+	stageImageSetPath, err := c.getLatestStageAddonImageSetPath()
+	if err != nil {
+		return []byte{}, err
+	}
+
+	// Read the current latest stage file
+	imageSet := addonImageSet{}
+	if err := utils.PopulateObjectFromYAML(stageImageSetPath, &imageSet); err != nil {
+		return []byte{}, err
+	}
+
+	// Set the name to the desired name in case there was multiple RCs
+	imageSet.Name = c.getAddonImageSetName()
+
+	// Marshal back to allow for writing to file
+	bytes, err := yaml.Marshal(&imageSet)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	return bytes, nil
+}
+
+func (c *osdAddonReleaseCmd) copyAddonImageSet() (string, error) {
+	bytes, err := c.getAddonImageSet()
 	if err != nil {
 		return "", err
 	}
 
-	// Set currentCSV value
-	addon.setCurrentIndexImage(stageIndexImage)
+	relative := c.getDestAddonImageSetPath()
+	releaseImageSetPath := path.Join(c.managedTenantsDir, relative)
 
-	err = ioutil.WriteFile(addonFilePath, []byte(addon.content), os.ModePerm)
-	if err != nil {
+	if err := ioutil.WriteFile(releaseImageSetPath, bytes, os.ModePerm); err != nil {
 		return "", err
 	}
 
