@@ -1,0 +1,1017 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "ROSA sample Multi AZ network with FW"
+
+Metadata:
+  "AWS::CloudFormation::Interface":
+    ParameterGroups:
+      - Label:
+          default: "VPC Parameters"
+        Parameters:
+          - AvailabilityZone1Selection
+          - AvailabilityZone2Selection
+          - AvailabilityZone3Selection
+      - Label:
+          default: "EC2 Parameters"
+        Parameters:
+          - LatestAmiId
+
+Parameters:
+  EnvironmentName:
+    Description: An environment name that is prefixed to resource names  If you create multiple clusters using this template, you need to change this name to avoid name confliction.
+    Type: String
+    Default: "multiaz"
+
+  VpcCIDR:
+    Description: Please enter the IP range (CIDR notation) for this VPC
+    Type: String
+    Default: "10.0.0.0/16"
+
+  # Network1 Private / NAGTW
+  Private1CIDR:
+    Description: Please enter the IP range (CIDR notation) for Private Netwowrk1
+    Type: String
+    Default: "10.0.1.0/24"
+
+  Natgw1CIDR:
+    Description: Please enter the IP range (CIDR notation) for NATGW Netwowrk1
+    Type: String
+    Default: "10.0.0.0/24"
+
+  # Network2 Private / NATGW
+  Private2CIDR:
+    Description: Please enter the IP range (CIDR notation) for Private Netwowrk2
+    Type: String
+    Default: "10.0.2.0/24"
+
+  Natgw2CIDR:
+    Description: Please enter the IP range (CIDR notation) for NATGW Netwowrk2
+    Type: String
+    Default: "10.0.3.0/24"
+
+  # Network3 Private / NATGW
+  Private3CIDR:
+    Description: Please enter the IP range (CIDR notation) for Private Netwowrk3
+    Type: String
+    Default: "10.0.4.0/24"
+
+  Natgw3CIDR:
+    Description: Please enter the IP range (CIDR notation) for NATGW Netwowrk3
+    Type: String
+    Default: "10.0.5.0/24"
+
+  # Firewalls for each AZ
+  FW1CIDR:
+    Description: Please enter the IP range (CIDR notation) for Firewall (Public) Netwowrk1
+    Type: String
+    Default: "10.0.16.0/28"
+
+  FW2CIDR:
+    Description: Please enter the IP range (CIDR notation) for Firewall (Public) Netwowrk2
+    Type: String
+    Default: "10.0.16.16/28"
+
+  FW3CIDR:
+    Description: Please enter the IP range (CIDR notation) for Firewall (Public) Netwowrk3
+    Type: String
+    Default: "10.0.16.32/28"
+
+  AvailabilityZone1Selection:
+    Description: Availability Zone 1
+    Type: AWS::EC2::AvailabilityZone::Name
+    Default: us-east-1c
+
+  AvailabilityZone2Selection:
+    Description: Availability Zone 2
+    Type: AWS::EC2::AvailabilityZone::Name
+    Default: us-east-1b
+
+  AvailabilityZone3Selection:
+    Description: Availability Zone 3
+    Type: AWS::EC2::AvailabilityZone::Name
+    Default: us-east-1a
+
+  LatestAmiId:
+    Description: Latest EC2 AMI from Systems Manager Parameter Store
+    Type: "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>"
+    Default: "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
+
+#  Zone Memo
+#      Private1           CidrBlock: "10.0.0.0/24"
+#      Nat 1              CidrBlock: "10.0.1.0/24"
+#      FW1 (Public)       CidrBlock: "10.0.16.0/28"
+
+#      Private 2          CidrBlock: "10.0.2.0/24"
+#      NAT 2              CidrBlock: "10.0.3.0/24"
+#      FW2 (Public)       CidrBlock: "10.0.16.16/28"
+
+#      Private 3          CidrBlock: "10.0.4.0/24"
+#      NAT 3              CidrBlock: "10.0.5.0/24"
+#      FW3 (Public)       CidrBlock: "10.0.16.32/28"
+
+Resources:
+  # VPC:
+  VPCA:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCIDR
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-VPC
+
+  # Internet Gateway:
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-IGW
+
+  AttachInternetGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPCA
+      InternetGatewayId: !Ref InternetGateway
+
+  # NAT Gateway:
+  NatGw1Eip:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  NatGw2Eip:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  NatGw3Eip:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  NatGw1:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt
+        - NatGw1Eip
+        - AllocationId
+      SubnetId: !Ref NatgwSubnet1
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-NATGWA
+
+  NatGw2:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt
+        - NatGw2Eip
+        - AllocationId
+      SubnetId: !Ref NatgwSubnet2
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-NATGWB
+
+  NatGw3:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt
+        - NatGw3Eip
+        - AllocationId
+      SubnetId: !Ref NatgwSubnet3
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-NATGWC
+
+  # Private Subnets for Test Instances:
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: VPCA
+      CidrBlock: !Ref Private1CIDR
+      AvailabilityZone:
+        Ref: AvailabilityZone1Selection
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-Private-Subnet1
+
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: VPCA
+      CidrBlock: !Ref Private2CIDR
+      AvailabilityZone:
+        Ref: AvailabilityZone2Selection
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-Private-Subnet2
+
+  PrivateSubnet3:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: VPCA
+      CidrBlock: !Ref Private3CIDR
+      AvailabilityZone:
+        Ref: AvailabilityZone3Selection
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-Private-Subnet3
+
+  # Subnets for NAT GWs:
+  NatgwSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: VPCA
+      CidrBlock: !Ref Natgw1CIDR
+      AvailabilityZone:
+        Ref: AvailabilityZone1Selection
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-Natgw-Subnet1
+
+  NatgwSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: VPCA
+      CidrBlock: !Ref Natgw2CIDR
+      AvailabilityZone:
+        Ref: AvailabilityZone2Selection
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-Natgw-Subnet2
+
+  NatgwSubnet3:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: VPCA
+      CidrBlock: !Ref Natgw3CIDR
+      AvailabilityZone:
+        Ref: AvailabilityZone3Selection
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-Natgw-Subnet3
+
+  # Firewall Subnets for firewall endpoints:
+  FirewallSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: VPCA
+      CidrBlock: !Ref FW1CIDR
+      AvailabilityZone:
+        Ref: AvailabilityZone1Selection
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-Firewall-Subnet1
+
+  FirewallSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: VPCA
+      CidrBlock: !Ref FW2CIDR
+      AvailabilityZone:
+        Ref: AvailabilityZone2Selection
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-Firewall-Subnet2
+
+  FirewallSubnet3:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: VPCA
+      CidrBlock: !Ref FW3CIDR
+      AvailabilityZone:
+        Ref: AvailabilityZone3Selection
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-Firewall-Subnet3
+
+  # AWS PrivateLink interface endpoint for services:
+  VPCAEndpointSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow instances to get to SSM Systems Manager
+      VpcId: !Ref VPCA
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: !Ref VpcCIDR
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-VpcEnpoint-Sg1
+
+  VPCASSMEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      PrivateDnsEnabled: true
+      SecurityGroupIds:
+        - !Ref VPCAEndpointSecurityGroup
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ssm"
+      SubnetIds:
+        - !Ref NatgwSubnet1
+        - !Ref NatgwSubnet2
+        - !Ref NatgwSubnet3
+      VpcEndpointType: Interface
+      VpcId: !Ref VPCA
+
+  VPCAEC2MessagesEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      PrivateDnsEnabled: true
+      SecurityGroupIds:
+        - !Ref VPCAEndpointSecurityGroup
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ec2messages"
+      SubnetIds:
+        - !Ref NatgwSubnet1
+        - !Ref NatgwSubnet2
+        - !Ref NatgwSubnet3
+      VpcEndpointType: Interface
+      VpcId: !Ref VPCA
+
+  VPCASSMMessagesEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      PrivateDnsEnabled: true
+      SecurityGroupIds:
+        - !Ref VPCAEndpointSecurityGroup
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ssmmessages"
+      SubnetIds:
+        - !Ref NatgwSubnet1
+        - !Ref NatgwSubnet2
+        - !Ref NatgwSubnet3
+      VpcEndpointType: Interface
+      VpcId: !Ref VPCA
+
+  # SSM Role:
+  SubnetRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "SSMRole-${EnvironmentName}-${AWS::Region}"
+      Path: "/"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+
+  SubnetInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: "/"
+      Roles:
+        - !Ref SubnetRole
+
+  # Lambda Role:
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${EnvironmentName}-LambdaRole-${AWS::Region}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !GetAtt RetrieveVpcIdLogGroup.Arn
+              - Effect: Allow
+                Action:
+                  - network-firewall:DescribeFirewall
+                Resource: "*"
+
+  # Retrieve VpceId Lambda Custom Resource:
+  RetrieveVpcIdLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/${EnvironmentName}-ROSA/OneTimeLambda/RetrieveVpceId-${AWS::Region}"
+      RetentionInDays: 1
+
+  RetrieveVpceId:
+    Type: AWS::Lambda::Function
+    DependsOn: RetrieveVpcIdLogGroup
+    Properties:
+      FunctionName: !Sub "RetrieveVpceId-${AWS::StackName}"
+      Handler: "index.handler"
+      Role: !GetAtt
+        - LambdaExecutionRole
+        - Arn
+      Code:
+        ZipFile: |
+          import boto3
+          import cfnresponse
+          import json
+          import logging
+          def handler(event, context):
+              logger = logging.getLogger()
+              logger.setLevel(logging.INFO)
+              responseData = {}
+              responseStatus = cfnresponse.FAILED
+              logger.info('Received event: {}'.format(json.dumps(event)))
+              if event["RequestType"] == "Delete":
+                  responseStatus = cfnresponse.SUCCESS
+                  cfnresponse.send(event, context, responseStatus, responseData)
+              if event["RequestType"] == "Create":
+                  try:
+                      Az1 = event["ResourceProperties"]["Az1"]
+                      Az2 = event["ResourceProperties"]["Az2"]
+                      Az3 = event["ResourceProperties"]["Az3"]
+                      FwArn = event["ResourceProperties"]["FwArn"]
+                  except Exception as e:
+                      logger.info('AZ retrieval failure: {}'.format(e))
+                  try:
+                      nfw = boto3.client('network-firewall')
+                  except Exception as e:
+                      logger.info('boto3.client failure: {}'.format(e))
+                  try:
+                      NfwResponse=nfw.describe_firewall(FirewallArn=FwArn)
+                      VpceId1 = NfwResponse['FirewallStatus']['SyncStates'][Az1]['Attachment']['EndpointId']
+                      VpceId2 = NfwResponse['FirewallStatus']['SyncStates'][Az2]['Attachment']['EndpointId']
+                      VpceId3 = NfwResponse['FirewallStatus']['SyncStates'][Az3]['Attachment']['EndpointId']
+                  except Exception as e:
+                      logger.info('ec2.describe_firewall failure: {}'.format(e))
+                  responseData['FwVpceId1'] = VpceId1
+                  responseData['FwVpceId2'] = VpceId2
+                  responseData['FwVpceId3'] = VpceId3
+                  responseStatus = cfnresponse.SUCCESS
+                  cfnresponse.send(event, context, responseStatus, responseData)
+      Runtime: python3.7
+      Timeout: 30
+
+  FirewallVpceIds:
+    Type: Custom::DescribeVpcEndpoints
+    Properties:
+      ServiceToken: !GetAtt RetrieveVpceId.Arn
+      Az1: !Ref AvailabilityZone1Selection
+      Az2: !Ref AvailabilityZone2Selection
+      Az3: !Ref AvailabilityZone3Selection
+      FwArn: !Ref VPCAFirewall
+
+  # Testing Security Group:
+  SubnetSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "ICMP acess from VPCA"
+      GroupName: !Sub ${EnvironmentName}-TestInstance-Sg1
+      VpcId: !Ref VPCA
+      SecurityGroupIngress:
+        - IpProtocol: icmp
+          CidrIp: !Ref VpcCIDR
+          FromPort: -1
+          ToPort: -1
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-TestInstance-Sg1
+
+  # Test Instances
+  BastionInstance1:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref LatestAmiId
+      SubnetId: !Ref PrivateSubnet1
+      InstanceType: t2.micro
+      SecurityGroupIds:
+        - !Ref SubnetSecurityGroup
+      IamInstanceProfile: !Ref SubnetInstanceProfile
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-BastionInstance1
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -xe
+          exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
+          sleep 0
+          date > /tmp/ec2-install.log
+          yum update -y
+          curl -LO https://mirror.openshift.com/pub/openshift-v4/clients/rosa/latest/rosa-linux.tar.gz
+          tar -zxf rosa-linux.tar.gz 
+          sudo mv ./rosa /usr/local/bin/
+          rosa download oc
+          tar -xzf openshift-client-linux.tar.gz 
+          sudo mv ./oc /usr/local/bin
+          sudo mv ./kubectl /usr/local/bin
+          oc version  >> /tmp/ec2-install.log
+          sudo yum install -y git
+          git version >> /tmp/ec2-install.log
+
+  # AWS Network Firewall:
+  # Inspection Firewall Rule Groups:
+  ICMPAlertStatefulRuleGroup:
+    Type: AWS::NetworkFirewall::RuleGroup
+    Properties:
+      RuleGroupName: !Sub ${EnvironmentName}-IcmpAlert-RuleGroup
+      Type: STATEFUL
+      Capacity: 100
+      RuleGroup:
+        RulesSource:
+          StatefulRules:
+            - Action: ALERT
+              Header:
+                Direction: ANY
+                Protocol: ICMP
+                Destination: ANY
+                Source: ANY
+                DestinationPort: ANY
+                SourcePort: ANY
+              RuleOptions:
+                - Keyword: "sid:1"
+      Tags:
+        - Key: Name
+          Value: IcmpAlert-RuleGroup
+
+  #  ROSA FW prerequistes
+  #  https://access.redhat.com/documentation/en-us/red_hat_openshift_service_on_aws/4/html/prepare_your_environment/rosa-sts-aws-prereqs#osd-aws-privatelink-firewall-prerequisites_rosa-sts-aws-prereqs
+  #  "quay.io" is removed because AWF FW returns error saying that "Targets has duplicate values, parameter: [quay.io]"
+
+  DomainAllowStatefulRuleGroup:
+    Type: "AWS::NetworkFirewall::RuleGroup"
+    Properties:
+      RuleGroupName: !Sub ${EnvironmentName}-DomainAllow-RuleGroup
+      Type: STATEFUL
+      Capacity: 100
+      RuleGroup:
+        RuleVariables:
+          IPSets:
+            HOME_NET:
+              Definition:
+                - !Ref VpcCIDR
+        RulesSource:
+          RulesSourceList:
+            TargetTypes:
+              - HTTP_HOST
+              - TLS_SNI
+            Targets:
+              - "registry.redhat.io"
+              - ".quay.io"
+              - "sso.redhat.com"
+              - "sso.stage.redhat.com"
+              - "quay-registry.s3.amazonaws.com"
+              - "cm-quay-production-s3.s3.amazonaws.com"
+              - "cart-rhcos-ci.s3.amazonaws.com"
+              - "openshift.org"
+              - "registry.access.redhat.com"
+              - "console.redhat.com"
+              - "console.stage.redhat.com"
+              - "pull.q1w2.quay.rhcloud.com"
+              - ".q1w2.quay.rhcloud.com"
+              - "cert-api.access.redhat.com"
+              - "api.access.redhat.com"
+              - "infogw.api.openshift.com"
+              - "infogw.api.stage.openshift.com"
+              - "observatorium.api.openshift.com"
+              - "observatorium.api.stage.openshift.com"
+              - ".amazonaws.com"
+              - "mirror.openshift.com"
+              - "storage.googleapis.com"
+              - "api.openshift.com"
+              - "api.stage.openshift.com"
+              - "api.pagerduty.com"
+              - "events.pagerduty.com"
+              - "api.deadmanssnitch.com"
+              - "nosnch.in"
+              - ".osdsecuritylogs.splunkcloud.com"
+              - "http-inputs-osdsecuritylogs.splunkcloud.com"
+              - "sftp.access.redhat.com"
+              - "observatorium-mst.api.openshift.com"
+              - ".stage.redhat.com"
+              - ".stage.openshift.com"
+            GeneratedRulesType: "ALLOWLIST"
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-DomainAllow-RuleGroup
+
+  # Added For splunk
+  # Inspection Firewall Rule Groups:
+  SplunkAllowStatefulRuleGroup:
+    Type: AWS::NetworkFirewall::RuleGroup
+    Properties:
+      RuleGroupName: !Sub ${EnvironmentName}-SplunkAllow-RuleGroup
+      Type: STATEFUL
+      Capacity: 100
+      RuleGroup:
+        RuleVariables:
+          IPSets:
+            SPLUNK_NET:
+              Definition:
+                - "18.208.28.131"
+                - "3.228.178.155"
+                - "34.234.20.22"
+                - "54.173.54.28"
+                - "3.221.13.106"
+        RulesSource:
+          StatefulRules:
+            - Action: PASS
+              Header:
+                Direction: FORWARD
+                Protocol: TCP
+                Destination: ANY
+                Source: ANY
+                DestinationPort: 9997
+                SourcePort: ANY
+              RuleOptions:
+                - Keyword: "sid:2"
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-Allow-RuleGroup
+
+  DomainAllowStatefulRuleGroupForApp:
+    Type: "AWS::NetworkFirewall::RuleGroup"
+    Properties:
+      RuleGroupName: !Sub ${EnvironmentName}-DomainAllow-RuleGroup-For-Application
+      Type: STATEFUL
+      Capacity: 100
+      RuleGroup:
+        RuleVariables:
+          IPSets:
+            HOME_NET:
+              Definition:
+                - !Ref VpcCIDR
+        RulesSource:
+          RulesSourceList:
+            TargetTypes:
+              - HTTP_HOST
+              - TLS_SNI
+            Targets:
+              - ".github.io"
+              - "github.com"
+              - "api.github.com" # added for GitHub IdP
+              - "acme-v02.api.letsencrypt.org" # Added for Let's Encrypt
+              - "acme-staging-v02.api.letsencrypt.org" # Added for Let's Encrypt
+              - "dl.fedoraproject.org" # Added to setup EC2 for Let's Encrypt
+              - "mirrors.fedoraproject.org"     # Added to setup EC2 for Let's Encrypt
+              - "d2lzkl7pfhq30w.cloudfront.net" # Added to setup EC2 for Let's Encrypt
+              - "epel.mirror.angkasa.id"        # Added to setup EC2 for Let's Encrypt
+              - "ftp.riken.jp"                  # Added to setup EC2 for Let's Encrypt
+              - "ftp.iij.ad.jp"                 # Added to setup EC2 for Let's Encrypt
+              - "supporters.eff.org"            # Added to setup EC2 for Let's Encrypt
+              - ".openshiftapps.com"  # For public cluster installation. You can narrow down this domain after installation complete to like ".apps.<cluster name>.<random>.<random>.openshiftapps.com"
+              - "registry-1.docker.io"                  # RHOAM ?
+              - "gcr.io"                                # RHOAM ?         
+              - "smtp.sendgrid.net"                     # RHOAM ?  
+              - "grafana.com"                           # RHOAM ?  
+              - "raw.githubusercontent.com"             # RHOAM ?  
+              - "auth.docker.io"                        # RHOAM ?  
+              - "production.cloudflare.docker.com"      # RHOAM ?  
+              - "codeload.github.com"                   # RHOAM ?  
+              - "objects.githubusercontent.com"         # RHOAM ?
+            GeneratedRulesType: "ALLOWLIST"
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-DomainAllow-RuleGroup-For-Application
+
+  #VPCA Firewall Policy:
+  EgressFirewallPolicy:
+    DependsOn:
+      [
+        ICMPAlertStatefulRuleGroup,
+        DomainAllowStatefulRuleGroup,
+        DomainAllowStatefulRuleGroupForApp,
+        SplunkAllowStatefulRuleGroup,
+      ]
+    Type: AWS::NetworkFirewall::FirewallPolicy
+    Properties:
+      FirewallPolicyName: !Sub ${EnvironmentName}-InspectionFirewall-Policy
+      FirewallPolicy:
+        StatelessDefaultActions:
+          - "aws:forward_to_sfe"
+        StatelessFragmentDefaultActions:
+          - "aws:forward_to_sfe"
+        StatefulRuleGroupReferences:
+          - ResourceArn: !Ref DomainAllowStatefulRuleGroup
+          - ResourceArn: !Ref ICMPAlertStatefulRuleGroup
+          - ResourceArn: !Ref DomainAllowStatefulRuleGroupForApp
+          - ResourceArn: !Ref SplunkAllowStatefulRuleGroup
+      Tags:
+        - Key: Name
+          Value: InspectionFirewall-Policy
+
+  #VPCA Firewall:
+  VPCAFirewall:
+    DependsOn:
+      [
+        ICMPAlertStatefulRuleGroup,
+        DomainAllowStatefulRuleGroup,
+        DomainAllowStatefulRuleGroupForApp,
+        SplunkAllowStatefulRuleGroup,
+      ]
+    Type: AWS::NetworkFirewall::Firewall
+    Properties:
+      FirewallName: !Sub ${EnvironmentName}-InspectionFirewall
+      FirewallPolicyArn: !Ref EgressFirewallPolicy
+      VpcId: !Ref VPCA
+      SubnetMappings:
+        - SubnetId: !Ref FirewallSubnet1
+        - SubnetId: !Ref FirewallSubnet2
+        - SubnetId: !Ref FirewallSubnet3
+      Tags:
+        - Key: Name
+          Value: InspectionFirewall
+
+  #VPCA Firewall Logging:
+  VPCAFirewallLogFlowGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/${EnvironmentName}-ROSA/Flow"
+
+  VPCAFirewallLogAlertGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/${EnvironmentName}-ROSA/Alert"
+
+  VPCAFirewallLog:
+    Type: AWS::NetworkFirewall::LoggingConfiguration
+    Properties:
+      FirewallArn: !Ref VPCAFirewall
+      LoggingConfiguration:
+        LogDestinationConfigs:
+          - LogType: FLOW
+            LogDestinationType: CloudWatchLogs
+            LogDestination:
+              logGroup: !Ref VPCAFirewallLogFlowGroup
+          - LogType: ALERT
+            LogDestinationType: CloudWatchLogs
+            LogDestination:
+              logGroup: !Ref VPCAFirewallLogAlertGroup
+
+  # Private Route Tables:
+  PrivateRtb1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPCA
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-PrivateRouteTable1
+
+  PrivateRtb1Association:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRtb1
+      SubnetId: !Ref PrivateSubnet1
+
+  PrivateRtb1DefaultRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: "0.0.0.0/0"
+      NatGatewayId: !Ref NatGw1
+      RouteTableId: !Ref PrivateRtb1
+
+  PrivateRtb2:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPCA
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-PrivateRouteTable2
+
+  PrivateRtb2Association:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRtb2
+      SubnetId: !Ref PrivateSubnet2
+
+  PrivateRtb2DefaultRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: "0.0.0.0/0"
+      NatGatewayId: !Ref NatGw2
+      RouteTableId: !Ref PrivateRtb2
+
+  PrivateRtb3:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPCA
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-PrivateRouteTable3
+
+  PrivateRtb3Association:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRtb3
+      SubnetId: !Ref PrivateSubnet3
+
+  PrivateRtb3DefaultRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: "0.0.0.0/0"
+      NatGatewayId: !Ref NatGw3
+      RouteTableId: !Ref PrivateRtb3
+
+  # NATGW Route Tables:
+  NatgwRtb1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPCA
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-NatgwRouteTable1
+
+  NatgwRtb1Association:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref NatgwRtb1
+      SubnetId: !Ref NatgwSubnet1
+
+  NatgwRtb1DefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: VPCAFirewall
+    Properties:
+      DestinationCidrBlock: "0.0.0.0/0"
+      VpcEndpointId: !GetAtt FirewallVpceIds.FwVpceId1
+      RouteTableId: !Ref NatgwRtb1
+
+  NatgwRtb2:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPCA
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-NatgwRouteTable2
+
+  NatgwRtb2Association:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref NatgwRtb2
+      SubnetId: !Ref NatgwSubnet2
+
+  NatgwRtb2DefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: VPCAFirewall
+    Properties:
+      DestinationCidrBlock: "0.0.0.0/0"
+      VpcEndpointId: !GetAtt FirewallVpceIds.FwVpceId2
+      RouteTableId: !Ref NatgwRtb2
+
+  NatgwRtb3:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPCA
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-NatgwRouteTable3
+
+  NatgwRtb3Association:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref NatgwRtb3
+      SubnetId: !Ref NatgwSubnet3
+
+  NatgwRtb3DefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: VPCAFirewall
+    Properties:
+      DestinationCidrBlock: "0.0.0.0/0"
+      VpcEndpointId: !GetAtt FirewallVpceIds.FwVpceId3
+      RouteTableId: !Ref NatgwRtb3
+
+  # Firewall Route Tables:
+  FirewallRtb1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPCA
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-FirewallRouteTable1
+
+  FirewallRtb1Association:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref FirewallRtb1
+      SubnetId: !Ref FirewallSubnet1
+
+  FirewallRtb1DefaultRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: "0.0.0.0/0"
+      GatewayId: !Ref InternetGateway
+      RouteTableId: !Ref FirewallRtb1
+
+  FirewallRtb2:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPCA
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-FirewallRouteTable2
+
+  FirewallRtb2Association:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref FirewallRtb2
+      SubnetId: !Ref FirewallSubnet2
+
+  FirewallRtb2DefaultRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: "0.0.0.0/0"
+      GatewayId: !Ref InternetGateway
+      RouteTableId: !Ref FirewallRtb2
+
+  FirewallRtb3:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPCA
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-FirewallRouteTable3
+
+  FirewallRtb3Association:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref FirewallRtb3
+      SubnetId: !Ref FirewallSubnet3
+
+  FirewallRtb3DefaultRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: "0.0.0.0/0"
+      GatewayId: !Ref InternetGateway
+      RouteTableId: !Ref FirewallRtb3
+
+  # Ingress Route Table:
+  IngressRtb:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPCA
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-IngressRouteTable
+
+  IngressRtbAssociation:
+    Type: AWS::EC2::GatewayRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref IngressRtb
+      GatewayId: !Ref InternetGateway
+
+  IngressRtbNatgwSubnet1Route:
+    Type: AWS::EC2::Route
+    DependsOn: VPCAFirewall
+    Properties:
+      DestinationCidrBlock: !Ref Natgw1CIDR
+      VpcEndpointId: !GetAtt FirewallVpceIds.FwVpceId1
+      RouteTableId: !Ref IngressRtb
+
+  IngressRtbNatgwSubnet2Route:
+    Type: AWS::EC2::Route
+    DependsOn: VPCAFirewall
+    Properties:
+      DestinationCidrBlock: !Ref Natgw2CIDR
+      VpcEndpointId: !GetAtt FirewallVpceIds.FwVpceId2
+      RouteTableId: !Ref IngressRtb
+
+  IngressRtbNatgwSubnet3Route:
+    Type: AWS::EC2::Route
+    DependsOn: VPCAFirewall
+    Properties:
+      DestinationCidrBlock: !Ref Natgw3CIDR
+      VpcEndpointId: !GetAtt FirewallVpceIds.FwVpceId3
+      RouteTableId: !Ref IngressRtb
+
+Outputs:
+  PrivateSubnetID1:
+    Description: Private Subnet ID1
+    Value: !Ref PrivateSubnet1
+
+  PrivateSubnetID2:
+    Description: Private Subnet ID2
+    Value: !Ref PrivateSubnet2
+
+  PrivateSubnetID3:
+    Description: Private Subnet ID3
+    Value: !Ref PrivateSubnet3
