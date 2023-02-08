@@ -333,7 +333,7 @@ install_addon() {
 
     # Add mandatory "cidr-range" and "addon-managed-api-service" (quota) params with default value in case of rhoam (managed-api-service) addon
     if [[ "${addon_id}" == "managed-api-service" ]]; then
-    	addon_payload="{\"addon\":{\"id\":\"${addon_id}\"}, \"parameters\": { \"items\": [{\"id\": \"cidr-range\", \"value\": \"10.1.0.0/26\"}, {\"id\": \"addon-resource-required\", \"value\": \"true\" }"
+    	addon_payload="{\"addon\":{\"id\":\"${addon_id}\"}, \"parameters\": { \"items\": [{\"id\": \"cidr-range\", \"value\": \"10.1.0.0/26\"}"
         if [[ "${osd_trial}" == "false" ]]; then
             addon_payload+=", {\"id\": \"addon-managed-api-service\", \"value\": \"${QUOTA}\"}"
         else
