@@ -101,13 +101,13 @@ provision_rosa_cluster() {
         fi
     fi
     if [[ $STS_ENABLED == 'true' ]]; then
-        args+=(--sts)
+        args+=(--sts --mode auto)
         rosa create account-roles --mode auto -y
         sleep 30
     else
         args+=(--non-sts)
     fi
-    args+=(-y --mode auto)
+    args+=(-y)
     rosa create cluster "${args[@]}"
     rosa describe cluster --cluster $CLUSTER_NAME
     rosa logs install --cluster $CLUSTER_NAME --watch
