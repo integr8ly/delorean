@@ -1,0 +1,55 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+
+Parameters:
+  MyKeyPairPublic:
+    Type: String
+    Description: "Enter the your public key material for the key pair using syntax: ssh-rsa AAAAB3cde........."
+
+Resources:
+  EC2Instance:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      ImageId: ami-0c94855ba95c71c99
+      InstanceType: t2.micro
+      KeyName: !Ref KeyPair
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          yum update -y
+          yum install -y git python3 python3-pip
+          pip3 install awscli openshift
+      DefaultVPC: true
+      SubnetID: !Ref "AWS::NoValue"
+  InstanceSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: 'Allow SSH access'
+      GroupName: migration-security-group
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: all
+          CidrIp: 0.0.0.0/0
+
+
+  KeyPair:
+    Type: "AWS::EC2::KeyPair"
+    Properties:
+      KeyName: migration-key-pair
+      PublicKeyMaterial: !Ref MyKeyPairPublic
+
+Outputs:
+  PublicIP:
+    Value: !GetAtt EC2Instance.PublicIp
+  SSHCommand:
+    Value: !Sub 'ssh ec2-user@${EC2Instance.PublicIp}'
+
+
