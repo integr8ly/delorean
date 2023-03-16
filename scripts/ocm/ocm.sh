@@ -188,9 +188,11 @@ create_cluster_configuration_file() {
         update_configuration "osd_trial"
     fi
 
-
-    echo "Cluster configuration:"
-    cat "${CLUSTER_CONFIGURATION_FILE}"
+    # GCP config contains sensitive data so it cannot be exposed like this
+    if [[ "$CLOUD_PROVIDER" == "aws" ]]; then
+        echo "Cluster configuration:"
+        cat "${CLUSTER_CONFIGURATION_FILE}"
+    fi
 }
 
 create_custom_vpc() {
