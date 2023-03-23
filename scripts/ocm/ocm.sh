@@ -343,6 +343,11 @@ install_addon() {
         fi
     fi
 
+    # Add custom domain to addon payload if specified
+    if [[ -n "${CUSTOM_DOMAIN}" ]]; then
+        addon_payload+=", {\"id\": \"custom-domain_domain\", \"value\": \"${CUSTOM_DOMAIN}\"}"
+    fi
+
     # Add the custom SMTP parameters to addon payload if present in the command
     if [[ -n "${SMTP_FROM}" ]]; then
         addon_payload+=", {\"id\": \"custom-smtp-from_address\", \"value\": \"${SMTP_FROM}\"}"
