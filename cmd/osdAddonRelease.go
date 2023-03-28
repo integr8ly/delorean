@@ -520,19 +520,11 @@ func (c *osdAddonReleaseCmd) copyTheOLMBundles() (string, error) {
 	return relativeDestination, nil
 }
 
+// getLatestStageAddonImageSetPath returns the file name of the last file in the staging addon directory sorted by name
 func (c *osdAddonReleaseCmd) getLatestStageAddonImageSetPath() (string, error) {
 	filePath := path.Join(c.managedTenantsDir, c.currentChannel.stageAddonImageSetDirectory())
-	files, err := ioutil.ReadDir(filePath)
-	if err != nil {
-		return "", err
-	}
 
-	if len(files) == 0 {
-		return "", fmt.Errorf("no files found in stage addon image set directory")
-	}
-
-	// Latest addonImageSet should be the last one
-	return path.Join(filePath, files[len(files)-1].Name()), nil
+	return getLastFileInDir(filePath)
 }
 func (c *osdAddonReleaseCmd) getAddonImageSetName() string {
 	return fmt.Sprintf("%s.v%s", c.currentChannel.Directory, c.version.String())

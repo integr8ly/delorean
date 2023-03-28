@@ -4,11 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/blang/semver"
-	"github.com/go-git/go-git/v5"
-	"github.com/integr8ly/delorean/pkg/types"
-	"github.com/integr8ly/delorean/pkg/utils"
-	"github.com/spf13/cobra"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -16,6 +11,12 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/blang/semver"
+	"github.com/go-git/go-git/v5"
+	"github.com/integr8ly/delorean/pkg/types"
+	"github.com/integr8ly/delorean/pkg/utils"
+	"github.com/spf13/cobra"
 )
 
 type getSupportedVersionsFlags struct {
@@ -33,8 +34,9 @@ type getSupportedVersionsCmd struct {
 }
 
 type olmPaths struct {
-	bundleFolder  string
-	addonFilePath string
+	bundleFolder         string
+	packageFilePath      string
+	addonImageSetDirPath string
 }
 
 func init() {
@@ -151,18 +153,21 @@ func (c *getSupportedVersionsCmd) run(_ context.Context) ([]string, error) {
 }
 
 func extractRhoamCSV(paths *olmPaths, repoDir string) error {
-	// get index image
-	root := path.Join(repoDir, paths.addonFilePath)
+	// get dir of production addon image sets
+	root := path.Join(repoDir, paths.addonImageSetDirPath)
 
-	type indexFiled struct {
-		IndexImage string `json:"indexImage"`
-	}
-
-	data := indexFiled{}
-	err := utils.PopulateObjectFromYAML(root, &data)
+	// Latest addonImageSet should be the last one in directory
+	latestImageSet, err := getLastFileInDir(root)
 	if err != nil {
 		return err
 	}
+
+	data := addonImageSet{}
+	err = utils.PopulateObjectFromYAML(latestImageSet, &data)
+	if err != nil {
+		return err
+	}
+
 	indexSha := data.IndexImage
 	// assuming opm is installed
 	cmd := exec.Command("opm", "index", "export", fmt.Sprintf("--index=%s", indexSha), fmt.Sprintf("--download-folder=%s", repoDir))
@@ -171,8 +176,22 @@ func extractRhoamCSV(paths *olmPaths, repoDir string) error {
 		return errors.New(fmt.Sprintf("Error when executing \"%s\": %s", cmd.String(), err))
 	}
 	// update paths with CSV location
-	paths.addonFilePath = "managed-api-service/package.yaml"
+	paths.packageFilePath = fmt.Sprintf("%s/package.yaml", paths.bundleFolder)
 	return nil
+}
+
+// getLastFileInDir returns the filename of the last file in a directory by name
+func getLastFileInDir(dirPath string) (string, error) {
+	files, err := ioutil.ReadDir(dirPath)
+	if err != nil {
+		return "", err
+	}
+
+	if len(files) == 0 {
+		return "", fmt.Errorf("no files found in directory %s", dirPath)
+	}
+
+	return path.Join(dirPath, files[len(files)-1].Name()), nil
 }
 
 func trimSemverVersions(versions []semver.Version, productionVersion semver.Version) ([]semver.Version, error) {
@@ -196,7 +215,7 @@ func trimSemverVersions(versions []semver.Version, productionVersion semver.Vers
 }
 
 func getProductionVersion(dir string, paths olmPaths) (semver.Version, error) {
-	root := path.Join(dir, paths.addonFilePath)
+	root := path.Join(dir, paths.packageFilePath)
 
 	type channelType struct {
 		Name       string `json:"name"`
@@ -242,13 +261,13 @@ func getOlmTypePaths(olmType string) (olmPaths, error) {
 	switch olmType {
 	case types.OlmTypeRhoam:
 		return olmPaths{
-			bundleFolder:  "managed-api-service",
-			addonFilePath: "addons/rhoams/metadata/production/addon.yaml",
+			bundleFolder:         "managed-api-service",
+			addonImageSetDirPath: "addons/rhoams/addonimagesets/production",
 		}, nil
 	case types.OlmTypeRhmi:
 		return olmPaths{
-			bundleFolder:  "addons/integreatly-operator/bundles",
-			addonFilePath: "addons/integreatly-operator/metadata/production/addon.yaml",
+			bundleFolder:         "integreatly-operator",
+			addonImageSetDirPath: "addons/integreatly-operator/addonimagesets/production",
 		}, nil
 	default:
 		return olmPaths{}, fmt.Errorf("Unsupported OLM type, Please use --help to see supported types.")
