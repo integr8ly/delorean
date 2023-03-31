@@ -2,13 +2,14 @@ package cmd
 
 import (
 	"context"
-	"github.com/blang/semver"
-	"github.com/integr8ly/delorean/pkg/types"
 	"os"
 	"path"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/blang/semver"
+	"github.com/integr8ly/delorean/pkg/types"
 )
 
 func TestGetSupportedVersionsCmd(t *testing.T) {
@@ -343,25 +344,25 @@ func compareMinorVersionResult(versions map[int][]int, expected map[int][]int) b
 
 func TestGetOlmTypePath(t *testing.T) {
 	cases := []struct {
-		description        string
-		olmType            string
-		expectedBundlePath string
-		expectedFilePath   string
-		expectedError      string
-		hasError           bool
+		description          string
+		olmType              string
+		expectedBundlePath   string
+		expectedImageSetPath string
+		expectedError        string
+		hasError             bool
 	}{
 		{
-			description:        "Get values for RHOAM",
-			olmType:            types.OlmTypeRhoam,
-			expectedBundlePath: "managed-api-service",
-			expectedFilePath:   "addons/rhoams/metadata/production/addon.yaml",
-			hasError:           false,
+			description:          "Get values for RHOAM",
+			olmType:              types.OlmTypeRhoam,
+			expectedBundlePath:   "managed-api-service",
+			expectedImageSetPath: "addons/rhoams/addonimagesets/production",
+			hasError:             false,
 		},
 		{
-			description:        "Get values for RHMI",
-			olmType:            types.OlmTypeRhmi,
-			expectedBundlePath: "addons/integreatly-operator/bundles",
-			expectedFilePath:   "addons/integreatly-operator/metadata/production/addon.yaml",
+			description:          "Get values for RHMI",
+			olmType:              types.OlmTypeRhmi,
+			expectedBundlePath:   "integreatly-operator",
+			expectedImageSetPath: "addons/integreatly-operator/addonimagesets/production",
 
 			hasError: false,
 		},
@@ -387,8 +388,8 @@ func TestGetOlmTypePath(t *testing.T) {
 					t.Fatalf("Wrong path returned. Expected: %s, Recived: %s", c.expectedBundlePath, paths.bundleFolder)
 				}
 
-				if paths.addonFilePath != c.expectedFilePath && !c.hasError {
-					t.Fatalf("Wrong path returned. Expected: %s, Recived: %s", c.expectedFilePath, paths.addonFilePath)
+				if paths.addonImageSetDirPath != c.expectedImageSetPath && !c.hasError {
+					t.Fatalf("Wrong path returned. Expected: %s, Recived: %s", c.expectedImageSetPath, paths.addonImageSetDirPath)
 				}
 			}
 		})
@@ -442,7 +443,7 @@ func TestGetProductionVersion(t *testing.T) {
 			description: "Get production version for rhoam",
 			repoDir:     path.Join(basedir, "testdata/getSupportedVersions/managed-tenants"),
 			paths: olmPaths{
-				addonFilePath: "addons/rhoams/metadata/production/addon.yaml",
+				packageFilePath: "addons/rhoams/metadata/production/addon.yaml",
 			},
 			expected: semver.Version{Major: 1, Minor: 6, Patch: 1},
 		},
@@ -450,7 +451,7 @@ func TestGetProductionVersion(t *testing.T) {
 			description: "Get production version for rhmi",
 			repoDir:     path.Join(basedir, "testdata/getSupportedVersions/managed-tenants"),
 			paths: olmPaths{
-				addonFilePath: "addons/integreatly-operator/metadata/production/addon.yaml",
+				packageFilePath: "addons/integreatly-operator/metadata/production/addon.yaml",
 			},
 			expected: semver.Version{Major: 2, Minor: 8, Patch: 0},
 		},
