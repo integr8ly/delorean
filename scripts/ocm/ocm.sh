@@ -289,8 +289,8 @@ create_cluster() {
         exit 1
     fi
 
-    : "${TIMEOUT_CLUSTER_CREATION:=180}"
-    : "${TIMEOUT_CLUSTER_HEALTH_CHECK:=30}"
+    : "${TIMEOUT_CLUSTER_CREATION:=120}"
+    : "${TIMEOUT_CLUSTER_HEALTH_CHECK:=15}"
 
     echo "Sending a request to OCM to create an OSD cluster"
     send_cluster_create_request
