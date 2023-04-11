@@ -330,12 +330,13 @@ install_addon() {
     : "${USE_CLUSTER_STORAGE:=true}"
     : "${WAIT:=true}"
     : "${QUOTA:=20}"
+    : "${CIDR_RANGE:=10.1.0.0/26}"
     cluster_id=$(get_cluster_id)
     addon_payload="{\"addon\":{\"id\":\"${addon_id}\"}}"
 
     # Add mandatory "cidr-range" and "addon-managed-api-service" (quota) params with default value in case of rhoam (managed-api-service) addon
     if [[ "${addon_id}" == "managed-api-service" ]]; then
-    	addon_payload="{\"addon\":{\"id\":\"${addon_id}\"}, \"parameters\": { \"items\": [{\"id\": \"cidr-range\", \"value\": \"10.1.0.0/26\"}"
+    	addon_payload="{\"addon\":{\"id\":\"${addon_id}\"}, \"parameters\": { \"items\": [{\"id\": \"cidr-range\", \"value\": \"${CIDR_RANGE}\"}"
         if [[ "${osd_trial}" == "false" ]]; then
             addon_payload+=", {\"id\": \"addon-managed-api-service\", \"value\": \"${QUOTA}\"}"
         else
