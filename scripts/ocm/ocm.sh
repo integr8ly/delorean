@@ -487,7 +487,7 @@ upgrade_cluster() {
         fi
         oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" adm upgrade $to_version_parameter
         sleep 600 # waiting 10 minutes to allow for '.metrics.upgrade.state' to appear
-        wait_for "ocm get subscription $(get_cluster_subscription_id) | jq -r .metrics[0].upgrade.state | grep -q complete" "OpenShift upgrade" "90m" "300"
+        wait_for "ocm get subscription $(get_cluster_subscription_id) | jq -r .metrics[0].upgrade.state | grep -q complete" "OpenShift upgrade" "120m" "300"
     else
         echo "No upgrade available for cluster with id: ${cluster_id}"
     fi
