@@ -349,6 +349,14 @@ install_addon() {
         addon_payload+=", {\"id\": \"custom-domain_domain\", \"value\": \"${CUSTOM_DOMAIN}\"}"
     fi
 
+    # Add maintenance params to addon payload if specified
+    if [[ -n "${MAINTENANCE_DAY}" ]]; then
+        addon_payload+=", {\"id\": \"maintenance-day\", \"value\": \"${MAINTENANCE_DAY}\"}"
+    fi
+    if [[ -n "${MAINTENANCE_HOUR}" ]]; then
+        addon_payload+=", {\"id\": \"maintenance-hour\", \"value\": \"${MAINTENANCE_HOUR}\"}"
+    fi
+
     # Add the custom SMTP parameters to addon payload if present in the command
     if [[ -n "${SMTP_FROM}" ]]; then
         addon_payload+=", {\"id\": \"custom-smtp-from_address\", \"value\": \"${SMTP_FROM}\"}"
