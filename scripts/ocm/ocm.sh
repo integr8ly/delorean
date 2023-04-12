@@ -330,12 +330,13 @@ install_addon() {
     : "${USE_CLUSTER_STORAGE:=true}"
     : "${WAIT:=true}"
     : "${QUOTA:=20}"
+    : "${CIDR_RANGE:=10.1.0.0/26}"
     cluster_id=$(get_cluster_id)
     addon_payload="{\"addon\":{\"id\":\"${addon_id}\"}}"
 
     # Add mandatory "cidr-range" and "addon-managed-api-service" (quota) params with default value in case of rhoam (managed-api-service) addon
     if [[ "${addon_id}" == "managed-api-service" ]]; then
-    	addon_payload="{\"addon\":{\"id\":\"${addon_id}\"}, \"parameters\": { \"items\": [{\"id\": \"cidr-range\", \"value\": \"10.1.0.0/26\"}"
+    	addon_payload="{\"addon\":{\"id\":\"${addon_id}\"}, \"parameters\": { \"items\": [{\"id\": \"cidr-range\", \"value\": \"${CIDR_RANGE}\"}"
         if [[ "${osd_trial}" == "false" ]]; then
             addon_payload+=", {\"id\": \"addon-managed-api-service\", \"value\": \"${QUOTA}\"}"
         else
@@ -346,6 +347,14 @@ install_addon() {
     # Add custom domain to addon payload if specified
     if [[ -n "${CUSTOM_DOMAIN}" ]]; then
         addon_payload+=", {\"id\": \"custom-domain_domain\", \"value\": \"${CUSTOM_DOMAIN}\"}"
+    fi
+
+    # Add maintenance params to addon payload if specified
+    if [[ -n "${MAINTENANCE_DAY}" ]]; then
+        addon_payload+=", {\"id\": \"maintenance-day\", \"value\": \"${MAINTENANCE_DAY}\"}"
+    fi
+    if [[ -n "${MAINTENANCE_HOUR}" ]]; then
+        addon_payload+=", {\"id\": \"maintenance-hour\", \"value\": \"${MAINTENANCE_HOUR}\"}"
     fi
 
     # Add the custom SMTP parameters to addon payload if present in the command
