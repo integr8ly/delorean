@@ -331,12 +331,15 @@ install_addon() {
     : "${WAIT:=true}"
     : "${QUOTA:=20}"
     : "${CIDR_RANGE:=10.1.0.0/26}"
+    : "${CIDR_RANGE_PARAM_ID:=cidr-range}"
+    : "${MAINTENANCE_DAY:=}"
+    : "${MAINTENANCE_HOUR:=}"
     cluster_id=$(get_cluster_id)
     addon_payload="{\"addon\":{\"id\":\"${addon_id}\"}}"
 
     # Add mandatory "cidr-range" and "addon-managed-api-service" (quota) params with default value in case of rhoam (managed-api-service) addon
     if [[ "${addon_id}" == "managed-api-service" ]]; then
-    	addon_payload="{\"addon\":{\"id\":\"${addon_id}\"}, \"parameters\": { \"items\": [{\"id\": \"cidr-range\", \"value\": \"${CIDR_RANGE}\"}"
+    	addon_payload="{\"addon\":{\"id\":\"${addon_id}\"}, \"parameters\": { \"items\": [{\"id\": \"${CIDR_RANGE_PARAM_ID}\", \"value\": \"${CIDR_RANGE}\"}"
         if [[ "${osd_trial}" == "false" ]]; then
             addon_payload+=", {\"id\": \"addon-managed-api-service\", \"value\": \"${QUOTA}\"}"
         else
@@ -792,6 +795,9 @@ Optional exported variables:
 - SELF_SIGNED_CERTS                 true/false - cluster certificate can be invalid
 - WAIT                              true/false - wait for install to complete (default: true)
 - QUOTA                             Ratelimit quota. Allowed values: 1,5,10,20,50 (default: 20)
+- MAINTENANCE_DAY                   Maintenance day (used for GCP clusters only)
+- MAINTENANCE_HOUR                  Maintenance hour (used for GCP clusters only)
+- CIDR_RANGE_PARAM_ID               In case of GCP set this to 'cidr-range-gcp'
 ------------------------------------------------------------------------------------------
 Custom SMTP mail server exported variables:
 - SMTP_FROM                         Email address outgoing mail from managed api service will be sent from.
