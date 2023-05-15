@@ -1,0 +1,179 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Add SSM bastion to specified VPC"
+
+Metadata:
+  "AWS::CloudFormation::Interface":
+    ParameterGroups:
+      - Label:
+          default: "EC2 Parameters"
+        Parameters:
+          - LatestAmiId
+
+Parameters:
+  EnvironmentName:
+    Description: An environment name that is prefixed to resource names. If you create multiple clusters using this template, you need to change this name to avoid name confliction.
+    Type: String
+    Default: "ssm-bastion"
+
+  LatestAmiId:
+    Description: Latest EC2 AMI from Systems Manager Parameter Store
+    Type: "AWS::SSM::Parameter::Value
+    "
+    Default: "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
+
+Resources:
+  # AWS PrivateLink interface endpoint for services:
+  VPCAEndpointSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow instances to get to SSM Systems Manager
+      VpcId: { "Fn::ImportValue": "vpc-id-rosa" } # ROSA VPC ID
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: "22"
+          ToPort: "22"
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-VpcEnpoint-Sg1
+
+  VPCASSMEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      PrivateDnsEnabled: true
+      SecurityGroupIds:
+        - !Ref VPCAEndpointSecurityGroup
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ssm"
+      SubnetIds:
+        - { "Fn::ImportValue": "private-subnet-id1-rosa" }
+      VpcEndpointType: Interface
+      VpcId: { "Fn::ImportValue": "vpc-id-rosa" } # ROSA VPC ID
+
+  VPCAEC2MessagesEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      PrivateDnsEnabled: true
+      SecurityGroupIds:
+        - !Ref VPCAEndpointSecurityGroup
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ec2messages"
+      SubnetIds:
+        - { "Fn::ImportValue": "private-subnet-id1-rosa" }
+      VpcEndpointType: Interface
+      VpcId: { "Fn::ImportValue": "vpc-id-rosa" } # ROSA VPC ID
+
+  VPCASSMMessagesEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      PrivateDnsEnabled: true
+      SecurityGroupIds:
+        - !Ref VPCAEndpointSecurityGroup
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ssmmessages"
+      SubnetIds:
+        - { "Fn::ImportValue": "private-subnet-id1-rosa" }
+      VpcEndpointType: Interface
+      VpcId: { "Fn::ImportValue": "vpc-id-rosa" } # ROSA VPC ID
+
+  # SSM Role:
+  SubnetRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${EnvironmentName}-SSMRole-${AWS::Region}"
+      Path: "/"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+
+  # Instance Profile
+  SubnetInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: "/"
+      Roles:
+        - !Ref SubnetRole
+
+  # Bastion Security Group:
+  SubnetSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "ICMP acess from VPCA"
+      GroupName: !Sub ${EnvironmentName}-TestInstance-Sg1
+      VpcId: { "Fn::ImportValue": "vpc-id-rosa" } # ROSA VPC ID
+      SecurityGroupIngress:
+        - IpProtocol: icmp
+          CidrIp: { "Fn::ImportValue": "vpc-cidr-rosa" } # ROSA VPC CIDR
+          FromPort: -1
+          ToPort: -1
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-TestInstance-Sg1
+
+
+  # Create SSH Key (SSM Bastion doesn't need SSH because it allows to login in from AWS console. This is addedd just for convenience)
+  NewKeyPair:
+    Type: "AWS::EC2::KeyPair"
+    Properties:
+      KeyName: SSMBastionKeyPair
+
+  # SSM Bastion Instances
+  BastionInstance1:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref LatestAmiId
+      KeyName: !Ref NewKeyPair
+      SubnetId: { "Fn::ImportValue": "private-subnet-id1-rosa" } # subnet id where the SSM bastion will be created
+      InstanceType: t2.micro
+      SecurityGroupIds:
+        - !Ref SubnetSecurityGroup
+      IamInstanceProfile: !Ref SubnetInstanceProfile
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-BastionInstance1
+      UserData:
+        Fn::Base64: |
+          #!/bin/bash -xe
+          exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
+          sleep 180
+          date > /tmp/ec2-install.log
+          chmod 444 /tmp/ec2-install.log
+          whoami >> /tmp/ec2-install.log
+          sudo yum update -y
+          curl -LO https://mirror.openshift.com/pub/openshift-v4/clients/rosa/latest/rosa-linux.tar.gz
+          tar -zxf rosa-linux.tar.gz 
+          sudo mv ./pink /usr/local/bin/
+          rosa download oc
+          tar -xzf openshift-client-linux.tar.gz 
+          sudo mv ./oc /usr/local/bin
+          sudo mv ./kubectl /usr/local/bin
+          oc version  >> /tmp/ec2-install.log
+          sudo yum install -y git
+          git version >> /tmp/ec2-install.log
+          sudo yum install -y jq
+          echo "set -o vi" >> /home/ssm-user/.bash_profile
+          echo "install Let's Encrypt modules" >> /tmp/ec2-install.log
+          sudo wget -r --no-parent -A 'epel-release-*.rpm' https://dl.fedoraproject.org/pub/epel/7/x86_64/Packages/e/
+          sudo rpm -Uvh dl.fedoraproject.org/pub/epel/7/x86_64/Packages/e/epel-release-*.rpm
+          sudo amazon-linux-extras install epel -y
+          sudo yum install - and certbot python2-certbot-apache
+
+# ------------------------------------------------------
+# Out put
+
+Outputs:
+  BastionKeyPair:
+    Description: Bastion Key Name. You can get this key from Systems Manager parameter
+    Value: !Ref NewKeyPair
+
+   
+
