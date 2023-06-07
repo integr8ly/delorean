@@ -152,7 +152,7 @@ get_cluster_id() {
 
 # Gets the local aws account id
 get_account_id() {
-    local ACCOUNT_ID=$(aws sts get-caller-identity | jq -r .Account)
+    local ACCOUNT_ID=$(aws sts get-caller-identity --output json | jq -r .Account)
     echo "$ACCOUNT_ID"
 }
 
@@ -161,7 +161,7 @@ get_role_arn() {
 }
 
 get_oidc_provider() {
-    local OIDC_PROVIDER=$(aws iam list-open-id-connect-providers | jq -r --arg CLUSTER_ID "$(get_cluster_id)" '.OpenIDConnectProviderList[] | select(.Arn | endswith($CLUSTER_ID)).Arn')
+    local OIDC_PROVIDER=$(aws iam list-open-id-connect-providers --output json | jq -r --arg CLUSTER_ID "$(get_cluster_id)" '.OpenIDConnectProviderList[] | select(.Arn | endswith($CLUSTER_ID)).Arn')
     echo "$OIDC_PROVIDER"
 }
 
