@@ -294,7 +294,7 @@ func getTestContainerJob(namespace string, t *TestContainer) *batchv1.Job {
 						},
 						{
 							Name:  "sidecar",
-							Image: "busybox",
+							Image: "quay.io/quay/busybox:latest",
 							VolumeMounts: []v1.VolumeMount{
 								{
 									Name:      "test-run-results",
