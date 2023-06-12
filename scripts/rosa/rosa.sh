@@ -208,6 +208,7 @@ EOM
                 "ec2:DescribeSubnets",
                 "ec2:DescribeVpcPeeringConnections",
                 "ec2:DescribeVpcs",
+                "ec2:DescribeInternetGateways",
                 "elasticache:DescribeCacheClusters",
                 "elasticache:DescribeReplicationGroups",
                 "elasticache:DescribeCacheSubnetGroups",
