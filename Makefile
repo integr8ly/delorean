@@ -39,5 +39,5 @@ vendor/check: vendor/fix
 
 .PHONY: vendor/fix
 vendor/fix:
-	go mod tidy -compat=1.18
+	go mod tidy -compat=1.19
 	go mod vendor
