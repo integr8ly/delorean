@@ -1,6 +1,6 @@
 module github.com/integr8ly/delorean
 
-go 1.18
+go 1.19
 
 require (
 	github.com/aws/aws-sdk-go v1.35.24
