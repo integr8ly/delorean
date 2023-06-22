@@ -108,7 +108,7 @@ func WriteObjectToJSON(obj interface{}, jsonFile string) error {
 	return nil
 }
 
-//https://github.com/operator-framework/operator-sdk/blob/master/internal/util/k8sutil/object.go
+// https://github.com/operator-framework/operator-sdk/blob/master/internal/util/k8sutil/object.go
 func deleteKeyFromUnstructured(u map[string]interface{}, key string) {
 	if _, ok := u[key]; ok {
 		delete(u, key)
