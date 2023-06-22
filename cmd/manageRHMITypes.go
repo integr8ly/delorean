@@ -106,6 +106,8 @@ func PrepareProductName(product string) string {
 		product = "FuseOnline"
 	case "rhsso":
 		product = "RHSSO"
+	case "rhssouser":
+		product = "RHSSOUser"
 	}
 
 	return product
