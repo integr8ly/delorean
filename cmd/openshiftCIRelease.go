@@ -50,7 +50,8 @@ type openshiftCIReleaseCmd struct {
 	gitRemoteService        services.GitRemoteService
 }
 
-/**
+/*
+*
 // Integreatly Operator updates
 //1. Clone the integreatly operator repo and ensure it's on the correct initial minor release tag (v2.1.0, v2.2.0 etc..) for the given tag (v2.1.1, v2.2.1 etc..)
 //2. Create a new release branch with the correct naming we expect (release-v2.1) if one does not already exist
@@ -98,16 +99,18 @@ func (c *openshiftCIReleaseCmd) DoIntlyOperatorUpdate() (string, error) {
 	return repoDir, nil
 }
 
-/**
-  OpenShift Release updates
-  1. Clone the release repo and ensure it is up to date
-  2. Create configuration in the release repo for this new branch
-  3. Add ci-operator config for branch (https://github.com/openshift/release/blob/master/ci-operator/config/integr8ly/integreatly-operator/integr8ly-integreatly-operator-master.yaml)
-  4. Update promotion config to ensure it pushes the images to the registry with a different tag name (branch name)
-  5. Run Make jobs
-  6. Update image mirroring to include entries for the new release branch https://github.com/openshift/release/blob/master/core-services/image-mirroring/integr8ly/mapping_integr8ly_operator
-  7. Commit all updated and generate configuration
-  8. Open a PR
+/*
+*
+
+	OpenShift Release updates
+	1. Clone the release repo and ensure it is up to date
+	2. Create configuration in the release repo for this new branch
+	3. Add ci-operator config for branch (https://github.com/openshift/release/blob/master/ci-operator/config/integr8ly/integreatly-operator/integr8ly-integreatly-operator-master.yaml)
+	4. Update promotion config to ensure it pushes the images to the registry with a different tag name (branch name)
+	5. Run Make jobs
+	6. Update image mirroring to include entries for the new release branch https://github.com/openshift/release/blob/master/core-services/image-mirroring/integr8ly/mapping_integr8ly_operator
+	7. Commit all updated and generate configuration
+	8. Open a PR
 */
 func (c *openshiftCIReleaseCmd) DoOpenShiftReleaseUpdate(ctx context.Context) (string, error) {
 	//Clone the release repo to a temp directory
