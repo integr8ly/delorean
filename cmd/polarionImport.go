@@ -209,7 +209,7 @@ func (c *polarionImportCmd) processReportFile(ctx context.Context, object *s3.Ob
 func (c *polarionImportCmd) importToPolarion(key string, metadata *testMetadata, zipfile string) error {
 
 	// Do not import master/nightly tests
-	if metadata.RHMIVersion == "" {
+	if metadata.RHMIVersion == "" || metadata.RHMIVersion == "null" {
 		fmt.Printf("[%s] ignore test results %s %s\n", key, metadata.Name, metadata.RHMIVersion)
 		return nil
 	}
