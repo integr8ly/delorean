@@ -5,7 +5,7 @@ ENV OPERATOR_SDK_VERSION=v1.21.0 \
     GOFLAGS="" \
     PATH=$PATH:/usr/local/go/bin
 
-COPY resources/rhit-root-ca.crt /etc/pki/ca-trust/source/anchors/
+COPY resources/2015-IT-Root-CA.pem resources/2022-IT-Root-CA.pem /etc/pki/ca-trust/source/anchors/
 
 RUN set -o pipefail && \
     INSTALL_PKGS="make rsync wget gcc which git diffutils openssh" && \
