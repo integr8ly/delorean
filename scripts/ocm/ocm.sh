@@ -360,6 +360,11 @@ install_addon() {
         addon_payload+=", {\"id\": \"maintenance-hour\", \"value\": \"${MAINTENANCE_HOUR}\"}"
     fi
 
+    # Add notification-email param to addon payload if specified
+    if [[ -n "${ALERTING_EMAIL_ADDRESS}" ]]; then
+        addon_payload+=", {\"id\": \"notification-email\", \"value\": \"${ALERTING_EMAIL_ADDRESS}\"}"
+    fi
+
     # Add the custom SMTP parameters to addon payload if present in the command
     if [[ -n "${SMTP_FROM}" ]]; then
         addon_payload+=", {\"id\": \"custom-smtp-from_address\", \"value\": \"${SMTP_FROM}\"}"
@@ -396,13 +401,6 @@ install_addon() {
     echo "Patching RHMI CR"
     oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" patch rhmi "${rhmi_name}" -n "${OPERATOR_NAMESPACE}" \
         --type=merge -p "{\"spec\":{\"useClusterStorage\": \"${USE_CLUSTER_STORAGE}\", \"selfSignedCerts\": ${SELF_SIGNED_CERTS:-false} }}"
-
-    # Change alerting email address is ALERTING_EMAIL_ADDRESS variable is set
-    if [[ -n "${ALERTING_EMAIL_ADDRESS:-}" ]]; then
-        echo "Changing alerting email address to: ${ALERTING_EMAIL_ADDRESS}"
-        oc --kubeconfig "${CLUSTER_KUBECONFIG_FILE}" patch rhmi "${rhmi_name}" -n "${OPERATOR_NAMESPACE}" \
-            --type=merge -p "{\"spec\":{ \"alertingEmailAddress\": \"${ALERTING_EMAIL_ADDRESS}\"}}"
-    fi
 
 #   Secret creation is only required rhmi addon installs.
 #   Creating the secrets for RHOAM addons affect how the SLO reporting happens in the nightly RHOAM addon pipelines due to a waiting phase
