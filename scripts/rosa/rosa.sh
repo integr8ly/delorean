@@ -69,7 +69,7 @@ PRIVATE_LINK="${PRIVATE_LINK:-false}"
 BYOVPC="${BYOVPC:-false}"
 SUBNET_IDS="${SUBNET_IDS-""}"
 MACHINE_CIDR="${MACHINE_CIDR-""}"
-
+OSD_VERSION="${OSD_VERSION-""}"
 
 provision_rosa_cluster() {
     rosa login --env=$OCM_ENV
@@ -99,6 +99,9 @@ provision_rosa_cluster() {
         if [[ -n $MACHINE_CIDR && $MACHINE_CIDR != "" ]]; then
           args+=(--machine-cidr=$MACHINE_CIDR)
         fi
+    fi
+    if [[ -n $OSD_VERSION && OSD_VERSION != "" ]]; then
+        args+=(--version $OSD_VERSION)
     fi
     if [[ $STS_ENABLED == 'true' ]]; then
         args+=(--sts --mode auto)
