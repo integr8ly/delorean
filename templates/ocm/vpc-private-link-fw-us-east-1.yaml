@@ -471,7 +471,7 @@ Resources:
                   responseData['FwVpceId3'] = VpceId3
                   responseStatus = cfnresponse.SUCCESS
                   cfnresponse.send(event, context, responseStatus, responseData)
-      Runtime: python3.7
+      Runtime: python3.12
       Timeout: 30
 
   FirewallVpceIds:
@@ -564,7 +564,7 @@ Resources:
     Properties:
       RuleGroupName: !Sub ${EnvironmentName}-DomainAllow-RuleGroup
       Type: STATEFUL
-      Capacity: 100
+      Capacity: 200
       RuleGroup:
         RuleVariables:
           IPSets:
@@ -582,20 +582,31 @@ Resources:
               - "sso.redhat.com"
               - "sso.stage.redhat.com"
               - "quay-registry.s3.amazonaws.com"
-              - "cm-quay-production-s3.s3.amazonaws.com"
+              - "ocm-quay-production-s3.s3.amazonaws.com"
+              - "quayio-production-s3.s3.amazonaws.com"
               - "cart-rhcos-ci.s3.amazonaws.com"
               - "openshift.org"
               - "registry.access.redhat.com"
+              - "registry.connect.redhat.com"
               - "console.redhat.com"
               - "console.stage.redhat.com"
               - "pull.q1w2.quay.rhcloud.com"
               - ".q1w2.quay.rhcloud.com"
+              - "www.okd.io"
+              - "www.redhat.com"
+              - "aws.amazon.com"
+              - "catalog.redhat.com"
+              - "dvbwgdztaeq9o.cloudfront.net"
+              - "time-a-g.nist.gov"
+              - "time-a-wwv.nist.gov"
               - "cert-api.access.redhat.com"
               - "api.access.redhat.com"
               - "infogw.api.openshift.com"
               - "infogw.api.stage.openshift.com"
+              - "cloud.redhat.com"
               - "observatorium.api.openshift.com"
               - "observatorium.api.stage.openshift.com"
+              - "observatorium-mst.api.openshift.com"
               - ".amazonaws.com"
               - "mirror.openshift.com"
               - "storage.googleapis.com"
@@ -608,9 +619,18 @@ Resources:
               - ".osdsecuritylogs.splunkcloud.com"
               - "http-inputs-osdsecuritylogs.splunkcloud.com"
               - "sftp.access.redhat.com"
-              - "observatorium-mst.api.openshift.com"
+              - "rhc4tp-prod-z8cxf-image-registry-us-east-1-evenkyleffocxqvofrk.s3.dualstack.us-east-1.amazonaws.com"
+              - "oso-rhc4tp-docker-registry.s3-us-west-2.amazonaws.com"
               - ".stage.redhat.com"
               - ".stage.openshift.com"
+              - "docker.io"
+              - "docker.com"
+              - "hub.docker.com"
+              - "index.docker.io"
+              - "s3-us-west-2-r-w.amazonaws.com"
+              - "s3-us-east-1-r-w.amazonaws.com"
+              - "github.com"
+              - "gitlab.com"
             GeneratedRulesType: "ALLOWLIST"
       Tags:
         - Key: Name
