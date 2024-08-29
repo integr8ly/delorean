@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi8/ubi:latest
+FROM registry.access.redhat.com/ubi9/ubi:latest
 LABEL maintainer="mnairn@redhat.com"
 
 ENV OPERATOR_SDK_VERSION=v1.21.0 \
