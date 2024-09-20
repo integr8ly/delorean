@@ -72,7 +72,8 @@ MACHINE_CIDR="${MACHINE_CIDR-""}"
 OSD_VERSION="${OSD_VERSION-""}"
 
 provision_rosa_cluster() {
-    rosa login --env=$OCM_ENV
+    # This seems to make login session expire after 15 minutes
+    # rosa login --env=$OCM_ENV
     args=(--cluster-name $CLUSTER_NAME --region $AWS_REGION --compute-machine-type $MACHINE_TYPE)
     if [[ $ENABLE_AUTOSCALING == 'true' ]]; then
         args+=(--enable-autoscaling --min-replicas $MIN_REPLICAS --max-replicas $MAX_REPLICAS)
